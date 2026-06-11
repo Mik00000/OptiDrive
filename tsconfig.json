@@ -1,7 +1,9 @@
 {
+  // Кореневий tsconfig для монорепозиторію.
+  // Він не компілює файли напряму, а лише координує project references.
   "files": [],
   "references": [
-    { "path": "./tsconfig.app.json" },
-    { "path": "./tsconfig.node.json" }
+    { "path": "./packages/shared" },
+    { "path": "./apps/backend" }
   ]
 }

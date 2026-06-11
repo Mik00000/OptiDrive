@@ -1,0 +1,34 @@
+{
+  "compilerOptions": {
+    // Увімкнути для TypeScript Project References
+    "composite": true,
+
+    // Розташування файлів
+    "rootDir": "./src",
+    "outDir": "./dist",
+
+    // Налаштування середовища (бібліотека — без DOM)
+    "module": "commonjs",
+    "target": "es2022",
+    "lib": ["es2022"],
+
+    // Додаткові виходи
+    "sourceMap": true,
+    "declaration": true,
+    "declarationMap": true,
+
+    // Суворіші перевірки
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "exactOptionalPropertyTypes": true,
+
+    // Рекомендовані параметри
+    "esModuleInterop": true,
+    "isolatedModules": true,
+    "moduleDetection": "force",
+    "resolveJsonModule": true,
+    "skipLibCheck": true
+  },
+  "include": ["src/**/*"],
+  "exclude": ["node_modules", "dist"]
+}

@@ -1,0 +1,46 @@
+{
+  "compilerOptions": {
+    // Увімкнути для TypeScript Project References
+    "composite": true,
+
+    // Розташування файлів
+    "rootDir": "./src",
+    "outDir": "./dist",
+
+    // Налаштування середовища (Node.js)
+    "module": "commonjs",
+    "target": "es2022",
+    "lib": ["es2022"],
+    "types": ["node"],
+
+    // Додаткові виходи
+    "sourceMap": true,
+    "declaration": true,
+    "declarationMap": true,
+
+    // Суворіші перевірки
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "exactOptionalPropertyTypes": true,
+
+    // Стиль (рекомендовано увімкнути пізніше)
+    // "noImplicitReturns": true,
+    // "noImplicitOverride": true,
+    // "noUnusedLocals": true,
+    // "noUnusedParameters": true,
+
+    // Рекомендовані параметри
+    "esModuleInterop": true,
+    "verbatimModuleSyntax": false,
+    "isolatedModules": true,
+    "moduleDetection": "force",
+    "resolveJsonModule": true,
+    "skipLibCheck": true
+  },
+  "include": ["src/**/*"],
+  "exclude": ["node_modules", "dist"],
+  // Посилання на спільний пакет — IDE бачить типи без попереднього build
+  "references": [
+    { "path": "../../packages/shared" }
+  ]
+}
