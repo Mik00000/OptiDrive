@@ -18,7 +18,7 @@ const menu: MenuItem[] = [
   { text: 'Media Library', link: '/media', icon: 'lucide:image' },
   { text: 'API Keys', link: '/api-keys', icon: 'lucide:key' },
   { text: 'Billing', link: '/billing', icon: 'lucide:credit-card' },
-  { text: 'Documentation', link: '/documentation', icon: 'lucide:book' },
+  { text: 'Documentation', link: '/api-docs', icon: 'lucide:book' },
   { text: 'Settings', link: '/settings', icon: 'lucide:settings' },
 ];
 

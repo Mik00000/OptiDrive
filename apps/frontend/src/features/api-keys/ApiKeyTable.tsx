@@ -74,16 +74,18 @@ function ApiKeyTableRow({
       </td>
 
       {/* Action */}
-      <td className="px-5 py-4 text-right">
-        <Button
-          variant="danger"
-          onClick={() => onRevoke(apiKey.id)}
-          className="gap-1.5 px-3 py-2 text-xs"
-        >
-          <Icon icon="lucide:trash-2" width={13} />
-          Revoke
-        </Button>
-      </td>
+<td className="px-5 py-4">
+  <div className="flex justify-end">
+    <Button
+      variant="danger"
+      onClick={() => onRevoke(apiKey.id)}
+      className="gap-1.5 px-3 py-2 text-xs"
+    >
+      <Icon icon="lucide:trash-2" width={13} />
+      Revoke
+    </Button>
+  </div>
+</td>
     </tr>
   );
 }
