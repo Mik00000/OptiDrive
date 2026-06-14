@@ -20,7 +20,7 @@ export function Button({
   ...props
 }: ButtonProps) {
   const baseStyles =
-    'px-3 py-2.5 rounded-md text-sm font-medium transition-all duration-200 active:scale-95 cursor-pointer flex flex-row items-center justify-center gap-2';
+    'px-3 py-2.5 rounded-md text-sm font-medium transition-all duration-200 active:scale-95 cursor-pointer flex flex-row items-center justify-center gap-2 h-fit';
 
   const variants = {
     primary:
