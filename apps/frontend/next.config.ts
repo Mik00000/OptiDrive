@@ -6,6 +6,15 @@ const nextConfig: NextConfig = {
 
   // Дозволяємо Next.js транспілювати TypeScript-пакети з монорепозиторію
   transpilePackages: ["@optidrive/shared"],
+
+  async rewrites() {
+    return [
+      {
+        source: '/api/:path*',
+        destination: 'http://localhost:3001/api/:path*',
+      },
+    ];
+  },
 };
 
 export default nextConfig;

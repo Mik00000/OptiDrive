@@ -1,6 +1,11 @@
+"use client";
+
+import { useState } from 'react';
 import { Button } from '@/components/Button';
 import PageHeading from '@/components/PageHeading';
 import { Icon } from '@iconify/react';
+import { UpgradePlanModal } from '@/features/billing/UpgradePlanModal';
+import { UpdatePaymentModal } from '@/features/billing/UpdatePaymentModal';
 
 const MOCK_INVOICES = [
   { id: 'INV-2023-10-01', date: 'Oct 1, 2023', amount: '$29.00', status: 'Paid' },
@@ -9,8 +14,11 @@ const MOCK_INVOICES = [
 ];
 
 const BillingAndSubscriptionsPage = () => {
+  const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
+  const [isUpdatePaymentModalOpen, setIsUpdatePaymentModalOpen] = useState(false);
+
   return (
-    <section className="dashboard-page">
+    <section className="dashboard-page relative">
       <PageHeading title="Billing & Subscription" />
       <div className="flex flex-col gap-6 p-4 pb-8 lg:p-8 lg:pb-8">
         <section className="border-border bg-card flex min-w-0 flex-1 flex-col md:flex-row gap-6 md:gap-3 rounded-2xl border p-5 md:p-6.25">
@@ -51,7 +59,7 @@ const BillingAndSubscriptionsPage = () => {
                 support.
               </p>
             </div>
-            <Button variant="accent" mobileBehavior="full-width" className="md:w-auto mt-2 md:mt-0">
+            <Button variant="accent" mobileBehavior="full-width" className="md:w-auto mt-2 md:mt-0" onClick={() => setIsUpgradeModalOpen(true)}>
               <div className="inline-flex h-5 w-5 items-center justify-center sm:h-4 sm:w-4">
                 <Icon icon="lucide:zap" width="100%" height="100%" />
               </div>
@@ -86,7 +94,7 @@ const BillingAndSubscriptionsPage = () => {
                 </span>
               </div>
             </div>
-            <Button variant='bordered' mobileBehavior="full-width" className="md:w-auto">Update</Button>
+            <Button variant='bordered' mobileBehavior="full-width" className="md:w-auto" onClick={() => setIsUpdatePaymentModalOpen(true)}>Update</Button>
           </div>
         </section>
 
@@ -129,7 +137,10 @@ const BillingAndSubscriptionsPage = () => {
                       )}
                     </td>
                     <td className="px-6 py-4 text-right">
-                      <button className="text-text-muted hover:text-text-light cursor-pointer p-1.5 align-middle opacity-70 transition-colors hover:opacity-100 hover:scale-110">
+                      <button 
+                        className="text-text-muted hover:text-text-light cursor-pointer p-1.5 align-middle opacity-70 transition-colors hover:opacity-100 hover:scale-110"
+                        onClick={() => alert(`Downloading ${invoice.id}...`)}
+                      >
                         <Icon icon="lucide:download" width={18} />
                       </button>
                     </td>
@@ -161,7 +172,10 @@ const BillingAndSubscriptionsPage = () => {
                   </div>
                 </div>
                 <div className="flex items-center">
-                  <button className="flex items-center justify-center w-12 h-12 rounded-xl text-text-muted hover:text-text-light hover:bg-white/5 transition-colors active:scale-95">
+                  <button 
+                    className="flex items-center justify-center w-12 h-12 rounded-xl text-text-muted hover:text-text-light hover:bg-white/5 transition-colors active:scale-95"
+                    onClick={() => alert(`Downloading ${invoice.id}...`)}
+                  >
                     <Icon icon="lucide:download" width={22} />
                   </button>
                 </div>
@@ -170,6 +184,9 @@ const BillingAndSubscriptionsPage = () => {
           </div>
         </section>
       </div>
+      
+      <UpgradePlanModal isOpen={isUpgradeModalOpen} onClose={() => setIsUpgradeModalOpen(false)} />
+      <UpdatePaymentModal isOpen={isUpdatePaymentModalOpen} onClose={() => setIsUpdatePaymentModalOpen(false)} />
     </section>
   );
 };

@@ -1,8 +1,11 @@
-import { ReactNode } from 'react';
+"use client";
+
+import { ReactNode, useState } from 'react';
 import { Button } from '@/components/Button';
 import PageHeading from '@/components/PageHeading';
 import { Icon } from '@iconify/react';
 import { ApiCodePanel } from '../../../features/api-docs/ApiCodePanel';
+import { FullReferenceModal } from '@/features/api-docs/FullReferenceModal';
 
 const CodeBadge = ({ children }: { children: ReactNode }) => (
   <span className="bg-card border-border text-text-light rounded-lg border px-1.5 py-[1.5px] font-mono">
@@ -44,10 +47,12 @@ const API_STEPS = [
 ];
 
 const ApiDocsPage = () => {
+  const [isModalOpen, setIsModalOpen] = useState(false);
+
   return (
-    <section className="dashboard-page flex flex-col xl:h-full">
+    <section className="dashboard-page flex flex-col xl:h-full relative">
       <PageHeading title="API Documentation">
-        <Button variant="accent" mobileBehavior="icon-only">
+        <Button variant="accent" mobileBehavior="icon-only" onClick={() => setIsModalOpen(true)}>
           <div className="inline-flex h-5 w-5 items-center justify-center sm:h-4 sm:w-4">
             <Icon icon="lucide:external-link" width="100%" height="100%" />
           </div>
@@ -90,6 +95,8 @@ const ApiDocsPage = () => {
           <ApiCodePanel />
         </div>
       </div>
+      
+      <FullReferenceModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} />
     </section>
   );
 };

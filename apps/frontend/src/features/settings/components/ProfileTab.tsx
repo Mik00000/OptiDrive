@@ -1,10 +1,27 @@
+"use client";
+
+import { useState, useRef } from 'react';
 import { Button } from '@/components/Button';
 import { Input } from '@/components/Inputs';
 import { Icon } from '@iconify/react';
+import { ConfirmModal } from './ConfirmModal';
+import { ChangePasswordModal } from './ChangePasswordModal';
 
 export const ProfileTab = () => {
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  
+  const [isRemovePictureModalOpen, setIsRemovePictureModalOpen] = useState(false);
+  const [isSaveChangesModalOpen, setIsSaveChangesModalOpen] = useState(false);
+  const [isDeleteAccountModalOpen, setIsDeleteAccountModalOpen] = useState(false);
+  const [isChangePasswordModalOpen, setIsChangePasswordModalOpen] = useState(false);
+  
+  const handleUploadPictureClick = () => {
+    fileInputRef.current?.click();
+  };
+
   return (
-    <div className="flex max-w-4xl flex-col gap-6 pb-8 lg:gap-8">
+    <div className="flex max-w-4xl flex-col gap-6 pb-8 lg:gap-8 relative">
+      <input type="file" ref={fileInputRef} className="hidden" accept="image/*" />
       <div className="border-border bg-card flex flex-col overflow-hidden rounded-2xl border">
         <div className="border-border border-b px-4 py-4 sm:px-6">
           <span className="text-text-light text-lg font-semibold">
@@ -25,12 +42,14 @@ export const ProfileTab = () => {
                 <Button
                   variant="bordered"
                   className="w-full justify-center sm:w-auto"
+                  onClick={handleUploadPictureClick}
                 >
                   Upload new picture
                 </Button>
                 <Button
                   variant="ghost"
                   className="text-text-muted hover:text-text-light/90 w-full justify-center sm:w-auto"
+                  onClick={() => setIsRemovePictureModalOpen(true)}
                 >
                   Remove
                 </Button>
@@ -84,7 +103,7 @@ export const ProfileTab = () => {
         </div>
 
         <div className="bg-bg flex items-center justify-end px-4 py-4 sm:px-6">
-          <Button variant="accent" className="w-full justify-center sm:w-auto">
+          <Button variant="accent" className="w-full justify-center sm:w-auto" onClick={() => setIsSaveChangesModalOpen(true)}>
             Save Changes
           </Button>
         </div>
@@ -115,6 +134,7 @@ export const ProfileTab = () => {
             <Button
               variant="primary"
               className="w-full shrink-0 justify-center sm:w-auto"
+              onClick={() => setIsChangePasswordModalOpen(true)}
             >
               Change Password
             </Button>
@@ -131,6 +151,7 @@ export const ProfileTab = () => {
             <Button
               variant="danger"
               className="w-full shrink-0 justify-center sm:w-auto"
+              onClick={() => setIsDeleteAccountModalOpen(true)}
             >
               <Icon
                 icon="lucide:trash-2"
@@ -143,6 +164,44 @@ export const ProfileTab = () => {
           </div>
         </div>
       </div>
+      
+      <ConfirmModal
+        isOpen={isRemovePictureModalOpen}
+        onClose={() => setIsRemovePictureModalOpen(false)}
+        onConfirm={() => {}}
+        title="Remove Profile Picture"
+        description="Are you sure you want to remove your profile picture? It will be replaced with a default avatar."
+        confirmText="Remove"
+        variant="danger"
+        icon="lucide:trash-2"
+      />
+      
+      <ConfirmModal
+        isOpen={isSaveChangesModalOpen}
+        onClose={() => setIsSaveChangesModalOpen(false)}
+        onConfirm={() => {}}
+        title="Save Changes"
+        description="Are you sure you want to save the new profile settings?"
+        confirmText="Save"
+        variant="accent"
+        icon="lucide:save"
+      />
+      
+      <ConfirmModal
+        isOpen={isDeleteAccountModalOpen}
+        onClose={() => setIsDeleteAccountModalOpen(false)}
+        onConfirm={() => {}}
+        title="Delete Account"
+        description="Are you sure you want to delete your account? This action cannot be undone. All your data and files will be permanently deleted."
+        confirmText="Delete Permanently"
+        variant="danger"
+        icon="lucide:triangle-alert"
+      />
+      
+      <ChangePasswordModal
+        isOpen={isChangePasswordModalOpen}
+        onClose={() => setIsChangePasswordModalOpen(false)}
+      />
     </div>
   );
 };

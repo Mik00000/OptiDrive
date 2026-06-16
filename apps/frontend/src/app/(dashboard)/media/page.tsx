@@ -6,14 +6,16 @@ import PageHeading from '@/components/PageHeading';
 import { Icon } from '@iconify/react';
 import { useState } from 'react';
 import { MediaTable } from '@/features/media/MediaTable';
+import { UploadMediaModal } from '@/features/media/UploadMediaModal';
 
 const MediaLibraryPage = () => {
   const [formatFilter, setFormatFilter] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [isSelectionMode, setIsSelectionMode] = useState(false);
+  const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
 
   return (
-    <section className="dashboard-page">
+    <section className="dashboard-page relative">
       <PageHeading title="Media Library">
         <div className="flex items-center gap-2">
           <Button 
@@ -23,7 +25,7 @@ const MediaLibraryPage = () => {
           >
             {isSelectionMode ? 'Cancel' : 'Select'}
           </Button>
-          <Button variant="accent" mobileBehavior="icon-only">
+          <Button variant="accent" mobileBehavior="icon-only" onClick={() => setIsUploadModalOpen(true)}>
             <div className="inline-flex h-5 w-5 items-center justify-center sm:h-4 sm:w-4">
               <Icon icon="lucide:upload" width="100%" height="100%" />
             </div>
@@ -66,7 +68,7 @@ const MediaLibraryPage = () => {
               className="text-text-light text-sm w-full xl:w-fit bg-card xl:bg-bg rounded-xl h-11.5 xl:h-fit"
             />
           </div>
-          <MediaTable 
+            <MediaTable 
             searchQuery={searchQuery} 
             formatFilter={formatFilter} 
             isSelectionMode={isSelectionMode}
@@ -74,6 +76,11 @@ const MediaLibraryPage = () => {
           />
         </div>
       </div>
+      
+      <UploadMediaModal 
+        isOpen={isUploadModalOpen} 
+        onClose={() => setIsUploadModalOpen(false)} 
+      />
     </section>
   );
 };

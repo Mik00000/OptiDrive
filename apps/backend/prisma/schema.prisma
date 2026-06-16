@@ -1,13 +1,154 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Get a free hosted Postgres database in seconds: `npx create-db`
-
-generator client {
-  provider = "prisma-client"
-  output   = "../generated/prisma"
+datasource db {
+  provider = "postgresql" // або "mysql" / "sqlite"
+  url      = env("DATABASE_URL")
 }
 
-datasource db {
-  provider = "postgresql"
+generator client {
+  provider = "prisma-client-js"
+}
+
+// Ролі або дозволи для API-ключів
+enum KeyPermission {
+  FULL_ACCESS
+  READ_ONLY
+  UPLOAD_ONLY
+}
+
+// Статуси оплати інвойсів
+enum InvoiceStatus {
+  PAID
+  PENDING
+  FAILED
+}
+
+// Тарифи підписки
+enum PlanType {
+  FREE
+  PRO
+  ENTERPRISE
+}
+
+// Типи бізнес-подій для журналу активності (Recent Activity)
+enum ActivityType {
+  FILE_UPLOADED
+  FILE_DELETED
+  KEY_GENERATED
+  KEY_REVOKED
+  PLAN_UPGRADED
+  SETTING_CHANGED
+}
+
+// 1. Користувач системи
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  name         String?
+  avatarUrl    String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  
+  workspaceId  String
+  workspace    Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  // Зв'язок із логами дій (якщо користувача видалять, логи залишаються, але поле userId стане null)
+  activityLogs ActivityLog[]
+}
+
+// 2. Робочий простір (Основний контейнер бізнесу)
+model Workspace {
+  id             String   @id @default(cuid())
+  name           String   // Наприклад, "Acme Corp"
+  slug           String   @unique
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  // Ліміти та поточне використання в BigInt
+  plan           PlanType @default(FREE)
+  storageUsed    BigInt   @default(0)
+  storageLimit   BigInt   @default(10737418240)      // 10 GB
+  bandwidthUsed  BigInt   @default(0)
+  bandwidthLimit BigInt   @default(10995116277760)  // 10 TB
+
+  // Зв'язки
+  users          User[]
+  apiKeys        ApiKey[]
+  files          MediaFile[]
+  invoices       Invoice[]
+  analyticsLogs  AnalyticsLog[]
+  activityLogs   ActivityLog[]
+}
+
+// 3. API Ключі для безпечної інтеграції
+model ApiKey {
+  id          String        @id @default(cuid())
+  name        String        // Наприклад, "Production-Backend"
+  tokenHash   String        @unique // Хеш токена для перевірки на бекенді (незворотний)
+  maskedToken String        // Рядок типу "op_live_••••••••3x9q" для безпечного виведення в UI
+  permissions KeyPermission @default(READ_ONLY)
+  createdAt   DateTime      @default(now())
+  lastUsedAt  DateTime?
+  
+  workspaceId String
+  workspace   Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+}
+
+// 4. Медіатека
+model MediaFile {
+  id            String   @id @default(cuid())
+  name          String   // Наприклад, "hero-banner.png"
+  format        String   // Наприклад, "webp"
+  originalSize  BigInt   // Розмір у байтах до стиснення
+  optimizedSize BigInt   // Розмір у байтах після стиснення
+  savings       Float    // Відсоток економії, наприклад, 81.5
+  cdnUrl        String   // Згенероване CDN-посилання
+  createdAt     DateTime @default(now())
+
+  workspaceId   String
+  workspace     Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId])
+}
+
+// 5. Історія платежів та інвойси
+model Invoice {
+  id            String        @id @default(cuid())
+  invoiceNumber String        @unique // Наприклад, "INV-2023-10-01"
+  amount        Float
+  status        InvoiceStatus @default(PENDING)
+  createdAt     DateTime      @default(now())
+  pdfUrl        String?
+
+  workspaceId   String
+  workspace     Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+}
+
+// 6. Логи запитів для високопродуктивних графіків (Часові ряди)
+model AnalyticsLog {
+  id          String   @id @default(cuid())
+  statusCode  Int      // 200, 400 тощо
+  bytesSaved  BigInt   // Економія за один конкретний запит
+  timestamp   DateTime @default(now())
+
+  workspaceId String
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId, timestamp])
+}
+
+// 7. Журнал аудиту та дій для компонента RecentActivity
+model ActivityLog {
+  id          String       @id @default(cuid())
+  type        ActivityType
+  description String       // Текстовий опис події ("Uploaded hero-banner.png", "Revoked key ...")
+  createdAt   DateTime     @default(now())
+  
+  // Хто саме виконав дію (опціонально, бо дія могла відбутися автоматично через API-ключ)
+  userId      String?
+  user        User?        @relation(fields: [userId], references: [id], onDelete: SetNull)
+  
+  workspaceId String
+  workspace   Workspace    @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId])
 }

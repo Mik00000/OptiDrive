@@ -1,14 +1,20 @@
+"use client";
+
+import { useState } from 'react';
 import { Button } from '@/components/Button';
 import { Icon } from '@iconify/react';
+import { InviteMemberModal } from './InviteMemberModal';
 
 export const TeamTab = () => {
+  const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
+
   const members = [
     { name: 'John Doe', email: 'john@example.com', role: 'Owner' },
     { name: 'Jane Smith', email: 'jane@example.com', role: 'Admin' },
   ];
 
   return (
-    <div className="flex max-w-4xl flex-col gap-6 lg:gap-8 pb-8">
+    <div className="flex max-w-4xl flex-col gap-6 lg:gap-8 pb-8 relative">
       <div className="border-border bg-card flex flex-col overflow-hidden rounded-2xl border">
         <div className="border-border border-b flex flex-col sm:flex-row sm:items-center justify-between gap-4 px-4 py-4 sm:px-6">
           <div>
@@ -19,7 +25,7 @@ export const TeamTab = () => {
               Manage who has access to this project.
             </p>
           </div>
-          <Button variant="primary" className="w-full sm:w-auto shrink-0 justify-center">
+          <Button variant="primary" className="w-full sm:w-auto shrink-0 justify-center" onClick={() => setIsInviteModalOpen(true)}>
             <Icon icon="lucide:user-plus" width="16" height="16" className="mr-2" />
             Invite Member
           </Button>
@@ -49,6 +55,11 @@ export const TeamTab = () => {
           ))}
         </div>
       </div>
+      
+      <InviteMemberModal 
+        isOpen={isInviteModalOpen} 
+        onClose={() => setIsInviteModalOpen(false)} 
+      />
     </div>
   );
 };

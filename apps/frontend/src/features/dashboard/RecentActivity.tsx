@@ -51,7 +51,7 @@ const RecentActivity = () => {
   ];
 
   return (
-    <section className="border-border bg-card flex min-w-0 flex-1 flex-col rounded-2xl border">
+<section className="border-border bg-card flex min-w-0 flex-1 flex-col overflow-hidden rounded-2xl border">
       <div className="border-border flex items-center justify-between border-b px-6 py-5">
         <h3 className="text-text-light text-lg font-semibold">
           Recent Activity
@@ -60,11 +60,12 @@ const RecentActivity = () => {
           View All
         </Button>
       </div>
-      <div>
+      
+      <div className="flex flex-col divide-y divide-border">
         {mockItems.map((item, i) => (
           <div
             key={i}
-            className="border-border flex items-center justify-between border-t border-b px-6 py-4 transition-colors duration-200 hover:bg-border/25 hover:text-text-light"
+            className="flex items-center justify-between px-6 py-4 transition-colors duration-200 hover:bg-border/25 hover:text-text-light"
           >
             <div className="flex items-center gap-4">
               <div className="border-border bg-bg rounded-xl border p-2.25">
@@ -77,7 +78,7 @@ const RecentActivity = () => {
                 </p>
               </div>
             </div>
-            <div className="flex  gap-1 sm:gap-6 flex-col sm:flex-row items-end sm:items-center">
+            <div className="flex gap-1 sm:gap-6 flex-col sm:flex-row items-end sm:items-center">
               <p className="text-brand text-xs">{item.time}</p>
               <p
                 className={`rounded-full px-2.5 py-1 font-mono text-xs hidden sm:block ${
@@ -85,7 +86,6 @@ const RecentActivity = () => {
                     ? 'bg-success/10 text-success'
                     : 'bg-error/10 text-error'
                 }`}
-
               >
                 {item.status}
               </p>
@@ -95,7 +95,6 @@ const RecentActivity = () => {
                     ? 'bg-success/10 text-success'
                     : 'bg-error/10 text-error'
                 }`}
-
               >
                 {item.shortStatus}
               </p>

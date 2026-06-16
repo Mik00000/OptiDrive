@@ -1,11 +1,13 @@
 "use client";
 
+import { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { Icon } from '@iconify/react';
 import { Button } from './Button';
 import { twMerge } from 'tailwind-merge';
 import { useSidebar } from '@/contexts/SidebarContext';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface MenuItem {
   text: string;
@@ -28,6 +30,20 @@ interface SidebarProps {
 
 export const Sidebar = ({ className }: SidebarProps) => {
   const { isOpen, setIsOpen } = useSidebar();
+  const { user, logout } = useAuth();
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  // Закриття меню при кліку поза його межами
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   return (
     <>
@@ -79,28 +95,59 @@ export const Sidebar = ({ className }: SidebarProps) => {
         </ul>
       </nav>
 
-      <div className="mt-auto border-t border-border pt-4">
-        <div className="flex cursor-pointer items-center gap-3 rounded-lg p-2 transition-colors hover:bg-slate-800/50">
-          <div className="bg-accent flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-text-light">
-            <Icon icon="lucide:user" width={20} height={20} />
+      <div className="relative mt-auto border-t border-border pt-4" ref={dropdownRef}>
+        {/* Dropdown Menu */}
+        {isDropdownOpen && (
+          <div className="absolute bottom-full left-0 mb-2 w-full rounded-xl border border-border bg-sidebar p-1.5 shadow-xl z-50">
+            <Link
+              href="/settings"
+              onClick={() => setIsDropdownOpen(false)}
+              className="flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium text-text-light transition-colors hover:bg-slate-800/50"
+            >
+              <Icon icon="lucide:settings" width={16} height={16} className="text-text-muted" />
+              <span>Profile Settings</span>
+            </Link>
+            
+            <div className="my-1.5 border-t border-border" />
+            
+            <button
+              onClick={() => {
+                setIsDropdownOpen(false);
+                logout();
+              }}
+              className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium text-error transition-colors hover:bg-error/10 cursor-pointer text-left"
+            >
+              <Icon icon="lucide:log-out" width={16} height={16} className="text-error" />
+              <span>Log out</span>
+            </button>
+          </div>
+        )}
+
+        {/* Profile Info Button */}
+        <div
+          onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+          className="flex cursor-pointer items-center gap-3 rounded-lg p-2 transition-colors hover:bg-slate-800/50"
+        >
+          <div className="bg-accent flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-text-light font-semibold">
+            {user?.name ? user.name.charAt(0).toUpperCase() : <Icon icon="lucide:user" width={20} height={20} />}
           </div>
 
-          <div className="flex flex-col overflow-hidden">
+          <div className="flex flex-col overflow-hidden text-left flex-1">
             <span className="truncate text-sm font-medium text-text-light">
-              Alice Chen
+              {user?.name || 'Гість'}
             </span>
             <span className="truncate text-xs text-text-muted">
-              alice@acmecorp.com
+              {user?.email || ''}
             </span>
           </div>
-          <Button variant="ghost" mobileBehavior="none">
+          
+          <div className="text-text-muted p-1 hover:text-text-light rounded transition-colors">
             <Icon
               icon="lucide:more-vertical"
-              className="ml-auto shrink-0 text-text-muted"
               width={16}
               height={16}
             />
-          </Button>
+          </div>
         </div>
       </div>
     </aside>

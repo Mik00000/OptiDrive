@@ -3,30 +3,38 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
-import { loginApi } from '@/features/auth/api';
+import { registerApi } from '@/features/auth/api';
 import { Input } from '@/components/Inputs';
 import { Button } from '@/components/Button';
 import { Icon } from '@iconify/react';
 
-export default function LoginPage() {
+export default function RegisterPage() {
   const { login } = useAuth();
   
   // Стани форми
+  const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   
   // Стани валідації та помилок
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [nameError, setNameError] = useState<string | null>(null);
   const [emailError, setEmailError] = useState<string | null>(null);
   const [passwordError, setPasswordError] = useState<string | null>(null);
 
-  // Валідація полів перед сабмітом
+  // Валідація форми
   const validateForm = (): boolean => {
     let isValid = true;
+    setNameError(null);
     setEmailError(null);
     setPasswordError(null);
     setError(null);
+
+    if (!name.trim()) {
+      setNameError('Будь ласка, введіть ваше ім\'я');
+      isValid = false;
+    }
 
     if (!email) {
       setEmailError('Будь ласка, введіть email адресу');
@@ -56,18 +64,17 @@ export default function LoginPage() {
     setError(null);
 
     try {
-      // Робимо POST запит на бекенд для логіну
-      const response = await loginApi(email, password);
+      // Робимо POST запит на бекенд для реєстрації
+      const response = await registerApi(email, password, name);
 
       if (response.success && response.token && response.user) {
         // Зберігаємо сесію та перенаправляємо на /dashboard
         login(response.token, response.user);
       } else {
-        setError('Не вдалося увійти. Спробуйте пізніше.');
+        setError('Не вдалося створити аккаунт. Спробуйте пізніше.');
       }
     } catch (err) {
-      // Показуємо помилку користувачу
-      const errorMessage = err instanceof Error ? err.message : 'Некоректна email адреса або пароль';
+      const errorMessage = err instanceof Error ? err.message : 'Помилка реєстрації. Можливо, цей користувач вже існує.';
       setError(errorMessage);
     } finally {
       setIsLoading(false);
@@ -77,8 +84,8 @@ export default function LoginPage() {
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-1.5">
-        <h1 className="text-xl font-semibold text-text-light">Welcome back to OptiDrive</h1>
-        <p className="text-xs text-text-muted">Sign in to your account to continue working</p>
+        <h1 className="text-xl font-semibold text-text-light">Create your account</h1>
+        <p className="text-xs text-text-muted">Зареєструйтеся, щоб розпочати оптимізацію зображень</p>
       </div>
 
       {/* Повідомлення про загальну помилку */}
@@ -90,6 +97,26 @@ export default function LoginPage() {
       )}
 
       <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+        {/* Full Name */}
+        <div className="flex flex-col gap-1.5">
+          <label className="text-xs font-medium text-text-light" htmlFor="name">
+            Full Name
+          </label>
+          <Input
+            id="name"
+            type="text"
+            variant="text"
+            placeholder="John Doe"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            disabled={isLoading}
+            className={nameError ? 'border-error/50 focus:border-error' : ''}
+          />
+          {nameError && (
+            <span className="text-[11px] font-medium text-error mt-0.5">{nameError}</span>
+          )}
+        </div>
+
         {/* Email Address */}
         <div className="flex flex-col gap-1.5">
           <label className="text-xs font-medium text-text-light" htmlFor="email">
@@ -112,17 +139,9 @@ export default function LoginPage() {
 
         {/* Password */}
         <div className="flex flex-col gap-1.5">
-          <div className="flex items-center justify-between">
-            <label className="text-xs font-medium text-text-light" htmlFor="password">
-              Password
-            </label>
-            <Link
-              href="/forgot-password"
-              className="text-[11px] font-medium text-text-muted transition-colors hover:text-accent"
-            >
-              Forgot password?
-            </Link>
-          </div>
+          <label className="text-xs font-medium text-text-light" htmlFor="password">
+            Password
+          </label>
           <Input
             id="password"
             variant="password"
@@ -147,19 +166,19 @@ export default function LoginPage() {
           {isLoading ? (
             <>
               <Icon icon="lucide:loader-2" className="animate-spin" width={18} height={18} />
-              <span>Sign In...</span>
+              <span>Create Account...</span>
             </>
           ) : (
-            <span>Sign In</span>
+            <span>Create Account</span>
           )}
         </Button>
       </form>
 
       {/* Footer */}
       <div className="text-center text-xs text-text-muted mt-2">
-        Don&apos;t have an account?{' '}
-        <Link href="/register" className="font-semibold text-accent hover:brightness-125 transition-all">
-          Sign up
+        Already have an account?{' '}
+        <Link href="/login" className="font-semibold text-accent hover:brightness-125 transition-all">
+          Sign in
         </Link>
       </div>
     </div>
