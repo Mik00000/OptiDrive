@@ -14,7 +14,7 @@ import {
 interface GenerateKeyModalProps {
   isOpen:     boolean;
   onClose:    () => void;
-  onGenerate: (name: string, permission: Permission) => void;
+  onGenerate: (name: string, permission: Permission) => Promise<string | void>;
 }
 
 /**
@@ -31,6 +31,7 @@ export function GenerateKeyModal({
   const [step, setStep]               = useState<"form" | "reveal">("form");
   const [generatedToken, setToken]    = useState("");
   const [tokenCopied, setTokenCopied] = useState(false);
+  const [isGenerating, setIsGenerating] = useState(false);
 
   /* Скидання стану після закриття */
   useEffect(() => {
@@ -46,14 +47,22 @@ export function GenerateKeyModal({
     }
   }, [isOpen]);
 
-  /* Генерація демо-токена */
-  const handleGenerate = () => {
-    if (!name.trim()) return;
-    const rand   = Math.random().toString(36).slice(2, 10);
-    const prefix = permission === "Read-only" ? "op_test_" : "op_live_";
-    setToken(`${prefix}${rand}`);
-    setStep("reveal");
-    onGenerate(name.trim(), permission);
+  /* Генерація токена через бекенд */
+  const handleGenerate = async () => {
+    if (!name.trim() || isGenerating) return;
+    
+    setIsGenerating(true);
+    try {
+      const rawToken = await onGenerate(name.trim(), permission);
+      if (rawToken) {
+        setToken(rawToken);
+        setStep("reveal");
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsGenerating(false);
+    }
   };
 
   const handleCopyToken = () => {

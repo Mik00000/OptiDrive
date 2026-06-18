@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
 import { registerApi } from '@/features/auth/api';
+import { SocialLoginButtons } from '@/features/auth/SocialLoginButtons';
 import { Input } from '@/components/Inputs';
 import { Button } from '@/components/Button';
 import { Icon } from '@iconify/react';
@@ -173,6 +174,8 @@ export default function RegisterPage() {
           )}
         </Button>
       </form>
+
+      <SocialLoginButtons />
 
       {/* Footer */}
       <div className="text-center text-xs text-text-muted mt-2">

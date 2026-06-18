@@ -1,9 +1,10 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
 import { loginApi } from '@/features/auth/api';
+import { SocialLoginButtons } from '@/features/auth/SocialLoginButtons';
 import { Input } from '@/components/Inputs';
 import { Button } from '@/components/Button';
 import { Icon } from '@iconify/react';
@@ -20,6 +21,36 @@ export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [emailError, setEmailError] = useState<string | null>(null);
   const [passwordError, setPasswordError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const token = params.get('token');
+      const userB64 = params.get('user');
+      const errorParam = params.get('error');
+
+      if (errorParam === 'oauth_failed') {
+        setError('Не вдалося увійти через соцмережу. Спробуйте ще раз.');
+      }
+
+      if (token && userB64) {
+        try {
+          // In URL query parameters, '+' characters are often converted to spaces (' '). 
+          // We need to restore them before decoding base64.
+          const base64Decoded = atob(userB64.replace(/ /g, '+'));
+          const userStr = decodeURIComponent(
+            base64Decoded.split('').map(function(c) {
+              return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+            }).join('')
+          );
+          const userObj = JSON.parse(userStr);
+          login(token, userObj);
+        } catch (err) {
+          console.error('Failed to parse user from URL', err);
+        }
+      }
+    }
+  }, [login]);
 
   // Валідація полів перед сабмітом
   const validateForm = (): boolean => {
@@ -154,6 +185,8 @@ export default function LoginPage() {
           )}
         </Button>
       </form>
+
+      <SocialLoginButtons />
 
       {/* Footer */}
       <div className="text-center text-xs text-text-muted mt-2">

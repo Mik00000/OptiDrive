@@ -15,12 +15,12 @@ export interface AuthResponse {
  * Робить POST запит для входу користувача.
  */
 export async function loginApi(email: string, password: string): Promise<AuthResponse> {
-  return apiClient.post<AuthResponse>('/api/auth/login', { email, password });
+  return apiClient.post<AuthResponse>('/api/internal/login', { email, password });
 }
 
 /**
  * Робить POST запит для реєстрації нового користувача.
  */
 export async function registerApi(email: string, password: string, name: string): Promise<AuthResponse> {
-  return apiClient.post<AuthResponse>('/api/auth/register', { email, password, name });
+  return apiClient.post<AuthResponse>('/api/internal/register', { email, password, name });
 }
