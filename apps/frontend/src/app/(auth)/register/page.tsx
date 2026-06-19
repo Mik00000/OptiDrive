@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
 import { registerApi } from '@/features/auth/api';
@@ -24,7 +25,6 @@ export default function RegisterPage() {
   const [emailError, setEmailError] = useState<string | null>(null);
   const [passwordError, setPasswordError] = useState<string | null>(null);
 
-  // Валідація форми
   const validateForm = (): boolean => {
     let isValid = true;
     setNameError(null);
@@ -33,28 +33,30 @@ export default function RegisterPage() {
     setError(null);
 
     if (!name.trim()) {
-      setNameError('Будь ласка, введіть ваше ім\'я');
+      setNameError('Please enter your full name');
       isValid = false;
     }
 
     if (!email) {
-      setEmailError('Будь ласка, введіть email адресу');
+      setEmailError('Please enter your email address');
       isValid = false;
     } else if (!/\S+@\S+\.\S+/.test(email)) {
-      setEmailError('Некоректний формат email');
+      setEmailError('Invalid email format');
       isValid = false;
     }
 
     if (!password) {
-      setPasswordError('Будь ласка, введіть пароль');
+      setPasswordError('Please enter a password');
       isValid = false;
     } else if (password.length < 6) {
-      setPasswordError('Пароль має містити щонайменше 6 символів');
+      setPasswordError('Password must be at least 6 characters');
       isValid = false;
     }
 
     return isValid;
   };
+
+  const router = useRouter();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -65,17 +67,15 @@ export default function RegisterPage() {
     setError(null);
 
     try {
-      // Робимо POST запит на бекенд для реєстрації
       const response = await registerApi(email, password, name);
 
-      if (response.success && response.token && response.user) {
-        // Зберігаємо сесію та перенаправляємо на /dashboard
-        login(response.token, response.user);
+      if (response.success && response.requiresVerification) {
+        router.push(`/verify-email?email=${encodeURIComponent(email)}`);
       } else {
-        setError('Не вдалося створити аккаунт. Спробуйте пізніше.');
+        setError('Failed to create account. Please try again later.');
       }
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Помилка реєстрації. Можливо, цей користувач вже існує.';
+      const errorMessage = err instanceof Error ? err.message : 'Registration failed. This user might already exist.';
       setError(errorMessage);
     } finally {
       setIsLoading(false);
@@ -86,7 +86,7 @@ export default function RegisterPage() {
     <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-1.5">
         <h1 className="text-xl font-semibold text-text-light">Create your account</h1>
-        <p className="text-xs text-text-muted">Зареєструйтеся, щоб розпочати оптимізацію зображень</p>
+        <p className="text-xs text-text-muted">Register to start optimizing images</p>
       </div>
 
       {/* Повідомлення про загальну помилку */}

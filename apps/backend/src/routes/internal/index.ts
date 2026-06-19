@@ -1,12 +1,20 @@
 import { Router } from 'express';
-import { register, login } from '../../controllers/auth.controller';
+import { register, login, verifyEmailController, resendVerificationController, forgotPasswordController, resetPasswordController } from '../../controllers/auth.controller';
+import { loginLimiter, registerLimiter, verifyEmailLimiter, resendVerificationLimiter, globalApiLimiter } from '../../middleware/rate-limit';
 import apiKeysRoutes from './api-keys.routes';
 import oauthRoutes from './oauth.routes';
 
 const router: Router = Router();
 
-router.post('/register', register);
-router.post('/login', login);
+// Apply global API rate limit
+router.use(globalApiLimiter);
+
+router.post('/register', registerLimiter, register);
+router.post('/login', loginLimiter, login);
+router.post('/verify-email', verifyEmailLimiter, verifyEmailController);
+router.post('/resend-verification-email', resendVerificationLimiter, resendVerificationController);
+router.post('/forgot-password', resendVerificationLimiter, forgotPasswordController);
+router.post('/reset-password', verifyEmailLimiter, resetPasswordController);
 
 router.use('/auth', oauthRoutes);
 router.use('/api-keys', apiKeysRoutes);

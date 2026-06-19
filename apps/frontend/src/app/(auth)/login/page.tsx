@@ -9,8 +9,11 @@ import { Input } from '@/components/Inputs';
 import { Button } from '@/components/Button';
 import { Icon } from '@iconify/react';
 
+import { useRouter } from 'next/navigation';
+
 export default function LoginPage() {
   const { login } = useAuth();
+  const router = useRouter();
   
   // Стани форми
   const [email, setEmail] = useState('');
@@ -30,7 +33,7 @@ export default function LoginPage() {
       const errorParam = params.get('error');
 
       if (errorParam === 'oauth_failed') {
-        setError('Не вдалося увійти через соцмережу. Спробуйте ще раз.');
+        setError('Failed to log in with social account. Please try again.');
       }
 
       if (token && userB64) {
@@ -60,18 +63,18 @@ export default function LoginPage() {
     setError(null);
 
     if (!email) {
-      setEmailError('Будь ласка, введіть email адресу');
+      setEmailError('Please enter your email address');
       isValid = false;
     } else if (!/\S+@\S+\.\S+/.test(email)) {
-      setEmailError('Некоректний формат email');
+      setEmailError('Invalid email format');
       isValid = false;
     }
 
     if (!password) {
-      setPasswordError('Будь ласка, введіть пароль');
+      setPasswordError('Please enter your password');
       isValid = false;
     } else if (password.length < 6) {
-      setPasswordError('Пароль має містити щонайменше 6 символів');
+      setPasswordError('Password must be at least 6 characters');
       isValid = false;
     }
 
@@ -90,15 +93,15 @@ export default function LoginPage() {
       // Робимо POST запит на бекенд для логіну
       const response = await loginApi(email, password);
 
-      if (response.success && response.token && response.user) {
-        // Зберігаємо сесію та перенаправляємо на /dashboard
+      if (response.success && response.requiresVerification) {
+        router.push(`/verify-email?email=${encodeURIComponent(email)}`);
+      } else if (response.success && response.token && response.user) {
         login(response.token, response.user);
       } else {
-        setError('Не вдалося увійти. Спробуйте пізніше.');
+        setError('Failed to log in. Please try again later.');
       }
     } catch (err) {
-      // Показуємо помилку користувачу
-      const errorMessage = err instanceof Error ? err.message : 'Некоректна email адреса або пароль';
+      const errorMessage = err instanceof Error ? err.message : 'Invalid email or password';
       setError(errorMessage);
     } finally {
       setIsLoading(false);

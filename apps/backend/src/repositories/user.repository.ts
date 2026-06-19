@@ -6,7 +6,7 @@ export const findUserByEmail = async (email: string) => {
   });
 };
 
-export const createUserWithWorkspace = async (email: string, passwordHash: string, name: string) => {
+export const createUserWithWorkspace = async (email: string, passwordHash: string, name: string, verificationCode?: string, verificationCodeExpiry?: Date) => {
   const slug = `${name.toLowerCase().replace(/\s+/g, '-')}-${Date.now()}`;
 
   return await prisma.user.create({
@@ -14,6 +14,9 @@ export const createUserWithWorkspace = async (email: string, passwordHash: strin
       email,
       passwordHash,
       name,
+      emailVerified: false,
+      verificationCode,
+      verificationCodeExpiry,
       workspace: {
         create: {
           name: `${name}'s Workspace`,
@@ -23,6 +26,17 @@ export const createUserWithWorkspace = async (email: string, passwordHash: strin
     },
     include: {
       workspace: true, 
+    },
+  });
+};
+
+export const updateUserVerification = async (userId: string) => {
+  return await prisma.user.update({
+    where: { id: userId },
+    data: {
+      emailVerified: true,
+      verificationCode: null,
+      verificationCodeExpiry: null,
     },
   });
 };

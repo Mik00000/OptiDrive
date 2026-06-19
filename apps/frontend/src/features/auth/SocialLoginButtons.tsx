@@ -15,13 +15,14 @@ export function SocialLoginButtons() {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="relative">
-        <div className="absolute inset-0 flex items-center">
-          <span className="w-full border-t border-border" />
-        </div>
-        <div className="relative flex justify-center text-xs uppercase">
-          <span className="bg-background px-2 text-text-muted">Or continue with</span>
-        </div>
+      
+      {/* Виправлений розділювач */}
+      <div className="flex items-center w-full my-2">
+        <div className="flex-grow border-t border-border"></div>
+        <span className="px-3 text-xs uppercase text-text-muted whitespace-nowrap">
+          Or continue with
+        </span>
+        <div className="flex-grow border-t border-border"></div>
       </div>
 
       <div className="grid grid-cols-2 gap-3">

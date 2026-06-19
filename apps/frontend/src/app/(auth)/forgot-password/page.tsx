@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { Input } from '@/components/Inputs';
 import { Button } from '@/components/Button';
 import { Icon } from '@iconify/react';
+import { forgotPasswordApi } from '@/features/auth/api';
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState('');
@@ -17,19 +18,23 @@ export default function ForgotPasswordPage() {
     setEmailError(null);
 
     if (!email) {
-      setEmailError('Будь ласка, введіть email адресу');
+      setEmailError('Please enter your email address');
       return;
     } else if (!/\S+@\S+\.\S+/.test(email)) {
-      setEmailError('Некоректний формат email');
+      setEmailError('Invalid email format');
       return;
     }
 
     setIsLoading(true);
-    // Імітуємо запит
-    setTimeout(() => {
-      setIsLoading(false);
+    try {
+      await forgotPasswordApi(email);
       setIsSent(true);
-    }, 1500);
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to send reset link';
+      setEmailError(errorMessage);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   if (isSent) {
@@ -41,7 +46,7 @@ export default function ForgotPasswordPage() {
           </div>
           <h1 className="text-xl font-semibold text-text-light">Check your email</h1>
           <p className="text-xs text-text-muted px-4">
-            Ми надіслали інструкції для відновлення пароля на адресу <strong className="text-text-light">{email}</strong>
+            We sent a password reset link to <strong className="text-text-light">{email}</strong>
           </p>
         </div>
 
@@ -59,7 +64,7 @@ export default function ForgotPasswordPage() {
       <div className="flex flex-col gap-1.5">
         <h1 className="text-xl font-semibold text-text-light">Reset Password</h1>
         <p className="text-xs text-text-muted font-normal">
-          Введіть свою електронну пошту, і ми надішлемо вам посилання для зміни пароля.
+          Enter your email address and we will send you a link to reset your password.
         </p>
       </div>
 
