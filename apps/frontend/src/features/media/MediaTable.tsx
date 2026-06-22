@@ -1,107 +1,18 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { Icon } from '@iconify/react';
 import { Button } from '@/components/Button';
 import { Input } from '@/components/Inputs';
-
-interface MediaFile {
-  id: string;
-  name: string;
-  format: string;
-  originalSize: string;
-  optimizedSize: string;
-  savings: string;
-}
-
-const initialMockFiles: MediaFile[] = [
-  {
-    id: '1',
-    name: 'hero-banner-main.png',
-    format: 'WebP',
-    originalSize: '2.4 MB',
-    optimizedSize: '450 KB',
-    savings: '-81%',
-  },
-  {
-    id: '2',
-    name: 'product-shot-01.jpg',
-    format: 'AVIF',
-    originalSize: '1.2 MB',
-    optimizedSize: '150 KB',
-    savings: '-87%',
-  },
-  {
-    id: '3',
-    name: 'logo-transparent.png',
-    format: 'PNG',
-    originalSize: '300 KB',
-    optimizedSize: '85 KB',
-    savings: '-71%',
-  },
-  {
-    id: '4',
-    name: 'user-avatar-placeholder.jpg',
-    format: 'WebP',
-    originalSize: '850 KB',
-    optimizedSize: '120 KB',
-    savings: '-85%',
-  },
-  {
-    id: '5',
-    name: 'background-pattern.svg',
-    format: 'SVG',
-    originalSize: '45 KB',
-    optimizedSize: '12 KB',
-    savings: '-73%',
-  },
-  {
-    id: '6',
-    name: 'marketing-email-header.png',
-    format: 'WebP',
-    originalSize: '5.1 MB',
-    optimizedSize: '1.1 MB',
-    savings: '-78%',
-  },
-  {
-    id: '7',
-    name: 'icon-set-v2.png',
-    format: 'PNG',
-    originalSize: '150 KB',
-    optimizedSize: '148 KB',
-    savings: '-1%',
-  },
-  {
-    id: '8',
-    name: 'landing-page-hero.jpg',
-    format: 'WebP',
-    originalSize: '3.2 MB',
-    optimizedSize: '500 KB',
-    savings: '-84%',
-  },
-  {
-    id: '9',
-    name: 'app-screenshot.png',
-    format: 'PNG',
-    originalSize: '1.5 MB',
-    optimizedSize: '300 KB',
-    savings: '-80%',
-  },
-  {
-    id: '10',
-    name: 'social-media-post.jpg',
-    format: 'AVIF',
-    originalSize: '800 KB',
-    optimizedSize: '100 KB',
-    savings: '-87%',
-  },
-];
+import { getMediaFilesApi, deleteMediaFileApi, MediaFile } from './api';
+import Image from 'next/image';
 
 interface MediaTableProps {
   searchQuery: string;
   formatFilter: string;
   isSelectionMode?: boolean;
   onSelectionModeChange?: (mode: boolean) => void;
+  refreshKey?: number;
 }
 
 export const MediaTable = ({
@@ -109,14 +20,62 @@ export const MediaTable = ({
   formatFilter,
   isSelectionMode,
   onSelectionModeChange,
+  refreshKey = 0,
 }: MediaTableProps) => {
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [files, setFiles] = useState<MediaFile[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const itemsPerPage = 7;
+
+  useEffect(() => {
+    const fetchFiles = async () => {
+      setIsLoading(true);
+      try {
+        const data = await getMediaFilesApi();
+        setFiles(data);
+      } catch (error) {
+        console.error('Failed to fetch media files', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchFiles();
+  }, [refreshKey]);
+
+  const handleDelete = async () => {
+    if (!confirm(`Are you sure you want to delete ${selectedIds.size} files?`)) return;
+    try {
+      for (const id of Array.from(selectedIds)) {
+        await deleteMediaFileApi(id);
+      }
+      setSelectedIds(new Set());
+      if (onSelectionModeChange) onSelectionModeChange(false);
+      // Refresh list
+      const data = await getMediaFilesApi();
+      setFiles(data);
+    } catch (error) {
+      console.error('Failed to delete files', error);
+      alert('Failed to delete some files.');
+    }
+  };
+
+  const formatBytes = (bytes: number) => {
+    if (bytes === 0) return '0 B';
+    const k = 1024;
+    const sizes = ['B', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+  };
+
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text);
+    // Could add a toast notification here
+  };
 
   // Фільтрація
   const filteredFiles = useMemo(() => {
-    return initialMockFiles.filter((file) => {
+    return files.filter((file) => {
       const matchesSearch = file.name
         .toLowerCase()
         .includes(searchQuery.toLowerCase());
@@ -125,12 +84,11 @@ export const MediaTable = ({
         file.format.toLowerCase() === formatFilter.toLowerCase();
       return matchesSearch && matchesFormat;
     });
-  }, [searchQuery, formatFilter]);
+  }, [searchQuery, formatFilter, files]);
 
   // Пагінація
   const totalPages = Math.ceil(filteredFiles.length / itemsPerPage);
 
-  // Якщо змінили фільтри і сторінка стала недосяжною — повертаємо на першу
   if (currentPage > totalPages && totalPages > 0) {
     setCurrentPage(1);
   }
@@ -194,7 +152,7 @@ export const MediaTable = ({
   };
 
   return (
-    <div className="flex w-full flex-col">
+    <div className="flex w-full flex-col min-h-[400px]">
       <div className="hidden overflow-x-auto xl:block">
         <table className="w-full border-collapse text-left">
           <thead>
@@ -218,8 +176,15 @@ export const MediaTable = ({
               <th className="px-6 py-4 text-right font-normal">Actions</th>
             </tr>
           </thead>
-          <tbody className="text-text-light divide-border divide-y text-sm">
-            {showNotice && (
+          <tbody className="text-text-light divide-border divide-y text-sm relative">
+            {isLoading && (
+              <tr>
+                <td colSpan={7} className="text-center py-8">
+                  <Icon icon="lucide:loader-2" className="animate-spin text-accent mx-auto" width={24} />
+                </td>
+              </tr>
+            )}
+            {!isLoading && showNotice && (
               <tr className="bg-slate-800/80">
                 <td
                   colSpan={7}
@@ -235,7 +200,7 @@ export const MediaTable = ({
                 </td>
               </tr>
             )}
-            {paginatedFiles.length > 0 ? (
+            {!isLoading && paginatedFiles.length > 0 ? (
               paginatedFiles.map((file) => (
                 <tr
                   key={file.id}
@@ -257,14 +222,22 @@ export const MediaTable = ({
                   </td>
                   <td className="px-4 py-4">
                     <div className="flex items-center gap-3">
-                      <div className="bg-sidebar border-border flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border">
-                        <Icon
-                          icon="lucide:image"
-                          className="text-text-muted"
-                          width={20}
-                        />
+                      <div className="bg-sidebar border-border flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border overflow-hidden relative">
+                        {file.cdnUrl ? (
+                          <img src={file.cdnUrl} alt={file.name} className="w-full h-full object-cover" />
+                        ) : (
+                          <Icon icon="lucide:image" className="text-text-muted" width={20} />
+                        )}
                       </div>
-                      <span className="truncate text-sm">{file.name}</span>
+                      <a 
+                        href={file.cdnUrl} 
+                        target="_blank" 
+                        rel="noreferrer" 
+                        className="truncate text-sm hover:text-accent transition-colors"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        {file.name}
+                      </a>
                     </div>
                   </td>
                   <td className="px-4 py-4">
@@ -273,36 +246,40 @@ export const MediaTable = ({
                     </span>
                   </td>
                   <td className="text-text-muted px-4 py-4 font-mono text-xs">
-                    {file.originalSize}
+                    {formatBytes(file.originalSize)}
                   </td>
                   <td className="text-text-light px-4 py-4 font-mono text-xs">
-                    {file.optimizedSize}
+                    {formatBytes(file.optimizedSize)}
                   </td>
                   <td className="px-4 py-4">
-                    <span className="inline-flex items-center justify-center rounded-full border border-emerald-500/20 bg-emerald-500/10 px-2 py-0.5 text-xs font-medium text-emerald-400">
-                      {file.savings}
+                    <span className={`inline-flex items-center justify-center rounded-full border px-2 py-0.5 text-xs font-medium ${file.savings > 0 ? 'border-emerald-500/20 bg-emerald-500/10 text-emerald-400' : 'border-slate-500/20 bg-slate-500/10 text-slate-400'}`}>
+                      {file.savings > 0 ? `-${file.savings.toFixed(0)}%` : '0%'}
                     </span>
                   </td>
                   <td className="px-6 py-4 text-right">
-                    <button className="text-text-muted hover:text-text-light cursor-pointer p-1.5 align-middle opacity-70 transition-colors group-hover:opacity-100 hover:scale-110 focus:opacity-100">
+                    <button 
+                      onClick={(e) => { e.stopPropagation(); copyToClipboard(file.cdnUrl); }}
+                      className="text-text-muted hover:text-text-light cursor-pointer p-1.5 align-middle opacity-70 transition-colors group-hover:opacity-100 hover:scale-110 focus:opacity-100"
+                      title="Copy URL"
+                    >
                       <Icon icon="lucide:copy" width={18} />
                     </button>
                   </td>
                 </tr>
               ))
-            ) : (
+            ) : !isLoading ? (
               <tr>
                 <td colSpan={7} className="text-text-muted py-8 text-center">
                   No files found matching your criteria.
                 </td>
               </tr>
-            )}
+            ) : null}
           </tbody>
         </table>
       </div>
 
       <div className="bg-bg mt-4 grid grid-cols-1 gap-4 rounded-b-2xl md:grid-cols-2 xl:hidden">
-        {paginatedFiles.length > 0 ? (
+        {paginatedFiles.length > 0 && !isLoading ? (
           paginatedFiles.map((file) => (
             <div
               key={file.id}
@@ -320,12 +297,12 @@ export const MediaTable = ({
                       )}
                     </div>
                   )}
-                  <div className="bg-bg border-border flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border">
-                    <Icon
-                      icon="lucide:image"
-                      className="text-text-muted"
-                      width={20}
-                    />
+                  <div className="bg-bg border-border flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border overflow-hidden">
+                    {file.cdnUrl ? (
+                      <img src={file.cdnUrl} alt={file.name} className="w-full h-full object-cover" />
+                    ) : (
+                      <Icon icon="lucide:image" className="text-text-muted" width={20} />
+                    )}
                   </div>
                   <span className="text-text-light truncate text-sm font-medium">
                     {file.name}
@@ -340,19 +317,19 @@ export const MediaTable = ({
                 <div className="flex flex-col gap-1.5">
                   <span className="text-text-muted">Original</span>
                   <span className="text-text-light font-mono">
-                    {file.originalSize}
+                    {formatBytes(file.originalSize)}
                   </span>
                 </div>
                 <div className="flex flex-col gap-1.5">
                   <span className="text-text-muted">Optimized</span>
                   <span className="text-text-light font-mono">
-                    {file.optimizedSize}
+                    {formatBytes(file.optimizedSize)}
                   </span>
                 </div>
                 <div className="flex flex-col items-end gap-1.5">
                   <span className="text-text-muted">Savings</span>
-                  <span className="inline-flex items-center justify-center rounded-full border border-emerald-500/20 bg-emerald-500/10 px-2 py-0.5 text-xs font-medium text-emerald-400">
-                    {file.savings}
+                  <span className={`inline-flex items-center justify-center rounded-full border px-2 py-0.5 text-xs font-medium ${file.savings > 0 ? 'border-emerald-500/20 bg-emerald-500/10 text-emerald-400' : 'border-slate-500/20 bg-slate-500/10 text-slate-400'}`}>
+                    {file.savings > 0 ? `-${file.savings.toFixed(0)}%` : '0%'}
                   </span>
                 </div>
               </div>
@@ -360,6 +337,7 @@ export const MediaTable = ({
               <Button
                 variant="bordered"
                 mobileBehavior="full-width"
+                onClick={(e) => { e.stopPropagation(); copyToClipboard(file.cdnUrl); }}
                 className="bg-bg/50 border-border mt-1 justify-center py-2 text-sm"
               >
                 <Icon icon="lucide:copy" width={16} />
@@ -367,14 +345,14 @@ export const MediaTable = ({
               </Button>
             </div>
           ))
-        ) : (
-          <div className="text-text-muted py-8 text-center">
+        ) : !isLoading ? (
+          <div className="text-text-muted py-8 text-center md:col-span-2">
             No files found matching your criteria.
           </div>
-        )}
+        ) : null}
       </div>
 
-      <div className="border-border flex items-center justify-between border-t px-6 py-4 max-md:px-4">
+      <div className="border-border flex items-center justify-between border-t px-6 py-4 max-md:px-4 mt-auto">
         <span className="text-text-muted text-sm">
           Showing {showingStart} to {showingEnd} of {filteredFiles.length} files
         </span>
@@ -390,7 +368,7 @@ export const MediaTable = ({
           <Button
             variant="bordered"
             onClick={handleNext}
-            disabled={currentPage >= totalPages}
+            disabled={currentPage >= totalPages || totalPages === 0}
             className="h-9 px-4 text-sm disabled:pointer-events-none disabled:opacity-50"
           >
             Next
@@ -404,7 +382,7 @@ export const MediaTable = ({
         <button
           onClick={() => {
             setSelectedIds(new Set());
-            onSelectionModeChange?.(false);
+            if (onSelectionModeChange) onSelectionModeChange(false);
           }}
           className="text-text-muted hover:text-text-light shrink-0 cursor-pointer rounded-full bg-slate-700/50 p-1.5 transition-colors hover:bg-slate-700 xl:p-1"
         >
@@ -417,6 +395,7 @@ export const MediaTable = ({
         <div className="flex items-center gap-2">
           <Button
             variant="danger"
+            onClick={handleDelete}
             className="h-8 py-0 text-xs xl:h-9 xl:text-sm"
           >
             Delete
@@ -424,9 +403,13 @@ export const MediaTable = ({
           <Input
             variant="options"
             icon="lucide:download"
-            options={[{ value: 'optimized', label: 'Download Optimized' }, { value: 'original', label: 'Download Original' }]}
+            options={[{ value: 'optimized', label: 'Download Links' }]}
+            onChange={() => {
+               const urls = Array.from(selectedIds).map(id => files.find(f => f.id === id)?.cdnUrl).filter(Boolean);
+               copyToClipboard(urls.join('\n'));
+            }}
             className="h-8 py-0 text-xs whitespace-nowrap xl:h-9 xl:text-sm placeholder:text-white"
-            placeholder='Download'
+            placeholder='Actions'
           />
         </div>
       </div>

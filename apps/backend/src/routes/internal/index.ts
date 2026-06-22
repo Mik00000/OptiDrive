@@ -3,6 +3,7 @@ import { register, login, verifyEmailController, resendVerificationController, f
 import { loginLimiter, registerLimiter, verifyEmailLimiter, resendVerificationLimiter, globalApiLimiter } from '../../middleware/rate-limit';
 import apiKeysRoutes from './api-keys.routes';
 import oauthRoutes from './oauth.routes';
+import mediaRoutes from './media.routes';
 
 const router: Router = Router();
 
@@ -18,5 +19,6 @@ router.post('/reset-password', verifyEmailLimiter, resetPasswordController);
 
 router.use('/auth', oauthRoutes);
 router.use('/api-keys', apiKeysRoutes);
+router.use('/media', mediaRoutes);
 
 export default router;

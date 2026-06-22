@@ -13,6 +13,11 @@ const MediaLibraryPage = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [isSelectionMode, setIsSelectionMode] = useState(false);
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
+  const [refreshKey, setRefreshKey] = useState(0);
+
+  const handleUploadSuccess = () => {
+    setRefreshKey(prev => prev + 1);
+  };
 
   return (
     <section className="dashboard-page relative">
@@ -51,6 +56,7 @@ const MediaLibraryPage = () => {
               prefix="Format: "
               options={[
                 { value: "all", label: "All" },
+                { value: "avif", label: "Avif" },
                 { value: "webp", label: "WebP" },
                 { value: "png", label: "Png" },
                 { value: "jpeg", label: "Jpeg" },
@@ -73,6 +79,7 @@ const MediaLibraryPage = () => {
             formatFilter={formatFilter} 
             isSelectionMode={isSelectionMode}
             onSelectionModeChange={setIsSelectionMode}
+            refreshKey={refreshKey}
           />
         </div>
       </div>
@@ -80,6 +87,7 @@ const MediaLibraryPage = () => {
       <UploadMediaModal 
         isOpen={isUploadModalOpen} 
         onClose={() => setIsUploadModalOpen(false)} 
+        onSuccess={handleUploadSuccess}
       />
     </section>
   );
