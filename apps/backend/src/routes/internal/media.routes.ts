@@ -14,9 +14,10 @@ const upload = multer({
   },
 });
 
+import { checkQuota } from '../../middlewares/quota.middleware';
 router.use(requireAuth);
 
-router.post('/compress', upload.single('image'), compressImageController);
+router.post('/compress', upload.single('image'), checkQuota, compressImageController);
 router.get('/', getMediaFiles);
 router.delete('/:id', deleteMediaFile);
 router.patch('/:id', updateMediaFile);

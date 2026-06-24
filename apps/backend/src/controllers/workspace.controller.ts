@@ -1,0 +1,121 @@
+import { Request, Response } from 'express';
+import { prisma } from '../config/prisma';
+import { PLANS, PlanType } from '@optidrive/shared';
+
+export const getWorkspaceStats = async (req: Request & { user?: any }, res: Response): Promise<void> => {
+  try {
+    const workspaceId = req.user?.workspaceId;
+    if (!workspaceId) {
+      res.status(401).json({ error: 'Unauthorized' });
+      return;
+    }
+
+    const workspace = await prisma.workspace.findUnique({
+      where: { id: workspaceId },
+      include: {
+        _count: {
+          select: { files: true }
+        }
+      }
+    });
+
+    if (!workspace) {
+      res.status(404).json({ error: 'Workspace not found' });
+      return;
+    }
+
+    // Get total savings from MediaFiles
+    const savingsAgg = await prisma.mediaFile.aggregate({
+      where: { workspaceId },
+      _sum: {
+        originalSize: true,
+        optimizedSize: true
+      }
+    });
+
+    const totalOriginalSize = savingsAgg._sum.originalSize || BigInt(0);
+    const totalOptimizedSize = savingsAgg._sum.optimizedSize || BigInt(0);
+    const totalBytesSaved = totalOriginalSize - totalOptimizedSize;
+
+    const recentActivity = await prisma.activityLog.findMany({
+      where: { workspaceId },
+      orderBy: { createdAt: 'desc' },
+      take: 50,
+    });
+
+    // Plan Limits
+    const limits = PLANS[workspace.plan as PlanType] || PLANS.FREE;
+
+    // Get analytics for the last 30 days (group by day)
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 29);
+    thirtyDaysAgo.setHours(0, 0, 0, 0);
+
+    const mediaFilesLast30Days = await prisma.mediaFile.findMany({
+      where: {
+        workspaceId,
+        createdAt: { gte: thirtyDaysAgo }
+      },
+      select: { createdAt: true, originalSize: true, optimizedSize: true }
+    });
+
+    const analyticsMap = new Map<string, { bytesSaved: number, count: number }>();
+    // Initialize last 30 days
+    for (let i = 0; i < 30; i++) {
+      const d = new Date(thirtyDaysAgo);
+      d.setDate(d.getDate() + i);
+      const dateStr = d.toISOString().split('T')[0];
+      analyticsMap.set(dateStr, { bytesSaved: 0, count: 0 });
+    }
+
+    for (const file of mediaFilesLast30Days) {
+      const dateStr = file.createdAt.toISOString().split('T')[0];
+      const saved = Number(file.originalSize) - Number(file.optimizedSize);
+      if (analyticsMap.has(dateStr)) {
+        const current = analyticsMap.get(dateStr)!;
+        current.bytesSaved += saved;
+        current.count += 1;
+      }
+    }
+
+    const analytics = Array.from(analyticsMap.entries()).map(([date, data]) => ({
+      date,
+      bytesSaved: data.bytesSaved,
+      requests: data.count
+    }));
+
+    const activeApiKeys = await prisma.apiKey.count({
+      where: { workspaceId }
+    });
+
+    res.status(200).json({
+      success: true,
+      data: {
+        id: workspace.id,
+        name: workspace.name,
+        slug: workspace.slug,
+        plan: workspace.plan,
+        storageUsed: workspace.storageUsed.toString(),
+        bandwidthUsed: workspace.bandwidthUsed.toString(),
+        monthlyOptimizations: workspace.monthlyOptimizations,
+        totalFiles: workspace._count.files,
+        activeApiKeys,
+        totalOriginalBytes: totalOriginalSize.toString(),
+        totalOptimizedBytes: totalOptimizedSize.toString(),
+        totalBytesSaved: totalBytesSaved.toString(),
+        limits: {
+          storageBytes: limits.storageBytes.toString(),
+          bandwidthBytes: limits.bandwidthBytes.toString(),
+          monthlyOptimizations: limits.monthlyOptimizations,
+          maxFileSize: limits.maxFileSize.toString(),
+          maxApiKeys: limits.maxApiKeys,
+        },
+        recentActivity,
+        analytics
+      }
+    });
+  } catch (error) {
+    console.error('getWorkspaceStats Error:', error);
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
+};

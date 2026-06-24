@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Icon } from "@iconify/react";
 import { Button } from "@/components/Button";
 import PageHeading from "@/components/PageHeading";
@@ -11,9 +11,12 @@ import { EmptyState } from "@/features/api-keys/EmptyState";
 import { SecurityNotice } from "@/features/api-keys/SecurityNotice";
 import { useApiKeys } from "@/features/api-keys/useApiKeys";
 import { ApiKeysSkeleton } from "@/features/api-keys/ApiKeysSkeleton";
+import { getWorkspaceStatsApi, WorkspaceStats } from "@/features/dashboard/api";
 
 const ApiKeysPage = () => {
   const [isModalOpen, setModal] = useState(false);
+  const [stats, setStats] = useState<WorkspaceStats | null>(null);
+  
   const {
     keys,
     copiedId,
@@ -23,6 +26,10 @@ const ApiKeysPage = () => {
     handleGenerate,
   } = useApiKeys();
 
+  useEffect(() => {
+    getWorkspaceStatsApi().then(setStats).catch(console.error);
+  }, [keys.length]); // Refresh stats when keys change
+
   const commonProps = {
     keys,
     onRevoke: handleRevoke,
@@ -30,20 +37,30 @@ const ApiKeysPage = () => {
     copiedId,
   };
 
+  const limitReached = stats ? stats.activeApiKeys >= stats.limits.maxApiKeys : false;
+
   return (
     <>
       <section className="dashboard-page">
         <PageHeading title="API Keys">
-          <Button
-            variant="accent"
-            mobileBehavior="full-width"
-            onClick={() => setModal(true)}
-          >
-            <div className="inline-flex h-4 w-4 items-center justify-center">
-              <Icon icon="lucide:plus" width="100%" height="100%" />
-            </div>
-            <span>Generate New Key</span>
-          </Button>
+          <div className="flex items-center gap-4">
+            {stats && (
+              <span className={`text-sm font-medium ${limitReached ? 'text-error' : 'text-text-muted'}`}>
+                {stats.activeApiKeys} / {stats.limits.maxApiKeys} Keys Used
+              </span>
+            )}
+            <Button
+              variant="accent"
+              mobileBehavior="full-width"
+              onClick={() => setModal(true)}
+              disabled={limitReached}
+            >
+              <div className="inline-flex h-4 w-4 items-center justify-center">
+                <Icon icon="lucide:plus" width="100%" height="100%" />
+              </div>
+              <span>{limitReached ? 'Limit Reached' : 'Generate New Key'}</span>
+            </Button>
+          </div>
         </PageHeading>
 
         <div className="flex flex-col gap-6 p-4 pb-8 lg:p-8 lg:pb-8">

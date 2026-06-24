@@ -23,6 +23,25 @@ export const createApiKey = async (
       return;
     }
 
+    const { prisma } = await import('../config/prisma');
+    const { PLANS, PlanType } = await import('@optidrive/shared');
+
+    const workspace = await prisma.workspace.findUnique({
+      where: { id: workspaceId },
+      select: { plan: true, _count: { select: { apiKeys: true } } }
+    });
+
+    if (!workspace) {
+      res.status(404).json({ error: 'Workspace not found' });
+      return;
+    }
+
+    const planLimits = PLANS[workspace.plan as PlanType] || PLANS.FREE;
+    if (workspace._count.apiKeys >= planLimits.maxApiKeys) {
+      res.status(403).json({ error: `API Key limit reached for your plan (${planLimits.maxApiKeys}). Please upgrade to add more keys.` });
+      return;
+    }
+
     // Відповідність прав доступу з фронтенду на бекенд
     let keyPermission: KeyPermission;
     switch (permissions) {
@@ -57,6 +76,18 @@ export const createApiKey = async (
       }),
       lastUsed: 'Never',
     };
+
+    // Create Activity Log
+    import('../config/prisma').then(({ prisma }) => {
+      prisma.activityLog.create({
+        data: {
+          type: 'KEY_GENERATED',
+          description: `Created API key: ${name}`,
+          workspaceId,
+          userId: req.user?.id || null,
+        }
+      }).catch(console.error);
+    });
 
     res.status(201).json({ key: mappedKey, rawToken: result.rawToken });
   } catch (error: unknown) {
@@ -132,6 +163,19 @@ export const revokeApiKey = async (
     }
     
     await apiKeyService.revokeKey(id, workspaceId);
+
+    // Create Activity Log
+    import('../config/prisma').then(({ prisma }) => {
+      prisma.activityLog.create({
+        data: {
+          type: 'KEY_REVOKED',
+          description: `Revoked an API key`,
+          workspaceId,
+          userId: req.user?.id || null,
+        }
+      }).catch(console.error);
+    });
+
     res.status(200).json({ success: true });
   } catch (error: unknown) {
     res.status(500).json({ error: error instanceof Error ? error.message : 'Failed to revoke API key' });

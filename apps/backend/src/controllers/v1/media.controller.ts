@@ -110,7 +110,17 @@ export const deleteMediaController = async (req: Request & { workspaceId?: strin
       }
     });
 
-    // 4. Delete from DB
+    // 4. Create Activity Log
+    await prisma.activityLog.create({
+      data: {
+        type: 'FILE_DELETED',
+        description: `Deleted API file ${file.name}`,
+        workspaceId,
+        userId: null,
+      }
+    });
+
+    // 5. Delete from DB
     await prisma.mediaFile.delete({
       where: { id }
     });

@@ -113,11 +113,22 @@ export const compressImageController = async (req: Request & { workspaceId?: str
       }
     });
 
+    // Create Activity Log
+    await prisma.activityLog.create({
+      data: {
+        type: 'FILE_UPLOADED',
+        description: `Compressed ${originalname} (${savingsPercent.toFixed(1)}% saved)`,
+        workspaceId,
+        userId: (req as any).user?.id || null,
+      }
+    });
+
     // Update Workspace Usage
     await prisma.workspace.update({
       where: { id: workspaceId },
       data: {
-        storageUsed: { increment: optimizedSizeBigInt }
+        storageUsed: { increment: optimizedSizeBigInt },
+        monthlyOptimizations: { increment: 1 }
       }
     });
 

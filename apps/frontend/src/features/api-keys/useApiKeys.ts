@@ -73,6 +73,7 @@ export function useApiKeys() {
       return response.rawToken;
     } catch (error) {
       console.error("Failed to generate key:", error);
+      throw error;
     }
   }, []);
 

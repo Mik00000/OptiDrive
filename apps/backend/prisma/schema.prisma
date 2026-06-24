@@ -71,11 +71,10 @@ model Workspace {
   updatedAt      DateTime @updatedAt
 
   // Ліміти та поточне використання в BigInt
-  plan           PlanType @default(FREE)
-  storageUsed    BigInt   @default(0)
-  storageLimit   BigInt   @default(10737418240)      // 10 GB
-  bandwidthUsed  BigInt   @default(0)
-  bandwidthLimit BigInt   @default(10995116277760)  // 10 TB
+  plan                 PlanType @default(FREE)
+  storageUsed          BigInt   @default(0)
+  bandwidthUsed        BigInt   @default(0)
+  monthlyOptimizations Int      @default(0)
 
   // Зв'язки
   users          User[]

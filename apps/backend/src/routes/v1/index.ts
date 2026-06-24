@@ -24,7 +24,8 @@ router.use(authenticateApiKey);
 
 // Compression Endpoint
 // The user sends an image via multipart/form-data with the field name 'image'
-router.post('/compress', upload.single('image'), compressImageController);
+import { checkQuota } from '../../middlewares/quota.middleware';
+router.post('/compress', upload.single('image'), checkQuota, compressImageController);
 
 // Media Management Endpoints
 router.get('/media', listMediaController);

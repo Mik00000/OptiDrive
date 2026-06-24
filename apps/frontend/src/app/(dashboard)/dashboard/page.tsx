@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/Button';
 import PageHeading from '@/components/PageHeading';
 import AnalyticsChart from '@/features/dashboard/AnalyticsChart';
@@ -9,9 +9,26 @@ import RecentActivity from '@/features/dashboard/RecentActivity';
 import StorageUsedBar from '@/features/dashboard/StorageUsedBar';
 import { Icon } from '@iconify/react';
 import { UploadMediaModal } from '@/features/media/UploadMediaModal';
+import { getWorkspaceStatsApi, WorkspaceStats } from '@/features/dashboard/api';
 
 const DashboardPage = () => {
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
+  const [stats, setStats] = useState<WorkspaceStats | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchStats = async () => {
+      try {
+        const data = await getWorkspaceStatsApi();
+        setStats(data);
+      } catch (e) {
+        console.error(e);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchStats();
+  }, []);
 
   return (
     <section className="dashboard-page">
@@ -24,10 +41,20 @@ const DashboardPage = () => {
         </Button>
       </PageHeading>
       <div className="flex flex-col gap-6 p-8">
-        <InfoBlocks />
-        <StorageUsedBar />
-        <AnalyticsChart />
-        <RecentActivity />
+        {isLoading ? (
+          <div className="flex items-center justify-center py-12">
+            <Icon icon="lucide:loader-2" className="animate-spin text-accent" width={32} />
+          </div>
+        ) : stats ? (
+          <>
+            <InfoBlocks stats={stats} />
+            <StorageUsedBar stats={stats} />
+            <AnalyticsChart stats={stats} />
+            <RecentActivity activities={stats.recentActivity} />
+          </>
+        ) : (
+          <div className="text-center text-text-muted">Failed to load statistics</div>
+        )}
       </div>
       
       <UploadMediaModal 

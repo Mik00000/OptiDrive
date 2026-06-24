@@ -85,7 +85,17 @@ export const deleteMediaFile = async (req: AuthRequest, res: Response): Promise<
       }
     });
 
-    res.status(200).json({ success: true, message: 'File deleted' });
+    // Create Activity Log
+    await prisma.activityLog.create({
+      data: {
+        type: 'FILE_DELETED',
+        description: `Deleted file ${mediaFile.name}`,
+        workspaceId,
+        userId: (req as any).user?.id || null,
+      }
+    });
+
+    res.status(200).json({ success: true, message: 'File deleted successfully' });
   } catch (error) {
     console.error('deleteMediaFile Error:', error);
     res.status(500).json({ error: 'Internal Server Error' });

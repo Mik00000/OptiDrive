@@ -2,20 +2,29 @@
 
 import { Input } from "@/components/Inputs";
 import React from "react";
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, ResponsiveContainer } from "recharts";
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Tooltip } from "recharts";
+import { WorkspaceStats } from "./api";
+import { format, parseISO } from "date-fns";
 
-const data = [
-  { name: "Mon", requests: 3500 },
-  { name: "Tue", requests: 3000 },
-  { name: "Wed", requests: 5000 },
-  { name: "Thu", requests: 12000 },
-  { name: "Fri", requests: 9000 },
-  { name: "Sat", requests: 11000 },
-  { name: "Sun", requests: 15000 },
-];
+interface AnalyticsChartProps {
+  stats?: WorkspaceStats;
+}
 
-export default function AnalyticsChart() {
+export default function AnalyticsChart({ stats }: AnalyticsChartProps) {
   const [timeRange, setTimeRange] = React.useState("last_7_days");
+
+  const fullData = stats?.analytics?.map(item => ({
+    name: format(parseISO(item.date), 'MMM d'),
+    requests: item.requests
+  })) || [];
+
+  const daysToShow = timeRange === 'last_7_days' ? 7 : 30;
+  const data = fullData.slice(-daysToShow);
+
+  // Calculate max for ticks
+  const maxRequests = data.length > 0 ? Math.max(...data.map(d => d.requests)) : 0;
+  const tickMax = maxRequests < 10 ? 10 : Math.ceil(maxRequests / 5) * 5;
+  const ticks = [0, Math.floor(tickMax / 2), tickMax];
 
   return (
     <section className="w-full p-6 bg-card rounded-xl border border-border text-text-light shadow-lg">
@@ -26,8 +35,6 @@ export default function AnalyticsChart() {
           options={[
             { value: "last_7_days", label: "Last 7 Days" },
             { value: "last_30_days", label: "Last 30 Days" },
-            { value: "last_90_days", label: "Last 90 Days" },
-            { value: "last_365_days", label: "Last 365 Days" },
           ]}
           value={timeRange}
           onChange={setTimeRange}
@@ -63,10 +70,13 @@ export default function AnalyticsChart() {
               axisLine={false} 
               tickLine={false} 
               tick={{ fill: "#6b7280", fontSize: 12 }}
-              ticks={[0, 10000, 20000]}
-              tickFormatter={(value) => value === 0 ? "0" : `${value / 1000}k`}
+              ticks={ticks}
+              tickFormatter={(value) => value >= 1000 ? `${(value / 1000).toFixed(1)}k` : value.toString()}
             />
-
+            <Tooltip 
+              contentStyle={{ backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '8px' }}
+              itemStyle={{ color: '#e2e8f0' }}
+            />
             <Area
               type="monotone"
               dataKey="requests"

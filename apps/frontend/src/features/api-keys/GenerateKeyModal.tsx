@@ -33,6 +33,8 @@ export function GenerateKeyModal({
   const [tokenCopied, setTokenCopied] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
 
+  const [errorMsg, setErrorMsg]           = useState<string | null>(null);
+
   /* Скидання стану після закриття */
   useEffect(() => {
     if (!isOpen) {
@@ -42,6 +44,7 @@ export function GenerateKeyModal({
         setStep("form");
         setToken("");
         setTokenCopied(false);
+        setErrorMsg(null);
       }, 300);
       return () => clearTimeout(t);
     }
@@ -52,14 +55,15 @@ export function GenerateKeyModal({
     if (!name.trim() || isGenerating) return;
     
     setIsGenerating(true);
+    setErrorMsg(null);
     try {
       const rawToken = await onGenerate(name.trim(), permission);
       if (rawToken) {
         setToken(rawToken);
         setStep("reveal");
       }
-    } catch (err) {
-      console.error(err);
+    } catch (err: any) {
+      setErrorMsg(err.message || "Failed to generate API Key");
     } finally {
       setIsGenerating(false);
     }
@@ -98,6 +102,13 @@ export function GenerateKeyModal({
               className="w-full"
             />
           </div>
+
+          {errorMsg && (
+            <div className="flex gap-2 p-3 text-sm text-error bg-error/10 border border-error/20 rounded-xl">
+              <Icon icon="lucide:circle-x" className="mt-0.5 shrink-0" />
+              <span>{errorMsg}</span>
+            </div>
+          )}
 
           {/* Permissions picker */}
           <div className="flex flex-col gap-1.5">

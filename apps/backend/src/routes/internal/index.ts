@@ -4,6 +4,7 @@ import { loginLimiter, registerLimiter, verifyEmailLimiter, resendVerificationLi
 import apiKeysRoutes from './api-keys.routes';
 import oauthRoutes from './oauth.routes';
 import mediaRoutes from './media.routes';
+import workspaceRoutes from './workspace.routes';
 
 const router: Router = Router();
 
@@ -20,5 +21,6 @@ router.post('/reset-password', verifyEmailLimiter, resetPasswordController);
 router.use('/auth', oauthRoutes);
 router.use('/api-keys', apiKeysRoutes);
 router.use('/media', mediaRoutes);
+router.use('/workspace', workspaceRoutes);
 
 export default router;
