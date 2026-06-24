@@ -1,11 +1,55 @@
 'use client';
 
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import { Icon } from '@iconify/react';
 import { Button } from '@/components/Button';
 import { Input } from '@/components/Inputs';
 import { getMediaFilesApi, deleteMediaFileApi, MediaFile } from './api';
 import Image from 'next/image';
+import { MediaPreviewModal } from './MediaPreviewModal';
+
+const SavingsTooltip = ({ children }: { children: React.ReactNode }) => {
+  const [show, setShow] = useState(false);
+  const [pos, setPos] = useState({ top: 0, left: 0, flip: false });
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  const handleMouseEnter = () => {
+    if (!containerRef.current) return;
+    const rect = containerRef.current.getBoundingClientRect();
+    const spaceBelow = window.innerHeight - rect.bottom;
+    const flip = spaceBelow < 70; // Flip to top if less than 70px below
+    
+    setPos({
+      top: flip ? rect.top - 8 : rect.bottom + 8,
+      left: rect.left + rect.width / 2,
+      flip
+    });
+    setShow(true);
+  };
+
+  return (
+    <div 
+      ref={containerRef}
+      onMouseEnter={handleMouseEnter} 
+      onMouseLeave={() => setShow(false)} 
+      className="inline-flex cursor-help"
+    >
+      {children}
+      {show && (
+        <div 
+          className="fixed z-[10000] w-44 pointer-events-none"
+          style={{ top: pos.top, left: pos.left, transform: pos.flip ? 'translate(-50%, -100%)' : 'translate(-50%, 0)' }}
+        >
+          <div className="rounded-lg border border-slate-700 bg-slate-800 px-3 py-2 text-center text-xs leading-relaxed text-slate-200 shadow-xl">
+            Size increased due to format conversion (e.g. to PNG) or quality settings.
+          </div>
+          <div className={`absolute left-1/2 -ml-1.5 border-[6px] border-transparent ${pos.flip ? 'top-full border-t-slate-700' : 'bottom-full border-b-slate-700'}`} />
+          <div className={`absolute left-1/2 -ml-1.5 border-[6px] border-transparent ${pos.flip ? 'top-full -mt-px border-t-slate-800' : 'bottom-full -mb-px border-b-slate-800'}`} />
+        </div>
+      )}
+    </div>
+  );
+};
 
 interface MediaTableProps {
   searchQuery: string;
@@ -26,6 +70,8 @@ export const MediaTable = ({
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [files, setFiles] = useState<MediaFile[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [previewFile, setPreviewFile] = useState<MediaFile | null>(null);
+
   const itemsPerPage = 7;
 
   useEffect(() => {
@@ -43,14 +89,18 @@ export const MediaTable = ({
     fetchFiles();
   }, [refreshKey]);
 
-  const handleDelete = async () => {
-    if (!confirm(`Are you sure you want to delete ${selectedIds.size} files?`)) return;
+  const handleDelete = async (specificId?: string) => {
+    const idsToDelete = specificId ? [specificId] : Array.from(selectedIds);
+    if (!specificId && !confirm(`Are you sure you want to delete ${selectedIds.size} files?`)) return;
+    
     try {
-      for (const id of Array.from(selectedIds)) {
+      for (const id of idsToDelete) {
         await deleteMediaFileApi(id);
       }
-      setSelectedIds(new Set());
-      if (onSelectionModeChange) onSelectionModeChange(false);
+      if (!specificId) {
+        setSelectedIds(new Set());
+        if (onSelectionModeChange) onSelectionModeChange(false);
+      }
       // Refresh list
       const data = await getMediaFilesApi();
       setFiles(data);
@@ -70,7 +120,7 @@ export const MediaTable = ({
 
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
-    // Could add a toast notification here
+    alert('Public CDN URL(s) copied to clipboard!');
   };
 
   // Фільтрація
@@ -222,22 +272,19 @@ export const MediaTable = ({
                   </td>
                   <td className="px-4 py-4">
                     <div className="flex items-center gap-3">
-                      <div className="bg-sidebar border-border flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border overflow-hidden relative">
+                      <div className="bg-sidebar border-border flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border overflow-hidden relative cursor-pointer" onClick={(e) => { e.stopPropagation(); setPreviewFile(file); }}>
                         {file.cdnUrl ? (
                           <img src={file.cdnUrl} alt={file.name} className="w-full h-full object-cover" />
                         ) : (
                           <Icon icon="lucide:image" className="text-text-muted" width={20} />
                         )}
                       </div>
-                      <a 
-                        href={file.cdnUrl} 
-                        target="_blank" 
-                        rel="noreferrer" 
+                      <button 
                         className="truncate text-sm hover:text-accent transition-colors"
-                        onClick={(e) => e.stopPropagation()}
+                        onClick={(e) => { e.stopPropagation(); setPreviewFile(file); }}
                       >
                         {file.name}
-                      </a>
+                      </button>
                     </div>
                   </td>
                   <td className="px-4 py-4">
@@ -252,9 +299,17 @@ export const MediaTable = ({
                     {formatBytes(file.optimizedSize)}
                   </td>
                   <td className="px-4 py-4">
-                    <span className={`inline-flex items-center justify-center rounded-full border px-2 py-0.5 text-xs font-medium ${file.savings > 0 ? 'border-emerald-500/20 bg-emerald-500/10 text-emerald-400' : 'border-slate-500/20 bg-slate-500/10 text-slate-400'}`}>
-                      {file.savings > 0 ? `-${file.savings.toFixed(0)}%` : '0%'}
-                    </span>
+                    {file.savings < 0 ? (
+                      <SavingsTooltip>
+                        <span className="inline-flex items-center justify-center rounded-full border px-2 py-0.5 text-xs font-medium border-red-500/20 bg-red-500/10 text-red-400">
+                          +{Math.abs(file.savings).toFixed(0)}%
+                        </span>
+                      </SavingsTooltip>
+                    ) : (
+                      <span className={`inline-flex items-center justify-center rounded-full border px-2 py-0.5 text-xs font-medium ${file.savings > 0 ? 'border-emerald-500/20 bg-emerald-500/10 text-emerald-400' : 'border-slate-500/20 bg-slate-500/10 text-slate-400'}`}>
+                        {file.savings > 0 ? `-${file.savings.toFixed(0)}%` : '0%'}
+                      </span>
+                    )}
                   </td>
                   <td className="px-6 py-4 text-right">
                     <button 
@@ -283,7 +338,7 @@ export const MediaTable = ({
           paginatedFiles.map((file) => (
             <div
               key={file.id}
-              onClick={() => isSelectionMode && toggleSelection(file.id)}
+              onClick={() => isSelectionMode ? toggleSelection(file.id) : setPreviewFile(file)}
               className={`flex flex-col gap-4 rounded-xl border p-4 shadow-sm transition-colors ${selectedIds.has(file.id) ? 'border-blue-500/50 bg-blue-900/20' : 'bg-card border-border'} ${isSelectionMode ? 'cursor-pointer' : ''}`}
             >
               <div className="flex items-center justify-between gap-3">
@@ -328,9 +383,17 @@ export const MediaTable = ({
                 </div>
                 <div className="flex flex-col items-end gap-1.5">
                   <span className="text-text-muted">Savings</span>
-                  <span className={`inline-flex items-center justify-center rounded-full border px-2 py-0.5 text-xs font-medium ${file.savings > 0 ? 'border-emerald-500/20 bg-emerald-500/10 text-emerald-400' : 'border-slate-500/20 bg-slate-500/10 text-slate-400'}`}>
-                    {file.savings > 0 ? `-${file.savings.toFixed(0)}%` : '0%'}
-                  </span>
+                  {file.savings < 0 ? (
+                    <SavingsTooltip>
+                      <span className="inline-flex items-center justify-center rounded-full border px-2 py-0.5 text-xs font-medium border-red-500/20 bg-red-500/10 text-red-400">
+                        +{Math.abs(file.savings).toFixed(0)}%
+                      </span>
+                    </SavingsTooltip>
+                  ) : (
+                    <span className={`inline-flex items-center justify-center rounded-full border px-2 py-0.5 text-xs font-medium ${file.savings > 0 ? 'border-emerald-500/20 bg-emerald-500/10 text-emerald-400' : 'border-slate-500/20 bg-slate-500/10 text-slate-400'}`}>
+                      {file.savings > 0 ? `-${file.savings.toFixed(0)}%` : '0%'}
+                    </span>
+                  )}
                 </div>
               </div>
 
@@ -395,7 +458,7 @@ export const MediaTable = ({
         <div className="flex items-center gap-2">
           <Button
             variant="danger"
-            onClick={handleDelete}
+            onClick={() => handleDelete()}
             className="h-8 py-0 text-xs xl:h-9 xl:text-sm"
           >
             Delete
@@ -413,6 +476,13 @@ export const MediaTable = ({
           />
         </div>
       </div>
+      
+      <MediaPreviewModal 
+        isOpen={!!previewFile}
+        onClose={() => setPreviewFile(null)}
+        file={previewFile}
+        onDelete={handleDelete}
+      />
     </div>
   );
 };

@@ -4,7 +4,7 @@ import { compressImageController } from '../../controllers/v1/compression.contro
 import { getMediaFiles, deleteMediaFile, updateMediaFile } from '../../controllers/media.controller';
 import multer from 'multer';
 
-const router = Router();
+const router: Router = Router();
 
 // Configure multer for memory storage
 const upload = multer({

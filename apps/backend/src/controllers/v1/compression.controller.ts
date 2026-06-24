@@ -1,9 +1,9 @@
-import { Response } from 'express';
+import { Request, Response } from 'express';
 import { ApiRequest } from '../../middlewares/apiKey.middleware';
 import { compressImage } from '../../services/compression.service';
 import { prisma } from '../../config/prisma';
 
-export const compressImageController = async (req: any, res: Response): Promise<void> => {
+export const compressImageController = async (req: Request & { workspaceId?: string; user?: { workspaceId: string } }, res: Response): Promise<void> => {
   try {
     const workspaceId = req.workspaceId || req.user?.workspaceId;
     
@@ -51,26 +51,26 @@ export const compressImageController = async (req: any, res: Response): Promise<
     // Prepare options
     const options = {
       raster: {
-        format, // Could be 'auto'
-        resolvedFormat: resolvedFormat as any,
-        quality: quality ? parseInt(quality, 10) : undefined,
+        ...(format ? { format } : {}),
+        resolvedFormat: resolvedFormat as 'avif' | 'webp' | 'jpeg' | 'png',
+        ...(quality ? { quality: parseInt(quality, 10) } : {}),
         lossless: lossless === 'true',
-        width: width ? parseInt(width, 10) : undefined,
-        height: height ? parseInt(height, 10) : undefined,
-        fit: fit as any,
+        ...(width ? { width: parseInt(width, 10) } : {}),
+        ...(height ? { height: parseInt(height, 10) } : {}),
+        ...(fit ? { fit: fit as 'cover' | 'contain' | 'inside' } : {}),
         stripMetadata: stripMetadata !== 'false', // default true
-        effort: effort ? parseInt(effort, 10) : undefined,
+        ...(effort ? { effort: parseInt(effort, 10) } : {}),
       },
       vector: {
         sanitize: true, // Always forced
         removeViewBox: removeViewBox === 'true',
         multipass: multipass === 'true',
-        floatPrecision: floatPrecision ? parseInt(floatPrecision, 10) : undefined,
+        ...(floatPrecision ? { floatPrecision: parseInt(floatPrecision, 10) } : {}),
       },
       animation: {
-        format: format as any,
-        pages: pages ? parseInt(pages, 10) : undefined,
-        colors: colors ? parseInt(colors, 10) : undefined,
+        ...(format ? { format: format as 'webp' | 'gif' } : {}),
+        ...(pages ? { pages: parseInt(pages, 10) } : {}),
+        ...(colors ? { colors: parseInt(colors, 10) } : {}),
       }
     };
 
@@ -86,8 +86,7 @@ export const compressImageController = async (req: any, res: Response): Promise<
     // Calculate savings
     const originalSizeBigInt = BigInt(result.originalSize);
     const optimizedSizeBigInt = BigInt(result.optimizedSize);
-    let savingsBytes = originalSizeBigInt - optimizedSizeBigInt;
-    if (savingsBytes < 0n) savingsBytes = 0n; // Sometimes it might get slightly larger if already optimized
+    const savingsBytes = originalSizeBigInt - optimizedSizeBigInt;
     const savingsPercent = result.originalSize > 0 
       ? (Number(savingsBytes) / result.originalSize * 100) 
       : 0;
@@ -134,7 +133,7 @@ export const compressImageController = async (req: any, res: Response): Promise<
         format: result.format,
       }
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Compression Controller Error:', error);
     
     // Log error in Analytics
@@ -148,6 +147,6 @@ export const compressImageController = async (req: any, res: Response): Promise<
       }).catch(err => console.error('Failed to log analytics error', err));
     }
 
-    res.status(500).json({ error: error.message || 'Failed to compress image' });
+    res.status(500).json({ error: error instanceof Error ? error.message : 'Failed to compress image' });
   }
 };

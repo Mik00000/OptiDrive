@@ -35,10 +35,10 @@ export const viewMediaController = async (req: Request, res: Response): Promise<
     }
 
     // Stream the body to the response
-    const stream = response.Body as any;
+    const stream = response.Body as import('stream').Readable;
     stream.pipe(res);
-  } catch (error: any) {
-    if (error.name === 'NoSuchKey') {
+  } catch (error: unknown) {
+    if (error instanceof Error && error.name === 'NoSuchKey') {
       res.status(404).json({ error: 'Image not found' });
       return;
     }

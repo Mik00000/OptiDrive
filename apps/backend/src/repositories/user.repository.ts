@@ -15,8 +15,8 @@ export const createUserWithWorkspace = async (email: string, passwordHash: strin
       passwordHash,
       name,
       emailVerified: false,
-      verificationCode,
-      verificationCodeExpiry,
+      verificationCode: verificationCode ?? null,
+      verificationCodeExpiry: verificationCodeExpiry ?? null,
       workspace: {
         create: {
           name: `${name}'s Workspace`,

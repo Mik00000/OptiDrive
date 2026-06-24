@@ -39,7 +39,7 @@ export const resendVerificationLimiter = rateLimit({
 // Глобальне обмеження для всіх інших API (наприклад, 100 запитів на 15 хвилин)
 export const globalApiLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, 
-  max: 100,
+  max: process.env.NODE_ENV === 'production' ? 100 : 5000, // TODO: потім зменшити
   message: { error: 'Too many requests from this IP, please try again later' },
   standardHeaders: true,
   legacyHeaders: false,

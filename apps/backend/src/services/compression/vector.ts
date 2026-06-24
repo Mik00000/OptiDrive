@@ -26,13 +26,9 @@ export const processVectorImage = (buffer: Buffer, options: VectorOptions): { bu
         params: {
           overrides: {
             removeViewBox: removeViewBox, // False by default, so it's not removed
-            removeScriptElement: true, 
-            removeOffCanvasPaths: true,
           },
         },
-      },
-      // Ensure XSS prevention (sanitization)
-      'removeScriptElement',
+      } as import('svgo').PluginConfig,
       // Additional sanitization
       {
         name: 'removeAttrs',

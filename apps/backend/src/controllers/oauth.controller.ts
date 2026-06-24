@@ -105,7 +105,7 @@ export const githubCallback = async (req: Request, res: Response): Promise<void>
     });
 
     const profile = userInfoResponse.data;
-    const primaryEmail = emailsResponse.data.find((e: any) => e.primary)?.email || emailsResponse.data[0]?.email;
+    const primaryEmail = emailsResponse.data.find((e: { primary?: boolean; email: string }) => e.primary)?.email || emailsResponse.data[0]?.email;
 
     let user = await prisma.user.findUnique({ where: { email: primaryEmail } });
     

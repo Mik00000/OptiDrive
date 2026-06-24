@@ -1,9 +1,9 @@
 import { Request, Response } from 'express';
 import { registerUser, loginUser, verifyEmail, resendVerificationEmail, forgotPassword, resetPassword } from '../services/auth.service';
 
-const handleError = (error: any, res: Response, defaultStatus = 400) => {
-  const msg = error?.message || '';
-  if (msg.includes("Can't reach database server") || msg.includes('ETIMEDOUT') || error?.code === 'P1001' || msg.includes('timeout')) {
+const handleError = (error: unknown, res: Response, defaultStatus = 400) => {
+  const msg = error instanceof Error ? error.message : String(error);
+  if (msg.includes("Can't reach database server") || msg.includes('ETIMEDOUT') || (error as { code?: string })?.code === 'P1001' || msg.includes('timeout')) {
     return res.status(503).json({ error: 'Connection error. The server is waking up, please try again in a few seconds.' });
   }
   return res.status(defaultStatus).json({ error: msg || 'An error occurred' });
@@ -31,7 +31,7 @@ export const register = async (req: Request, res: Response): Promise<void> => {
         workspaceId: user.workspaceId
       }
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     handleError(error, res, 400);
   }
 };
@@ -58,7 +58,7 @@ export const login = async (req: Request, res: Response): Promise<void> => {
         workspaceId: user.workspaceId
       }
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     handleError(error, res, 401);
   }
 };
@@ -84,7 +84,7 @@ export const verifyEmailController = async (req: Request, res: Response): Promis
         workspaceId: user.workspaceId
       }
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     handleError(error, res, 400);
   }
 };
@@ -101,7 +101,7 @@ export const resendVerificationController = async (req: Request, res: Response):
     await resendVerificationEmail(email);
 
     res.status(200).json({ success: true, message: 'Verification email resent' });
-  } catch (error: any) {
+  } catch (error: unknown) {
     handleError(error, res, 400);
   }
 };
@@ -122,7 +122,7 @@ export const forgotPasswordController = async (req: Request, res: Response): Pro
     await forgotPassword(email, baseUrl.toString());
 
     res.status(200).json({ success: true, message: 'Password reset link sent' });
-  } catch (error: any) {
+  } catch (error: unknown) {
     handleError(error, res, 400);
   }
 };
@@ -138,7 +138,7 @@ export const resetPasswordController = async (req: Request, res: Response): Prom
     await resetPassword(token, newPassword);
 
     res.status(200).json({ success: true, message: 'Password has been reset' });
-  } catch (error: any) {
+  } catch (error: unknown) {
     handleError(error, res, 400);
   }
 };

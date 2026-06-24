@@ -59,8 +59,8 @@ export const createApiKey = async (
     };
 
     res.status(201).json({ key: mappedKey, rawToken: result.rawToken });
-  } catch (error: any) {
-    res.status(500).json({ error: error.message || 'Failed to generate API key' });
+  } catch (error: unknown) {
+    res.status(500).json({ error: error instanceof Error ? error.message : 'Failed to generate API key' });
   }
 };
 
@@ -106,10 +106,10 @@ export const getApiKeys = async (
     });
 
     res.status(200).json(mappedKeys);
-  } catch (error: any) {
+  } catch (error: unknown) {
     res
       .status(500)
-      .json({ error: error.message || 'Failed to get API keys' });
+      .json({ error: error instanceof Error ? error.message : 'Failed to get API keys' });
   }
 };
 
@@ -133,7 +133,7 @@ export const revokeApiKey = async (
     
     await apiKeyService.revokeKey(id, workspaceId);
     res.status(200).json({ success: true });
-  } catch (error: any) {
-    res.status(500).json({ error: error.message || 'Failed to revoke API key' });
+  } catch (error: unknown) {
+    res.status(500).json({ error: error instanceof Error ? error.message : 'Failed to revoke API key' });
   }
 };

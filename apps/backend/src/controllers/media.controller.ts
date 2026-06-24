@@ -42,7 +42,7 @@ export const deleteMediaFile = async (req: AuthRequest, res: Response): Promise<
     }
 
     const mediaFile = await prisma.mediaFile.findFirst({
-      where: { id: fileId, workspaceId },
+      where: { id: String(fileId), workspaceId: String(workspaceId) },
     });
 
     if (!mediaFile) {
@@ -74,7 +74,7 @@ export const deleteMediaFile = async (req: AuthRequest, res: Response): Promise<
 
     // Delete from DB
     await prisma.mediaFile.delete({
-      where: { id: fileId },
+      where: { id: String(fileId) },
     });
 
     // Reduce storage usage
@@ -109,7 +109,7 @@ export const updateMediaFile = async (req: AuthRequest, res: Response): Promise<
     }
 
     const updatedFile = await prisma.mediaFile.updateMany({
-      where: { id: fileId, workspaceId },
+      where: { id: String(fileId), workspaceId: String(workspaceId) },
       data: { name },
     });
 

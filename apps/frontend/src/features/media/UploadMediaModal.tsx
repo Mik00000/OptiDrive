@@ -136,8 +136,8 @@ export function UploadMediaModal({ isOpen, onClose, onSuccess }: UploadMediaModa
       setFile(null);
       if (onSuccess) onSuccess();
       onClose();
-    } catch (err: any) {
-      setError(err.message || "Failed to upload file");
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Failed to upload file");
     } finally {
       setIsUploading(false);
     }

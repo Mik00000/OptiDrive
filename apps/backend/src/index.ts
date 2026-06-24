@@ -1,10 +1,12 @@
 import 'dotenv/config';
 import express from 'express';
+import cors from 'cors';
 import internalRoutes from './routes/internal';
 import v1Routes from './routes/v1';
 import { prisma } from './config/prisma';
 
 const app = express();
+app.use(cors()); // Дозволяємо CORS запити
 app.use(express.json()); // Щоб Express розумів JSON з req.body
 
 // Внутрішнє API для взаємодії з дашбордом
