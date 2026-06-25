@@ -1,8 +1,8 @@
 "use client";
-
+import { useState } from "react";
 import { Icon } from "@iconify/react";
 import { Modal } from "@/components/Modal";
-import { MediaFile } from "./api";
+import { MediaFile, downloadMediaFileClientApi } from "./api";
 import { Button } from "@/components/Button";
 
 interface MediaPreviewModalProps {
@@ -15,26 +15,25 @@ interface MediaPreviewModalProps {
 export function MediaPreviewModal({ isOpen, onClose, file, onDelete }: MediaPreviewModalProps) {
   if (!file) return null;
 
+  const [isCopied, setIsCopied] = useState(false);
+  const [isDownloading, setIsDownloading] = useState(false);
+
   const copyToClipboard = () => {
     navigator.clipboard.writeText(file.cdnUrl);
-    alert('Public CDN URL copied to clipboard!');
+    setIsCopied(true);
+    setTimeout(() => setIsCopied(false), 2000);
   };
 
   const downloadImage = async () => {
+    setIsDownloading(true);
     try {
-      const response = await fetch(file.cdnUrl);
-      if (!response.ok) throw new Error('Failed to fetch');
-      const blob = await response.blob();
-      const objectUrl = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = objectUrl;
-      link.download = file.name;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      window.URL.revokeObjectURL(objectUrl);
+      await downloadMediaFileClientApi(file.id, file.name);
     } catch (e) {
-      alert('Failed to download image.');
+      console.warn('Download failed', e);
+      // Fallback
+      window.open(file.cdnUrl, '_blank');
+    } finally {
+      setIsDownloading(false);
     }
   };
 
@@ -103,13 +102,17 @@ export function MediaPreviewModal({ isOpen, onClose, file, onDelete }: MediaPrev
             Delete
           </Button>
           <div className="flex gap-3">
-            <Button variant="bordered" onClick={downloadImage}>
-              <Icon icon="lucide:download" width={16} className="mr-2" />
-              Download
+            <Button variant="bordered" onClick={downloadImage} disabled={isDownloading}>
+              {isDownloading ? (
+                <Icon icon="lucide:loader-2" width={16} className="mr-2 animate-spin" />
+              ) : (
+                <Icon icon="lucide:download" width={16} className="mr-2" />
+              )}
+              {isDownloading ? "Downloading..." : "Download"}
             </Button>
-            <Button variant="accent" onClick={copyToClipboard}>
-              <Icon icon="lucide:link" width={16} className="mr-2" />
-              Copy URL
+            <Button variant={isCopied ? "success" : "accent"} onClick={copyToClipboard} disabled={isCopied}>
+              <Icon icon={isCopied ? "lucide:check" : "lucide:link"} width={16} className="mr-2" />
+              {isCopied ? "Copied!" : "Copy URL"}
             </Button>
           </div>
         </div>

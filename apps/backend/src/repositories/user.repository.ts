@@ -35,11 +35,21 @@ export const createUserWithWorkspace = async (email: string, passwordHash: strin
       emailVerified: false,
       verificationCode: verificationCode ?? null,
       verificationCodeExpiry: verificationCodeExpiry ?? null,
-      workspaceId: workspace.id,
-      roleId: ownerRole.id
+      activeWorkspaceId: workspace.id,
+      workspaces: {
+        create: {
+          workspaceId: workspace.id,
+          roleId: ownerRole.id
+        }
+      }
     },
     include: {
-      workspace: true, 
+      workspaces: {
+        include: {
+          workspace: true,
+          role: true
+        }
+      }
     },
   });
 };

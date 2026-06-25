@@ -2,6 +2,7 @@
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { apiClient } from '@/lib/api-client';
 
 interface User {
   id: string | number;
@@ -10,13 +11,31 @@ interface User {
   workspaceId?: string;
 }
 
+interface WorkspaceRole {
+  id: string;
+  name: string;
+  permissions: string[];
+}
+
+interface Workspace {
+  id: string;
+  name: string;
+  slug: string;
+  plan: string;
+  role: WorkspaceRole;
+}
+
 interface AuthContextType {
   user: User | null;
   token: string | null;
   isAuthenticated: boolean;
   isLoading: boolean;
+  workspaces: Workspace[];
   login: (token: string, user: User, skipRedirect?: boolean) => void;
   logout: () => void;
+  fetchWorkspaces: () => Promise<void>;
+  switchWorkspace: (workspaceId: string) => Promise<void>;
+  createWorkspace: (name: string) => Promise<Workspace>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -24,24 +43,44 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [token, setToken] = useState<string | null>(null);
+  const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
 
+  const fetchWorkspaces = async () => {
+    try {
+      const response = await apiClient.get<{ success: boolean; data: Workspace[] }>('/api/internal/workspace/list');
+      if (response.success) {
+        setWorkspaces(response.data);
+      }
+    } catch (error) {
+      console.error('Помилка завантаження робочих просторів:', error);
+    }
+  };
+
   // Відновлення сесії з localStorage при першому рендері
   useEffect(() => {
-    // Оновлюємо стейт асинхронно, щоб уникнути cascading renders
-    setTimeout(() => {
+    setTimeout(async () => {
       try {
         const storedToken = localStorage.getItem('optidrive_token');
         const storedUser = localStorage.getItem('optidrive_user');
 
         if (storedToken && storedUser) {
           setToken(storedToken);
-          setUser(JSON.parse(storedUser));
+          const parsedUser = JSON.parse(storedUser);
+          setUser(parsedUser);
+          
+          try {
+            const response = await apiClient.get<{ success: boolean; data: Workspace[] }>('/api/internal/workspace/list');
+            if (response.success) {
+              setWorkspaces(response.data);
+            }
+          } catch (e) {
+            console.error('Не вдалося завантажити воркспейси при старті:', e);
+          }
         }
       } catch (error) {
         console.error('Помилка відновлення сесії:', error);
-        // Очищаємо пошкоджені дані
         localStorage.removeItem('optidrive_token');
         localStorage.removeItem('optidrive_user');
       } finally {
@@ -56,6 +95,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setToken(newToken);
     setUser(newUser);
     
+    fetchWorkspaces().catch(console.error);
+
     if (skipRedirect) return;
 
     const params = new URLSearchParams(window.location.search);
@@ -72,11 +113,57 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     localStorage.removeItem('optidrive_user');
     setToken(null);
     setUser(null);
+    setWorkspaces([]);
     router.push('/login');
   };
 
+  const switchWorkspace = async (workspaceId: string) => {
+    try {
+      const response = await apiClient.post<{ success: boolean; token: string; user: User }>('/api/internal/workspace/switch', { workspaceId });
+      if (response.success) {
+        localStorage.setItem('optidrive_token', response.token);
+        localStorage.setItem('optidrive_user', JSON.stringify(response.user));
+        setToken(response.token);
+        setUser(response.user);
+        
+        await fetchWorkspaces();
+        
+        router.push('/dashboard');
+        window.location.href = '/dashboard';
+      }
+    } catch (error) {
+      console.error('Помилка перемикання робочого простору:', error);
+      throw error;
+    }
+  };
+
+  const createWorkspace = async (name: string): Promise<Workspace> => {
+    try {
+      const response = await apiClient.post<{ success: boolean; data: Workspace }>('/api/internal/workspace/create', { name });
+      if (response.success) {
+        await fetchWorkspaces();
+        return response.data;
+      }
+      throw new Error('Failed to create workspace');
+    } catch (error) {
+      console.error('Помилка створення робочого простору:', error);
+      throw error;
+    }
+  };
+
   return (
-    <AuthContext.Provider value={{ user, token, isAuthenticated: !!token, isLoading, login, logout }}>
+    <AuthContext.Provider value={{ 
+      user, 
+      token, 
+      isAuthenticated: !!token, 
+      isLoading, 
+      workspaces, 
+      login, 
+      logout, 
+      fetchWorkspaces, 
+      switchWorkspace,
+      createWorkspace
+    }}>
       {children}
     </AuthContext.Provider>
   );

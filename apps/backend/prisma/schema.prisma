@@ -36,7 +36,7 @@ model Role {
   workspaceId String
   workspace   Workspace    @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   
-  users       User[]
+  members     WorkspaceUser[]
   invitations Invitation[]
 
   @@unique([name, workspaceId])
@@ -68,25 +68,24 @@ enum ActivityType {
 
 // 1. Користувач системи
 model User {
-  id           String   @id @default(cuid())
-  email        String   @unique
-  passwordHash String?
-  name         String?
-  avatarUrl    String?
-  googleId     String?  @unique
-  githubId     String?  @unique
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-  emailVerified          Boolean  @default(false)
+  id                     String          @id @default(cuid())
+  email                  String          @unique
+  passwordHash           String?
+  name                   String?
+  avatarUrl              String?
+  googleId               String?         @unique
+  githubId               String?         @unique
+  createdAt              DateTime        @default(now())
+  updatedAt              DateTime        @updatedAt
+  emailVerified          Boolean         @default(false)
   verificationCode       String?
   verificationCodeExpiry DateTime?
   resetPasswordToken     String?
   resetPasswordExpiry    DateTime?
 
-  roleId       String?
-  role         Role?     @relation(fields: [roleId], references: [id], onDelete: SetNull)
-  workspaceId  String
-  workspace    Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  activeWorkspaceId      String?
+  activeWorkspace        Workspace?      @relation("ActiveWorkspace", fields: [activeWorkspaceId], references: [id], onDelete: SetNull)
+  workspaces             WorkspaceUser[]
 
   // Зв'язок із логами дій (якщо користувача видалять, логи залишаються, але поле userId стане null)
   activityLogs ActivityLog[]
@@ -107,7 +106,8 @@ model Workspace {
   monthlyOptimizations Int      @default(0)
 
   // Зв'язки
-  users          User[]
+  members        WorkspaceUser[]
+  activeUsers    User[]          @relation("ActiveWorkspace")
   apiKeys        ApiKey[]
   files          MediaFile[]
   invoices       Invoice[]
@@ -115,6 +115,20 @@ model Workspace {
   activityLogs   ActivityLog[]
   invitations    Invitation[]
   roles          Role[]
+}
+
+model WorkspaceUser {
+  id          String    @id @default(cuid())
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  workspaceId String
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  roleId      String
+  role        Role      @relation(fields: [roleId], references: [id], onDelete: Restrict)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@unique([userId, workspaceId])
 }
 
 // 3. API Ключі для безпечної інтеграції

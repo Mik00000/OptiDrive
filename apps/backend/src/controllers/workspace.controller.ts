@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { prisma } from '../config/prisma';
 import { PLANS, PlanType } from '@optidrive/shared';
+import { generateToken } from '../utils/jwt';
 
 export const getWorkspaceStats = async (req: Request & { user?: any }, res: Response): Promise<void> => {
   try {
@@ -116,6 +117,163 @@ export const getWorkspaceStats = async (req: Request & { user?: any }, res: Resp
     });
   } catch (error) {
     console.error('getWorkspaceStats Error:', error);
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
+};
+
+export const getUserWorkspaces = async (req: Request & { user?: any }, res: Response): Promise<void> => {
+  try {
+    const userId = req.user?.userId;
+    if (!userId) {
+      res.status(401).json({ error: 'Unauthorized' });
+      return;
+    }
+
+    const members = await prisma.workspaceUser.findMany({
+      where: { userId },
+      include: {
+        workspace: {
+          select: {
+            id: true,
+            name: true,
+            slug: true,
+            plan: true
+          }
+        },
+        role: {
+          select: {
+            id: true,
+            name: true,
+            permissions: true
+          }
+        }
+      }
+    });
+
+    const workspaces = members.map(m => ({
+      id: m.workspace.id,
+      name: m.workspace.name,
+      slug: m.workspace.slug,
+      plan: m.workspace.plan,
+      role: m.role
+    }));
+
+    res.status(200).json({ success: true, data: workspaces });
+  } catch (error) {
+    console.error('getUserWorkspaces Error:', error);
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
+};
+
+export const switchWorkspace = async (req: Request & { user?: any }, res: Response): Promise<void> => {
+  try {
+    const userId = req.user?.userId;
+    const { workspaceId } = req.body;
+
+    if (!userId) {
+      res.status(401).json({ error: 'Unauthorized' });
+      return;
+    }
+
+    if (!workspaceId) {
+      res.status(400).json({ error: 'Workspace ID is required' });
+      return;
+    }
+
+    const member = await prisma.workspaceUser.findFirst({
+      where: { userId, workspaceId }
+    });
+
+    if (!member) {
+      res.status(403).json({ error: 'Forbidden: You do not have access to this workspace' });
+      return;
+    }
+
+    const updatedUser = await prisma.user.update({
+      where: { id: userId },
+      data: { activeWorkspaceId: workspaceId }
+    });
+
+    const token = generateToken(userId, workspaceId);
+
+    res.status(200).json({
+      success: true,
+      token,
+      user: {
+        id: updatedUser.id,
+        name: updatedUser.name,
+        email: updatedUser.email,
+        workspaceId: updatedUser.activeWorkspaceId
+      }
+    });
+  } catch (error) {
+    console.error('switchWorkspace Error:', error);
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
+};
+
+export const createWorkspace = async (req: Request & { user?: any }, res: Response): Promise<void> => {
+  try {
+    const userId = req.user?.userId;
+    const { name } = req.body;
+
+    if (!userId) {
+      res.status(401).json({ error: 'Unauthorized' });
+      return;
+    }
+
+    if (!name || typeof name !== 'string') {
+      res.status(400).json({ error: 'Workspace name is required' });
+      return;
+    }
+
+    const slug = `${name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-${Date.now()}`;
+
+    // Use transaction to ensure workspace and initial roles/members are created together
+    const newWorkspace = await prisma.$transaction(async (tx) => {
+      const workspace = await tx.workspace.create({
+        data: {
+          name,
+          slug,
+          plan: 'FREE'
+        }
+      });
+
+      // Create base system roles
+      const allPermissions = [
+        'MANAGE_USERS', 'MANAGE_ROLES', 'MANAGE_BILLING', 
+        'UPLOAD_FILES', 'DELETE_FILES', 'MANAGE_API_KEYS', 'VIEW_ANALYTICS'
+      ] as any[];
+
+      const ownerRole = await tx.role.create({
+        data: { name: 'Owner', isSystem: true, permissions: allPermissions, workspaceId: workspace.id }
+      });
+      await tx.role.createMany({
+        data: [
+          { name: 'Admin', isSystem: true, permissions: allPermissions, workspaceId: workspace.id },
+          { name: 'Member', isSystem: true, permissions: ['UPLOAD_FILES', 'DELETE_FILES', 'VIEW_ANALYTICS'] as any[], workspaceId: workspace.id },
+          { name: 'Viewer', isSystem: true, permissions: ['VIEW_ANALYTICS'] as any[], workspaceId: workspace.id },
+        ]
+      });
+
+      // Assign current user as Owner
+      await tx.workspaceUser.create({
+        data: {
+          userId,
+          workspaceId: workspace.id,
+          roleId: ownerRole.id
+        }
+      });
+
+      return workspace;
+    });
+
+    res.status(201).json({
+      success: true,
+      data: newWorkspace
+    });
+  } catch (error) {
+    console.error('createWorkspace Error:', error);
     res.status(500).json({ error: 'Internal Server Error' });
   }
 };

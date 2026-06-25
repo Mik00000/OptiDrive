@@ -33,6 +33,53 @@ export const registerUser = async (email: string, passwordRaw: string, name: str
   return { user, requiresVerification: true };
 };
 
+const ensureActiveWorkspace = async (userId: string, currentActiveId: string | null, userName?: string | null, userEmail?: string): Promise<string> => {
+  if (currentActiveId) return currentActiveId;
+
+  const { prisma } = require('../config/prisma');
+  const { createDefaultRolesForWorkspace } = require('./role.service');
+  
+  const firstMember = await prisma.workspaceUser.findFirst({
+    where: { userId }
+  });
+  
+  if (firstMember) {
+    await prisma.user.update({
+      where: { id: userId },
+      data: { activeWorkspaceId: firstMember.workspaceId }
+    });
+    return firstMember.workspaceId;
+  }
+
+  // Створити новий воркспейс
+  const displayName = userName || userEmail?.split('@')[0] || 'User';
+  const slug = `${displayName.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-${Date.now()}`;
+  const workspace = await prisma.workspace.create({
+    data: {
+      name: `${displayName}'s Workspace`,
+      slug,
+    }
+  });
+
+  const roles = await createDefaultRolesForWorkspace(workspace.id);
+  const ownerRole = roles.find((r: any) => r.name === 'Owner')!;
+  
+  await prisma.workspaceUser.create({
+    data: {
+      userId,
+      workspaceId: workspace.id,
+      roleId: ownerRole.id
+    }
+  });
+
+  await prisma.user.update({
+    where: { id: userId },
+    data: { activeWorkspaceId: workspace.id }
+  });
+
+  return workspace.id;
+};
+
 export const loginUser = async (email: string, passwordRaw: string) => {
   const user = await findUserByEmail(email);
   if (!user) {
@@ -48,7 +95,8 @@ export const loginUser = async (email: string, passwordRaw: string) => {
     return { user, requiresVerification: true };
   }
 
-  const token = generateToken(user.id, user.workspaceId);
+  const workspaceId = await ensureActiveWorkspace(user.id, user.activeWorkspaceId, user.name, user.email);
+  const token = generateToken(user.id, workspaceId);
 
   return { user, token };
 };
@@ -73,7 +121,8 @@ export const verifyEmail = async (email: string, code: string) => {
 
   await updateUserVerification(user.id);
   
-  const token = generateToken(user.id, user.workspaceId);
+  const workspaceId = await ensureActiveWorkspace(user.id, user.activeWorkspaceId, user.name, user.email);
+  const token = generateToken(user.id, workspaceId);
   return { user, token };
 };
 

@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { requireAuth } from '../../middlewares/auth.middleware';
 import { compressImageController } from '../../controllers/v1/compression.controller';
-import { getMediaFiles, deleteMediaFile, updateMediaFile } from '../../controllers/media.controller';
+import { getMediaFiles, deleteMediaFile, updateMediaFile, downloadMediaFile } from '../../controllers/media.controller';
 import multer from 'multer';
 
 const router: Router = Router();
@@ -19,6 +19,7 @@ router.use(requireAuth);
 
 router.post('/compress', upload.single('image'), checkQuota, compressImageController);
 router.get('/', getMediaFiles);
+router.get('/download/:id', downloadMediaFile);
 router.delete('/:id', deleteMediaFile);
 router.patch('/:id', updateMediaFile);
 

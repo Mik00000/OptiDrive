@@ -12,20 +12,38 @@ export const getWorkspaceUsers = async (req: AuthRequest, res: Response): Promis
   try {
     const { workspaceId } = req.user!;
 
-    const users = await prisma.user.findMany({
+    const members = await prisma.workspaceUser.findMany({
       where: { workspaceId },
-      select: {
-        id: true,
-        email: true,
-        name: true,
-        avatarUrl: true,
-        role: { select: { id: true, name: true } },
-        createdAt: true,
+      include: {
+        user: {
+          select: {
+            id: true,
+            email: true,
+            name: true,
+            avatarUrl: true,
+            createdAt: true,
+          }
+        },
+        role: {
+          select: {
+            id: true,
+            name: true
+          }
+        }
       },
       orderBy: { createdAt: 'desc' }
     });
 
-    res.json({ success: true, data: users });
+    const formattedUsers = members.map(m => ({
+      id: m.user.id,
+      email: m.user.email,
+      name: m.user.name,
+      avatarUrl: m.user.avatarUrl,
+      role: m.role,
+      createdAt: m.user.createdAt
+    }));
+
+    res.json({ success: true, data: formattedUsers });
   } catch (error) {
     console.error('getWorkspaceUsers error:', error);
     res.status(500).json({ success: false, error: 'Failed to fetch users' });
@@ -44,50 +62,78 @@ export const updateUserRole = async (req: AuthRequest, res: Response): Promise<v
       return;
     }
 
-    // Тільки OWNER або ADMIN можуть змінювати ролі (перевірено мідлварою, але тут додаткова логіка)
     if (!currentUserRole?.permissions.includes(Permission.MANAGE_ROLES) && !currentUserRole?.isSystem) {
       res.status(403).json({ success: false, error: 'Insufficient permissions' });
       return;
     }
 
-    // Знайдемо цільового користувача
-    const targetUser = await prisma.user.findFirst({
-      where: { id: targetUserId, workspaceId },
+    const targetMember = await prisma.workspaceUser.findUnique({
+      where: {
+        userId_workspaceId: {
+          userId: targetUserId,
+          workspaceId
+        }
+      },
       include: { role: true }
     });
 
-    if (!targetUser) {
+    if (!targetMember) {
       res.status(404).json({ success: false, error: 'User not found in this workspace' });
       return;
     }
 
-    // OWNER не може бути змінений ADMIN-ом
-    if (targetUser.role?.name === 'Owner' && currentUserRole?.name !== 'Owner') {
+    if (targetMember.role?.name === 'Owner' && currentUserRole?.name !== 'Owner') {
       res.status(403).json({ success: false, error: 'Admins cannot change an Owner\'s role' });
       return;
     }
 
-    // Забороняємо OWNER-у змінювати свою роль, якщо він останній OWNER (треба окрема логіка)
-    if (targetUser.id === currentUserId && targetUser.role?.name === 'Owner') {
+    if (targetMember.userId === currentUserId && targetMember.role?.name === 'Owner') {
       const newRoleObj = await prisma.role.findUnique({ where: { id: newRoleId } });
       if (newRoleObj?.name !== 'Owner') {
-      const ownerCount = await prisma.user.count({
-        where: { workspaceId, role: { name: 'Owner' } }
-      });
-      if (ownerCount <= 1) {
-        res.status(400).json({ success: false, error: 'Cannot demote the last Owner of the workspace' });
-        return;
+        const ownerCount = await prisma.workspaceUser.count({
+          where: { workspaceId, role: { name: 'Owner' } }
+        });
+        if (ownerCount <= 1) {
+          res.status(400).json({ success: false, error: 'Cannot demote the last Owner of the workspace' });
+          return;
+        }
       }
     }
-    }
 
-    const updatedUser = await prisma.user.update({
-      where: { id: targetUserId },
+    const updatedMember = await prisma.workspaceUser.update({
+      where: {
+        userId_workspaceId: {
+          userId: targetUserId,
+          workspaceId
+        }
+      },
       data: { roleId: newRoleId },
-      select: { id: true, email: true, name: true, role: { select: { id: true, name: true } } }
+      include: {
+        user: {
+          select: {
+            id: true,
+            email: true,
+            name: true
+          }
+        },
+        role: {
+          select: {
+            id: true,
+            name: true
+          }
+        }
+      }
     });
 
-    res.json({ success: true, data: updatedUser });
+    res.json({
+      success: true,
+      data: {
+        id: updatedMember.user.id,
+        email: updatedMember.user.email,
+        name: updatedMember.user.name,
+        role: updatedMember.role
+      }
+    });
   } catch (error) {
     console.error('updateUserRole error:', error);
     res.status(500).json({ success: false, error: 'Failed to update user role' });
@@ -100,25 +146,28 @@ export const removeWorkspaceUser = async (req: AuthRequest, res: Response): Prom
     const { workspaceId, userId: currentUserId, role: currentUserRole } = req.user!;
     const targetUserId = req.params.targetUserId as string;
 
-    const targetUser = await prisma.user.findFirst({
-      where: { id: targetUserId, workspaceId },
-      include: { role: true }
+    const targetMember = await prisma.workspaceUser.findUnique({
+      where: {
+        userId_workspaceId: {
+          userId: targetUserId,
+          workspaceId
+        }
+      },
+      include: { role: true, user: true }
     });
 
-    if (!targetUser) {
-      res.status(404).json({ success: false, error: 'User not found' });
+    if (!targetMember) {
+      res.status(404).json({ success: false, error: 'User not found in this workspace' });
       return;
     }
 
-    // Логіка: ADMIN не може видалити OWNER-а або іншого ADMIN-а (чи можна? для безпеки ні)
-    if (currentUserRole?.name === 'Admin' && (targetUser.role?.name === 'Owner' || targetUser.role?.name === 'Admin')) {
+    if (currentUserRole?.name === 'Admin' && (targetMember.role?.name === 'Owner' || targetMember.role?.name === 'Admin')) {
       res.status(403).json({ success: false, error: 'Admins cannot remove Owners or other Admins' });
       return;
     }
 
-    // Останній OWNER не може видалити себе
-    if (targetUser.id === currentUserId && targetUser.role?.name === 'Owner') {
-      const ownerCount = await prisma.user.count({
+    if (targetMember.userId === currentUserId && targetMember.role?.name === 'Owner') {
+      const ownerCount = await prisma.workspaceUser.count({
         where: { workspaceId, role: { name: 'Owner' } }
       });
       if (ownerCount <= 1) {
@@ -126,16 +175,55 @@ export const removeWorkspaceUser = async (req: AuthRequest, res: Response): Prom
         return;
       }
     }
-    // Якщо це ми самі виходимо з простору, то дозволяємо
-    // Якщо ні, то видаляти може тільки OWNER або ADMIN
-    if (targetUser.id !== currentUserId && !currentUserRole?.permissions.includes(Permission.MANAGE_USERS) && !currentUserRole?.isSystem) {
+
+    if (targetMember.userId !== currentUserId && !currentUserRole?.permissions.includes(Permission.MANAGE_USERS) && !currentUserRole?.isSystem) {
       res.status(403).json({ success: false, error: 'Insufficient permissions' });
       return;
     }
 
-    await prisma.user.delete({
-      where: { id: targetUserId }
+    // Видаляємо зв'язок M2M
+    await prisma.workspaceUser.delete({
+      where: {
+        userId_workspaceId: {
+          userId: targetUserId,
+          workspaceId
+        }
+      }
     });
+
+    // Якщо це був активний воркспейс користувача, змінюємо його
+    if (targetMember.user.activeWorkspaceId === workspaceId) {
+      const nextMember = await prisma.workspaceUser.findFirst({
+        where: { userId: targetUserId }
+      });
+      if (nextMember) {
+        await prisma.user.update({
+          where: { id: targetUserId },
+          data: { activeWorkspaceId: nextMember.workspaceId }
+        });
+      } else {
+        const name = targetMember.user.name || targetMember.user.email.split('@')[0];
+        const newWorkspace = await prisma.workspace.create({
+          data: {
+            name: `${name}'s Workspace`,
+            slug: `personal-${targetUserId}-${Date.now()}`
+          }
+        });
+        const roles = await createDefaultRolesForWorkspace(newWorkspace.id);
+        const ownerRole = roles.find(r => r.name === 'Owner')!;
+        await prisma.workspaceUser.create({
+          data: {
+            userId: targetUserId,
+            workspaceId: newWorkspace.id,
+            roleId: ownerRole.id
+          }
+        });
+        await prisma.user.update({
+          where: { id: targetUserId },
+          data: { activeWorkspaceId: newWorkspace.id }
+        });
+      }
+    }
 
     res.json({ success: true, message: 'User removed from workspace successfully' });
   } catch (error) {
@@ -160,11 +248,14 @@ export const inviteUser = async (req: AuthRequest, res: Response): Promise<void>
       return;
     }
 
-    const existingUser = await prisma.user.findFirst({
-      where: { email, workspaceId }
+    const existingMember = await prisma.workspaceUser.findFirst({
+      where: {
+        workspaceId,
+        user: { email }
+      }
     });
 
-    if (existingUser) {
+    if (existingMember) {
       res.status(400).json({ success: false, error: 'User is already in this workspace' });
       return;
     }
@@ -192,12 +283,11 @@ export const inviteUser = async (req: AuthRequest, res: Response): Promise<void>
   }
 };
 
-
 // 5. Отримати активні запрошення для поточного користувача
 export const getPendingInvitations = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const { userId } = req.user!;
-    const user = await prisma.user.findUnique({ where: { id: userId }, include: { role: true } });
+    const user = await prisma.user.findUnique({ where: { id: userId } });
     
     if (!user) {
       res.status(404).json({ success: false, error: 'User not found' });
@@ -234,7 +324,7 @@ export const rejectInvitation = async (req: AuthRequest, res: Response): Promise
       return;
     }
 
-    const user = await prisma.user.findUnique({ where: { id: userId }, include: { role: true } });
+    const user = await prisma.user.findUnique({ where: { id: userId } });
     if (!user) {
       res.status(404).json({ success: false, error: 'User not found' });
       return;
@@ -260,14 +350,14 @@ export const rejectInvitation = async (req: AuthRequest, res: Response): Promise
 export const acceptInvitation = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const { userId, workspaceId: currentWorkspaceId } = req.user!;
-    const { invitationId, confirmLeave } = req.body;
+    const { invitationId } = req.body;
 
     if (!invitationId) {
       res.status(400).json({ success: false, error: 'Invitation ID is required' });
       return;
     }
 
-    const user = await prisma.user.findUnique({ where: { id: userId }, include: { role: true } });
+    const user = await prisma.user.findUnique({ where: { id: userId } });
     if (!user) {
       res.status(404).json({ success: false, error: 'User not found' });
       return;
@@ -287,45 +377,52 @@ export const acceptInvitation = async (req: AuthRequest, res: Response): Promise
       return;
     }
 
-    // Якщо це не новий користувач (створений більше години тому) або його поточний простір не порожній
-    if (!confirmLeave) {
-      const currentWorkspaceFiles = await prisma.mediaFile.count({ where: { workspaceId: currentWorkspaceId } });
-      const currentWorkspaceKeys = await prisma.apiKey.count({ where: { workspaceId: currentWorkspaceId } });
-      const userAge = Date.now() - new Date(user.createdAt).getTime();
-      const isOldUser = userAge > 1000 * 60 * 60; // 1 година
-
-      if (isOldUser || currentWorkspaceFiles > 0 || currentWorkspaceKeys > 0) {
-        res.status(400).json({ 
-          success: false, 
-          error: 'Ви маєте існуючий робочий простір з даними. Підтвердіть, що хочете покинути його.', 
-          requiresConfirmation: true 
-        });
-        return;
-      }
-    }
-    const oldWorkspaceId = user.workspaceId;
-
-    // Оновлюємо workspaceId та role користувача
-    const updatedUser = await prisma.user.update({
-      where: { id: userId },
-      data: {
-        workspaceId: invitation.workspaceId,
-        roleId: invitation.roleId
+    const isAlreadyMember = await prisma.workspaceUser.findUnique({
+      where: {
+        userId_workspaceId: {
+          userId,
+          workspaceId: invitation.workspaceId
+        }
       }
     });
 
-    // Видаляємо старий робочий простір, якщо він став порожнім
-    if (oldWorkspaceId !== invitation.workspaceId) {
-      const remainingUsers = await prisma.user.count({ where: { workspaceId: oldWorkspaceId } });
-      if (remainingUsers === 0) {
-        await prisma.workspace.delete({ where: { id: oldWorkspaceId } });
+    if (!isAlreadyMember) {
+      await prisma.workspaceUser.create({
+        data: {
+          userId,
+          workspaceId: invitation.workspaceId,
+          roleId: invitation.roleId
+        }
+      });
+    }
+
+    const updatedUser = await prisma.user.update({
+      where: { id: userId },
+      data: {
+        activeWorkspaceId: invitation.workspaceId
+      }
+    });
+
+    if (currentWorkspaceId && currentWorkspaceId !== invitation.workspaceId) {
+      const currentWorkspaceFiles = await prisma.mediaFile.count({ where: { workspaceId: currentWorkspaceId } });
+      const currentWorkspaceKeys = await prisma.apiKey.count({ where: { workspaceId: currentWorkspaceId } });
+      const remainingMembers = await prisma.workspaceUser.count({ where: { workspaceId: currentWorkspaceId } });
+      
+      if (remainingMembers === 1 && currentWorkspaceFiles === 0 && currentWorkspaceKeys === 0) {
+        await prisma.workspaceUser.delete({
+          where: {
+            userId_workspaceId: {
+              userId,
+              workspaceId: currentWorkspaceId
+            }
+          }
+        });
+        await prisma.workspace.delete({ where: { id: currentWorkspaceId } });
       }
     }
 
-    // Видаляємо використане запрошення
     await prisma.invitation.delete({ where: { id: invitation.id } });
 
-    // Генеруємо НОВИЙ токен, бо в старому зашитий старий workspaceId!
     const newToken = generateToken(userId, invitation.workspaceId);
 
     res.json({ 
@@ -333,7 +430,12 @@ export const acceptInvitation = async (req: AuthRequest, res: Response): Promise
       message: 'Joined workspace successfully', 
       workspaceId: invitation.workspaceId,
       token: newToken,
-      user: updatedUser
+      user: {
+        id: updatedUser.id,
+        name: updatedUser.name,
+        email: updatedUser.email,
+        workspaceId: updatedUser.activeWorkspaceId
+      }
     });
   } catch (error) {
     console.error('acceptInvitation error:', error);
@@ -341,20 +443,28 @@ export const acceptInvitation = async (req: AuthRequest, res: Response): Promise
   }
 };
 
-
 // 8. Покинути робочий простір
 export const leaveWorkspace = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const { userId, workspaceId } = req.user!;
 
-    const user = await prisma.user.findUnique({ where: { id: userId }, include: { role: true } });
-    if (!user) {
-      res.status(404).json({ success: false, error: 'User not found' });
+    const member = await prisma.workspaceUser.findUnique({
+      where: {
+        userId_workspaceId: {
+          userId,
+          workspaceId
+        }
+      },
+      include: { role: true }
+    });
+
+    if (!member) {
+      res.status(404).json({ success: false, error: 'Member not found' });
       return;
     }
 
-    if (user.role?.name === 'Owner') {
-      const ownerCount = await prisma.user.count({
+    if (member.role?.name === 'Owner') {
+      const ownerCount = await prisma.workspaceUser.count({
         where: { workspaceId, role: { name: 'Owner' } }
       });
       if (ownerCount <= 1) {
@@ -362,27 +472,56 @@ export const leaveWorkspace = async (req: AuthRequest, res: Response): Promise<v
         return;
       }
     }
-    const newWorkspace = await prisma.workspace.create({
-      data: {
-        name: `${user.name || 'Personal'} Workspace`,
-        slug: `personal-${user.id}-${Date.now()}`
+
+    await prisma.workspaceUser.delete({
+      where: {
+        userId_workspaceId: {
+          userId,
+          workspaceId
+        }
       }
     });
 
-    const roles = await createDefaultRolesForWorkspace(newWorkspace.id);
-    const ownerRole = roles.find(r => r.name === 'Owner');
-
-    await prisma.user.update({
-      where: { id: userId },
-      data: {
-        workspaceId: newWorkspace.id,
-        roleId: ownerRole ? ownerRole.id : null
-      }
+    const nextMember = await prisma.workspaceUser.findFirst({
+      where: { userId }
     });
 
-    const newToken = generateToken(userId, newWorkspace.id);
+    let activeId: string;
+    if (nextMember) {
+      activeId = nextMember.workspaceId;
+      await prisma.user.update({
+        where: { id: userId },
+        data: { activeWorkspaceId: activeId }
+      });
+    } else {
+      const user = await prisma.user.findUnique({ where: { id: userId } });
+      const displayName = user?.name || user?.email.split('@')[0] || 'Personal';
+      const newWorkspace = await prisma.workspace.create({
+        data: {
+          name: `${displayName}'s Workspace`,
+          slug: `personal-${userId}-${Date.now()}`
+        }
+      });
+      const roles = await createDefaultRolesForWorkspace(newWorkspace.id);
+      const ownerRole = roles.find(r => r.name === 'Owner')!;
+      
+      await prisma.workspaceUser.create({
+        data: {
+          userId,
+          workspaceId: newWorkspace.id,
+          roleId: ownerRole.id
+        }
+      });
 
-    res.json({ success: true, message: 'Left workspace', token: newToken });
+      activeId = newWorkspace.id;
+      await prisma.user.update({
+        where: { id: userId },
+        data: { activeWorkspaceId: activeId }
+      });
+    }
+
+    const newToken = generateToken(userId, activeId);
+    res.json({ success: true, message: 'Left workspace', token: newToken, workspaceId: activeId });
   } catch (error) {
     console.error('leaveWorkspace error:', error);
     res.status(500).json({ success: false, error: 'Failed to leave workspace' });

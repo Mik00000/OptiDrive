@@ -9,6 +9,8 @@ import { Button } from './Button';
 import { twMerge } from 'tailwind-merge';
 import { useSidebar } from '@/contexts/SidebarContext';
 import { useAuth } from '@/contexts/AuthContext';
+import { Modal } from './Modal';
+import { Input } from './Inputs';
 
 interface MenuItem {
   text: string;
@@ -32,9 +34,18 @@ interface SidebarProps {
 export const Sidebar = ({ className }: SidebarProps) => {
   const pathname = usePathname();
   const { isOpen, setIsOpen } = useSidebar();
-  const { user, logout } = useAuth();
+  const { user, logout, workspaces, switchWorkspace } = useAuth();
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [isWorkspaceDropdownOpen, setIsWorkspaceDropdownOpen] = useState(false);
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [newWorkspaceName, setNewWorkspaceName] = useState('');
+  const [isCreating, setIsCreating] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const workspaceDropdownRef = useRef<HTMLDivElement>(null);
+
+  const { createWorkspace } = useAuth();
+
+  const activeWorkspace = workspaces.find(w => w.id === user?.workspaceId);
 
   // Закриття меню при кліку поза його межами
   useEffect(() => {
@@ -42,10 +53,32 @@ export const Sidebar = ({ className }: SidebarProps) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
         setIsDropdownOpen(false);
       }
+      if (workspaceDropdownRef.current && !workspaceDropdownRef.current.contains(event.target as Node)) {
+        setIsWorkspaceDropdownOpen(false);
+      }
     };
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
+
+  const handleCreateWorkspace = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newWorkspaceName.trim()) return;
+
+    try {
+      setIsCreating(true);
+      const newWs = await createWorkspace(newWorkspaceName);
+      await switchWorkspace(newWs.id);
+      setIsCreateModalOpen(false);
+      setNewWorkspaceName('');
+      setIsWorkspaceDropdownOpen(false);
+    } catch (error) {
+      console.error('Failed to create workspace:', error);
+      // You could add a toast here
+    } finally {
+      setIsCreating(false);
+    }
+  };
 
   return (
     <>
@@ -79,6 +112,110 @@ export const Sidebar = ({ className }: SidebarProps) => {
           >
             <Icon icon="lucide:x" width={20} height={20} />
           </Button>
+        </div>
+
+        {/* Workspace Switcher */}
+        <div className="relative mb-6 px-1" ref={workspaceDropdownRef}>
+          <button
+            onClick={() => setIsWorkspaceDropdownOpen(!isWorkspaceDropdownOpen)}
+            className="flex w-full items-center justify-between gap-2 rounded-xl border border-border bg-slate-900/50 p-2.5 text-left transition-all hover:bg-slate-800/80 hover:border-border cursor-pointer focus:outline-none focus:ring-2 focus:ring-accent/50"
+          >
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-accent to-indigo-600 text-sm font-bold text-text-light shadow-md shadow-accent/20">
+                {activeWorkspace ? activeWorkspace.name.charAt(0).toUpperCase() : 'W'}
+              </div>
+              <div className="flex flex-col min-w-0">
+                <span className="truncate text-sm font-semibold text-text-light">
+                  {activeWorkspace ? activeWorkspace.name : 'Loading...'}
+                </span>
+                <span className="text-[10px] font-medium text-text-muted flex items-center gap-1">
+                  <span className="truncate max-w-[80px]">
+                    {activeWorkspace?.role?.name || 'Member'}
+                  </span>
+                  {activeWorkspace?.plan && (
+<span className={twMerge(
+  "inline-block rounded px-1.5 flex items-center pt-[2px] h-[11.5px] text-[8px] font-bold tracking-wide uppercase leading-none",
+  activeWorkspace.plan === 'PRO' ? "bg-amber-500/20 text-amber-400" :
+  activeWorkspace.plan === 'ENTERPRISE' ? "bg-purple-500/20 text-purple-400" :
+  "bg-slate-700 text-text-muted"
+)}>
+  {activeWorkspace.plan}
+</span>
+                  )}
+                </span>
+              </div>
+            </div>
+            <Icon
+              icon="lucide:chevrons-up-down"
+              width={16}
+              height={16}
+              className={twMerge("text-text-muted transition-transform duration-200", isWorkspaceDropdownOpen && "transform rotate-180")}
+            />
+          </button>
+
+          {/* Workspace Dropdown Panel */}
+          {isWorkspaceDropdownOpen && (
+            <div className="absolute top-full left-0 mt-1.5 w-full rounded-xl border border-border bg-slate-950 p-1.5 shadow-2xl z-50 animate-in fade-in slide-in-from-top-2 duration-150">
+              <div className="px-2.5 py-1.5 text-[10px] font-bold text-text-muted uppercase tracking-wider">
+                Workspaces
+              </div>
+              <div className="max-h-60 overflow-y-auto flex flex-col gap-0.5 custom-scrollbar">
+                {workspaces.map((ws) => {
+                  const isActive = ws.id === user?.workspaceId;
+                  return (
+                    <button
+                      key={ws.id}
+                      onClick={async () => {
+                        setIsWorkspaceDropdownOpen(false);
+                        if (!isActive) {
+                          await switchWorkspace(ws.id);
+                        }
+                      }}
+                      className={twMerge(
+                        "flex w-full items-center justify-between gap-2.5 rounded-lg px-2.5 py-2 text-left text-sm transition-all cursor-pointer",
+                        isActive
+                          ? "bg-slate-800/80 text-text-light font-semibold"
+                          : "text-text-muted hover:bg-slate-900 hover:text-text-light"
+                      )}
+                    >
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <div className={twMerge(
+                          "flex h-7.5 w-7.5 shrink-0 items-center justify-center rounded-md text-xs font-bold text-text-light transition-colors",
+                          isActive
+                            ? "bg-gradient-to-br from-accent to-indigo-600 shadow-md shadow-accent/20"
+                            : "bg-slate-800"
+                        )}>
+                          {ws.name.charAt(0).toUpperCase()}
+                        </div>
+                        <div className="flex flex-col min-w-0">
+                          <span className="truncate text-xs font-medium text-text-light">{ws.name}</span>
+                          <span className="text-[9px] text-text-muted">{ws.role?.name || 'Member'}</span>
+                        </div>
+                      </div>
+                      {isActive && (
+                        <Icon icon="lucide:check" width={16} height={16} className="text-accent shrink-0" />
+                      )}
+                    </button>
+                  );
+                })}
+                
+                <div className="my-1 border-t border-border" />
+                
+                <button
+                  onClick={() => {
+                    setIsWorkspaceDropdownOpen(false);
+                    setIsCreateModalOpen(true);
+                  }}
+                  className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-sm transition-all text-text-muted hover:bg-slate-900 hover:text-text-light cursor-pointer"
+                >
+                  <div className="flex h-7.5 w-7.5 shrink-0 items-center justify-center rounded-md border border-dashed border-border bg-transparent text-xs font-bold text-text-muted transition-colors">
+                    <Icon icon="lucide:plus" width={14} height={14} />
+                  </div>
+                  <span className="truncate text-xs font-medium">Create Workspace</span>
+                </button>
+              </div>
+            </div>
+          )}
         </div>
 
       <nav className="flex-1">
@@ -164,6 +301,45 @@ export const Sidebar = ({ className }: SidebarProps) => {
         </div>
       </div>
     </aside>
+
+      <Modal
+        isOpen={isCreateModalOpen}
+        onClose={() => setIsCreateModalOpen(false)}
+        title="Create New Workspace"
+      >
+        <form onSubmit={handleCreateWorkspace} className="flex flex-col gap-4">
+          <p className="text-sm text-text-muted">
+            A workspace is a dedicated environment for your projects, API keys, and media files. 
+            You can invite other users to collaborate later.
+          </p>
+          <Input
+            label="Workspace Name"
+            placeholder="e.g. Acme Corp, My Startup..."
+            value={newWorkspaceName}
+            onChange={(e) => setNewWorkspaceName(e.target.value)}
+            disabled={isCreating}
+            required
+            autoFocus
+          />
+          <div className="flex justify-end gap-3 mt-4">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setIsCreateModalOpen(false)}
+              disabled={isCreating}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              variant="primary"
+              disabled={isCreating || !newWorkspaceName.trim()}
+            >
+              {isCreating ? 'Creating...' : 'Create Workspace'}
+            </Button>
+          </div>
+        </form>
+      </Modal>
     </>
   );
 };

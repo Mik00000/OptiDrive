@@ -10,12 +10,19 @@ export const getRoles = async (req: AuthRequest, res: Response): Promise<void> =
     const roles = await prisma.role.findMany({
       where: { workspaceId },
       include: {
-        _count: { select: { users: true } }
+        _count: { select: { members: true } }
       },
       orderBy: { name: 'asc' }
     });
 
-    res.json({ success: true, data: roles });
+    const mappedRoles = roles.map(r => ({
+      ...r,
+      _count: {
+        users: r._count.members
+      }
+    }));
+
+    res.json({ success: true, data: mappedRoles });
   } catch (error) {
     console.error('getRoles error:', error);
     res.status(500).json({ success: false, error: 'Failed to fetch roles' });
@@ -114,7 +121,7 @@ export const deleteRole = async (req: AuthRequest, res: Response): Promise<void>
 
     const role = await prisma.role.findUnique({
       where: { id: roleId as string, workspaceId },
-      include: { _count: { select: { users: true, invitations: true } } }
+      include: { _count: { select: { members: true, invitations: true } } }
     });
 
     if (!role) {
@@ -127,7 +134,7 @@ export const deleteRole = async (req: AuthRequest, res: Response): Promise<void>
       return;
     }
 
-    if (role._count.users > 0 || role._count.invitations > 0) {
+    if (role._count.members > 0 || role._count.invitations > 0) {
       res.status(400).json({ success: false, error: 'Cannot delete role that is in use by users or invitations' });
       return;
     }

@@ -134,3 +134,49 @@ export const updateMediaFile = async (req: AuthRequest, res: Response): Promise<
     res.status(500).json({ error: 'Internal Server Error' });
   }
 };
+
+export const downloadMediaFile = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const workspaceId = req.user?.workspaceId;
+    const fileId = req.params.id;
+
+    if (!workspaceId) {
+      res.status(401).json({ error: 'Unauthorized' });
+      return;
+    }
+
+    const mediaFile = await prisma.mediaFile.findFirst({
+      where: { id: String(fileId), workspaceId: String(workspaceId) },
+    });
+
+    if (!mediaFile) {
+      res.status(404).json({ error: 'File not found' });
+      return;
+    }
+
+    const response = await fetch(mediaFile.cdnUrl);
+    if (!response.ok) {
+      throw new Error(`Failed to fetch from CDN: ${response.statusText}`);
+    }
+
+    // Set headers to force download
+    res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(mediaFile.name)}"`);
+    res.setHeader('Content-Type', response.headers.get('content-type') || 'application/octet-stream');
+
+    // Pipe the response body to the client
+    if (response.body) {
+      const reader = response.body.getReader();
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        res.write(value);
+      }
+      res.end();
+    } else {
+      res.status(500).json({ error: 'Failed to read file stream' });
+    }
+  } catch (error) {
+    console.error('downloadMediaFile Error:', error);
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
+};

@@ -15,6 +15,51 @@ const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:3000';
 const BACKEND_URL = process.env.BACKEND_URL || 'http://localhost:3001';
 
 import { generateToken } from '../utils/jwt';
+import { createDefaultRolesForWorkspace } from '../services/role.service';
+
+const ensureActiveWorkspace = async (userId: string, currentActiveId: string | null, userName?: string | null, userEmail?: string): Promise<string> => {
+  if (currentActiveId) return currentActiveId;
+
+  const firstMember = await prisma.workspaceUser.findFirst({
+    where: { userId }
+  });
+  
+  if (firstMember) {
+    await prisma.user.update({
+      where: { id: userId },
+      data: { activeWorkspaceId: firstMember.workspaceId }
+    });
+    return firstMember.workspaceId;
+  }
+
+  // Створити новий воркспейс
+  const displayName = userName || userEmail?.split('@')[0] || 'User';
+  const slug = `${displayName.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-${Date.now()}`;
+  const workspace = await prisma.workspace.create({
+    data: {
+      name: `${displayName}'s Workspace`,
+      slug,
+    }
+  });
+
+  const roles = await createDefaultRolesForWorkspace(workspace.id);
+  const ownerRole = roles.find((r: any) => r.name === 'Owner')!;
+  
+  await prisma.workspaceUser.create({
+    data: {
+      userId,
+      workspaceId: workspace.id,
+      roleId: ownerRole.id
+    }
+  });
+
+  await prisma.user.update({
+    where: { id: userId },
+    data: { activeWorkspaceId: workspace.id }
+  });
+
+  return workspace.id;
+};
 
 export const googleAuth = (req: Request, res: Response) => {
   const redirectUri = `${BACKEND_URL}/api/internal/auth/google/callback`;
@@ -48,13 +93,22 @@ export const googleCallback = async (req: Request, res: Response): Promise<void>
         data: { name: `${profile.name || 'User'}'s Workspace`, slug: `ws-${Date.now()}` }
       });
 
+      const roles = await createDefaultRolesForWorkspace(workspace.id);
+      const ownerRole = roles.find(r => r.name === 'Owner')!;
+
       user = await prisma.user.create({
         data: {
           email: profile.email,
           name: profile.name,
           avatarUrl: profile.picture,
           googleId: profile.id,
-          workspaceId: workspace.id,
+          activeWorkspaceId: workspace.id,
+          workspaces: {
+            create: {
+              workspaceId: workspace.id,
+              roleId: ownerRole.id
+            }
+          }
         }
       });
     } else if (!user.googleId) {
@@ -64,12 +118,14 @@ export const googleCallback = async (req: Request, res: Response): Promise<void>
       });
     }
 
-    const token = generateToken(user.id, user.workspaceId);
+    const activeWorkspaceId = await ensureActiveWorkspace(user.id, user.activeWorkspaceId, user.name, user.email);
+
+    const token = generateToken(user.id, activeWorkspaceId);
     const safeUser = {
       id: user.id,
       name: user.name,
       email: user.email,
-      workspaceId: user.workspaceId,
+      workspaceId: activeWorkspaceId,
     };
     const userBase64 = Buffer.from(JSON.stringify(safeUser)).toString('base64');
     res.redirect(`${FRONTEND_URL}/login?token=${token}&user=${encodeURIComponent(userBase64)}`);
@@ -114,13 +170,22 @@ export const githubCallback = async (req: Request, res: Response): Promise<void>
         data: { name: `${profile.name || profile.login}'s Workspace`, slug: `ws-${Date.now()}` }
       });
 
+      const roles = await createDefaultRolesForWorkspace(workspace.id);
+      const ownerRole = roles.find(r => r.name === 'Owner')!;
+
       user = await prisma.user.create({
         data: {
           email: primaryEmail,
           name: profile.name || profile.login,
           avatarUrl: profile.avatar_url,
           githubId: String(profile.id),
-          workspaceId: workspace.id,
+          activeWorkspaceId: workspace.id,
+          workspaces: {
+            create: {
+              workspaceId: workspace.id,
+              roleId: ownerRole.id
+            }
+          }
         }
       });
     } else if (!user.githubId) {
@@ -130,12 +195,14 @@ export const githubCallback = async (req: Request, res: Response): Promise<void>
       });
     }
 
-    const token = generateToken(user.id, user.workspaceId);
+    const activeWorkspaceId = await ensureActiveWorkspace(user.id, user.activeWorkspaceId, user.name, user.email);
+
+    const token = generateToken(user.id, activeWorkspaceId);
     const safeUser = {
       id: user.id,
       name: user.name,
       email: user.email,
-      workspaceId: user.workspaceId,
+      workspaceId: activeWorkspaceId,
     };
     const userBase64 = Buffer.from(JSON.stringify(safeUser)).toString('base64');
     res.redirect(`${FRONTEND_URL}/login?token=${token}&user=${encodeURIComponent(userBase64)}`);

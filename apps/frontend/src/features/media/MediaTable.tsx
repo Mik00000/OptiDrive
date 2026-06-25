@@ -4,9 +4,10 @@ import { useState, useMemo, useEffect, useRef } from 'react';
 import { Icon } from '@iconify/react';
 import { Button } from '@/components/Button';
 import { Input } from '@/components/Inputs';
-import { getMediaFilesApi, deleteMediaFileApi, MediaFile } from './api';
+import { getMediaFilesApi, deleteMediaFileApi, MediaFile, downloadMediaFileClientApi } from './api';
 import Image from 'next/image';
 import { MediaPreviewModal } from './MediaPreviewModal';
+import { Modal } from '@/components/Modal';
 
 const SavingsTooltip = ({ children }: { children: React.ReactNode }) => {
   const [show, setShow] = useState(false);
@@ -71,6 +72,18 @@ export const MediaTable = ({
   const [files, setFiles] = useState<MediaFile[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [previewFile, setPreviewFile] = useState<MediaFile | null>(null);
+  
+  // Bulk Actions State
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  
+  const [actionFeedback, setActionFeedback] = useState<{message: string, type: 'success' | 'error'} | null>(null);
+
+  const showFeedback = (message: string, type: 'success' | 'error' = 'success') => {
+    setActionFeedback({ message, type });
+    setTimeout(() => setActionFeedback(null), 3000);
+  };
 
   const itemsPerPage = 7;
 
@@ -89,24 +102,33 @@ export const MediaTable = ({
     fetchFiles();
   }, [refreshKey]);
 
-  const handleDelete = async (specificId?: string) => {
-    const idsToDelete = specificId ? [specificId] : Array.from(selectedIds);
-    if (!specificId && !confirm(`Are you sure you want to delete ${selectedIds.size} files?`)) return;
+  const confirmDelete = (specificId?: string) => {
+    setDeleteTargetId(specificId || null);
+    setIsDeleteModalOpen(true);
+  };
+
+  const executeDelete = async () => {
+    const idsToDelete = deleteTargetId ? [deleteTargetId] : Array.from(selectedIds);
+    setIsDeleting(true);
     
     try {
       for (const id of idsToDelete) {
         await deleteMediaFileApi(id);
       }
-      if (!specificId) {
+      if (!deleteTargetId) {
         setSelectedIds(new Set());
         if (onSelectionModeChange) onSelectionModeChange(false);
       }
       // Refresh list
       const data = await getMediaFilesApi();
       setFiles(data);
+      showFeedback(`Successfully deleted ${idsToDelete.length} file(s)`);
     } catch (error) {
       console.error('Failed to delete files', error);
-      alert('Failed to delete some files.');
+      showFeedback('Failed to delete some files.', 'error');
+    } finally {
+      setIsDeleting(false);
+      setIsDeleteModalOpen(false);
     }
   };
 
@@ -120,7 +142,26 @@ export const MediaTable = ({
 
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
-    alert('Public CDN URL(s) copied to clipboard!');
+    showFeedback('Public CDN URL(s) copied to clipboard!');
+  };
+
+  const handleBulkDownload = async () => {
+    const selectedFiles = files.filter(f => selectedIds.has(f.id));
+    if (selectedFiles.length === 0) return;
+    
+    showFeedback(`Preparing download for ${selectedFiles.length} files...`);
+    
+    for (const file of selectedFiles) {
+      try {
+        await downloadMediaFileClientApi(file.id, file.name);
+        // Add a small delay between downloads to prevent browser blocking/overload
+        await new Promise(r => setTimeout(r, 400));
+      } catch (e) {
+        console.error('Download failed', e);
+        showFeedback(`Failed to download ${file.name}`, 'error');
+      }
+    }
+    showFeedback('Downloads completed!');
   };
 
   // Фільтрація
@@ -440,48 +481,101 @@ export const MediaTable = ({
       </div>
 
       <div
-        className={`fixed bottom-4 left-1/2 z-50 flex w-[calc(100%-2rem)] -translate-x-1/2 items-center justify-between gap-2 rounded-2xl border border-slate-700 bg-slate-800 px-4 py-3 shadow-2xl transition-all duration-300 xl:bottom-8 xl:w-auto xl:justify-center xl:gap-4 xl:rounded-full xl:px-6 xl:py-3 ${selectedIds.size > 0 ? 'pointer-events-auto translate-y-0 opacity-100' : 'pointer-events-none translate-y-16 opacity-0'}`}
+        className={`fixed bottom-4 left-1/2 z-50 flex w-[calc(100%-2rem)] max-w-2xl -translate-x-1/2 items-center justify-between gap-3 rounded-2xl border border-slate-700/80 bg-slate-800/95 backdrop-blur-md px-5 py-3.5 shadow-2xl transition-all duration-300 xl:bottom-8 ${selectedIds.size > 0 ? 'pointer-events-auto translate-y-0 opacity-100 scale-100' : 'pointer-events-none translate-y-16 opacity-0 scale-95'}`}
       >
-        <button
-          onClick={() => {
-            setSelectedIds(new Set());
-            if (onSelectionModeChange) onSelectionModeChange(false);
-          }}
-          className="text-text-muted hover:text-text-light shrink-0 cursor-pointer rounded-full bg-slate-700/50 p-1.5 transition-colors hover:bg-slate-700 xl:p-1"
-        >
-          <Icon icon="lucide:x" width={18} />
-        </button>
-        <span className="text-sm font-medium whitespace-nowrap text-white">
-          {selectedIds.size} files selected
-        </span>
-        <div className="bg-border mx-1 hidden h-5 w-px xl:block"></div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => {
+              setSelectedIds(new Set());
+              if (onSelectionModeChange) onSelectionModeChange(false);
+            }}
+            className="text-text-muted hover:text-text-light hover:bg-slate-700 shrink-0 cursor-pointer rounded-full bg-slate-700/50 p-1.5 transition-colors"
+          >
+            <Icon icon="lucide:x" width={18} />
+          </button>
+          <span className="text-sm font-semibold text-white">
+            {selectedIds.size} <span className="text-text-muted font-normal">selected</span>
+          </span>
+        </div>
+        
+        <div className="bg-border mx-2 hidden h-6 w-px sm:block"></div>
+        
+        <div className="flex flex-wrap items-center gap-2">
+          <Button
+            variant="ghost"
+            onClick={() => {
+              const urls = Array.from(selectedIds).map(id => files.find(f => f.id === id)?.cdnUrl).filter(Boolean);
+              copyToClipboard(urls.join('\n'));
+            }}
+            className="h-9 whitespace-nowrap text-sm text-text-light bg-slate-700/50 hover:bg-slate-600 !scale-100 hover:!scale-100 transition-colors"
+          >
+            <Icon icon="lucide:copy" width={16} className="mr-1.5" />
+            Copy Links
+          </Button>
+          
+          <Button
+            variant="ghost"
+            onClick={handleBulkDownload}
+            className="h-9 whitespace-nowrap text-sm text-text-light bg-slate-700/50 hover:bg-slate-600 !scale-100 hover:!scale-100 transition-colors"
+          >
+            <Icon icon="lucide:download" width={16} className="mr-1.5" />
+            Download
+          </Button>
+
           <Button
             variant="danger"
-            onClick={() => handleDelete()}
-            className="h-8 py-0 text-xs xl:h-9 xl:text-sm"
+            onClick={() => confirmDelete()}
+            className="h-9 whitespace-nowrap text-sm !scale-100 hover:!scale-100 transition-colors"
           >
+            <Icon icon="lucide:trash-2" width={16} className="mr-1.5" />
             Delete
           </Button>
-          <Input
-            variant="options"
-            icon="lucide:download"
-            options={[{ value: 'optimized', label: 'Download Links' }]}
-            onChange={() => {
-               const urls = Array.from(selectedIds).map(id => files.find(f => f.id === id)?.cdnUrl).filter(Boolean);
-               copyToClipboard(urls.join('\n'));
-            }}
-            className="h-8 py-0 text-xs whitespace-nowrap xl:h-9 xl:text-sm placeholder:text-white"
-            placeholder='Actions'
-          />
         </div>
       </div>
+      
+      {/* Toast Feedback */}
+      {actionFeedback && (
+        <div className={`fixed top-6 left-1/2 -translate-x-1/2 z-[9999] flex items-center gap-2 px-4 py-2.5 rounded-full shadow-lg border ${actionFeedback.type === 'success' ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400' : 'bg-red-500/10 border-red-500/20 text-red-400'} animate-in fade-in slide-in-from-top-4 duration-300`}>
+          <Icon icon={actionFeedback.type === 'success' ? 'lucide:check-circle' : 'lucide:alert-circle'} width={18} />
+          <span className="text-sm font-medium">{actionFeedback.message}</span>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      <Modal
+        isOpen={isDeleteModalOpen}
+        onClose={() => setIsDeleteModalOpen(false)}
+        title="Confirm Deletion"
+        icon="lucide:alert-triangle"
+      >
+        <div className="flex flex-col gap-4">
+          <p className="text-text-muted text-sm">
+            Are you sure you want to delete {deleteTargetId ? 'this file' : `${selectedIds.size} files`}? This action cannot be undone.
+          </p>
+          <div className="flex justify-end gap-3 mt-4">
+            <Button
+              variant="bordered"
+              onClick={() => setIsDeleteModalOpen(false)}
+              disabled={isDeleting}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="danger"
+              onClick={executeDelete}
+              disabled={isDeleting}
+            >
+              {isDeleting ? 'Deleting...' : 'Delete Permanently'}
+            </Button>
+          </div>
+        </div>
+      </Modal>
       
       <MediaPreviewModal 
         isOpen={!!previewFile}
         onClose={() => setPreviewFile(null)}
         file={previewFile}
-        onDelete={handleDelete}
+        onDelete={confirmDelete}
       />
     </div>
   );

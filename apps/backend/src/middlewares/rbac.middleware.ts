@@ -13,27 +13,32 @@ export const requirePermissions = (requiredPermissions: Permission[]) => {
 
       const { userId, workspaceId } = req.user;
 
-      const user = await prisma.user.findUnique({
-        where: { id: userId, workspaceId },
+      const member = await prisma.workspaceUser.findUnique({
+        where: {
+          userId_workspaceId: {
+            userId,
+            workspaceId
+          }
+        },
         include: { role: true }
       });
 
-      if (!user || !user.role) {
-        res.status(403).json({ error: 'Forbidden: User or role not found' });
+      if (!member || !member.role) {
+        res.status(403).json({ error: 'Forbidden: User is not a member of this workspace or has no assigned role' });
         return;
       }
 
-      const hasPermission = requiredPermissions.every(p => user.role!.permissions.includes(p));
+      const hasPermission = requiredPermissions.every(p => member.role.permissions.includes(p));
 
       // Special case: if user has a system role 'Owner' they have all permissions
-      const isOwner = user.role.isSystem && user.role.name === 'Owner';
+      const isOwner = member.role.isSystem && member.role.name === 'Owner';
 
       if (!isOwner && !hasPermission) {
         res.status(403).json({ error: `Forbidden: Requires permissions: ${requiredPermissions.join(', ')}` });
         return;
       }
 
-      req.user.role = user.role;
+      req.user.role = member.role;
 
       next();
     } catch (error) {

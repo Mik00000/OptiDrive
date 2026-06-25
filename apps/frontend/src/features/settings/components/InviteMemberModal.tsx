@@ -83,15 +83,13 @@ export function InviteMemberModal({ isOpen, onClose, onSuccess }: InviteMemberMo
           <label className="text-xs font-semibold tracking-wide text-text-muted uppercase">
             Role
           </label>
-          <select 
+          <Input
+            variant="select"
             value={roleId}
-            onChange={(e) => setRoleId(e.target.value)}
-            className="w-full rounded-xl border border-border bg-bg px-3.5 py-2.5 text-sm font-medium text-text-light outline-none transition-colors hover:border-text-muted focus:border-accent"
-          >
-            {roles.map(r => (
-              <option key={r.id} value={r.id}>{r.name}</option>
-            ))}
-          </select>
+            onChange={(val: string) => setRoleId(val)}
+            options={roles.map(r => ({ value: r.id, label: r.name }))}
+            className="w-full"
+          />
         </div>
 
         <div className="flex justify-end gap-3 mt-4">
