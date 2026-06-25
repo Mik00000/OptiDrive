@@ -56,7 +56,6 @@ enum PlanType {
   ENTERPRISE
 }
 
-// Типи бізнес-подій для журналу активності (Recent Activity)
 enum ActivityType {
   FILE_UPLOADED
   FILE_DELETED
@@ -64,6 +63,13 @@ enum ActivityType {
   KEY_REVOKED
   PLAN_UPGRADED
   SETTING_CHANGED
+  MEMBER_INVITED
+  MEMBER_JOINED
+  MEMBER_REMOVED
+  MEMBER_LEFT
+  ROLE_UPDATED
+  OWNERSHIP_TRANSFERRED
+  WORKSPACE_CREATED
 }
 
 // 1. Користувач системи

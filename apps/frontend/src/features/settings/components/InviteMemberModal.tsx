@@ -43,8 +43,7 @@ export function InviteMemberModal({ isOpen, onClose, onSuccess }: InviteMemberMo
       const defaultRole = roles.find(r => r.name === 'Member') || roles[0];
       if (defaultRole) setRoleId(defaultRole.id);
     } catch (err: any) {
-      console.error(err);
-      setError(err?.response?.data?.error || "Failed to invite user");
+      setError(err?.message || "Failed to invite user");
     } finally {
       setIsLoading(false);
     }
@@ -56,6 +55,7 @@ export function InviteMemberModal({ isOpen, onClose, onSuccess }: InviteMemberMo
       onClose={onClose}
       title="Invite Team Member"
       icon="lucide:user-plus"
+      className="overflow-visible"
     >
       <form onSubmit={handleSubmit} className="flex flex-col gap-4">
         <p className="text-text-muted text-sm mb-2">
@@ -79,7 +79,7 @@ export function InviteMemberModal({ isOpen, onClose, onSuccess }: InviteMemberMo
 
         {error && <div className="text-error text-sm font-medium">{error}</div>}
 
-        <div className="flex flex-col gap-1.5">
+        <div className="flex flex-col gap-1.5 ">
           <label className="text-xs font-semibold tracking-wide text-text-muted uppercase">
             Role
           </label>
@@ -88,7 +88,8 @@ export function InviteMemberModal({ isOpen, onClose, onSuccess }: InviteMemberMo
             value={roleId}
             onChange={(val: string) => setRoleId(val)}
             options={roles.map(r => ({ value: r.id, label: r.name }))}
-            className="w-full"
+            className="w-full "
+
           />
         </div>
 

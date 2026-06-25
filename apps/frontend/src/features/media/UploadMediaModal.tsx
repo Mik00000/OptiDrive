@@ -152,6 +152,11 @@ export function UploadMediaModal({ isOpen, onClose, onSuccess }: UploadMediaModa
       title="Upload Media"
       icon="lucide:upload-cloud"
     >
+      {error && (
+        <div className="text-error text-sm bg-error/10 border border-error/20 rounded-lg p-3">
+          {error}
+        </div>
+      )}
       <div className="flex flex-col gap-5 max-h-[80vh] overflow-y-auto pr-2 pb-2">
         {!file ? (
           <div
@@ -214,11 +219,6 @@ export function UploadMediaModal({ isOpen, onClose, onSuccess }: UploadMediaModa
               </button>
             </div>
 
-            {error && (
-              <div className="text-error text-sm bg-error/10 border border-error/20 rounded-lg p-3">
-                {error}
-              </div>
-            )}
 
             {/* Optimization Settings */}
             <div className="flex flex-col gap-4 border-t border-border pt-4">
@@ -254,7 +254,7 @@ export function UploadMediaModal({ isOpen, onClose, onSuccess }: UploadMediaModa
                           value={format}
                           onChange={setFormat}
                           options={[
-                            { label: "Auto (Best for Browser)", value: "auto" },
+                            { label: "Auto", value: "auto" },
                             { label: "AVIF", value: "avif" },
                             { label: "WebP", value: "webp" },
                             { label: "JPEG", value: "jpeg" },

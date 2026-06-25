@@ -46,6 +46,12 @@ const RecentActivity = ({ activities = [] }: RecentActivityProps) => {
                     item.type === 'FILE_UPLOADED' ? 'lucide:image' :
                     item.type === 'FILE_DELETED' ? 'lucide:trash' :
                     item.type.includes('KEY') ? 'lucide:key' :
+                    item.type === 'MEMBER_INVITED' ? 'lucide:mail' :
+                    item.type === 'MEMBER_JOINED' ? 'lucide:user-check' :
+                    item.type === 'MEMBER_REMOVED' || item.type === 'MEMBER_LEFT' ? 'lucide:user-minus' :
+                    item.type === 'ROLE_UPDATED' ? 'lucide:shield' :
+                    item.type === 'OWNERSHIP_TRANSFERRED' ? 'lucide:crown' :
+                    item.type === 'WORKSPACE_CREATED' ? 'lucide:briefcase' :
                     'lucide:activity'
                   } />
                 </div>

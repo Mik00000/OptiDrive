@@ -6,6 +6,7 @@ import crypto from 'crypto';
 import { sendInvitationEmail } from '../../services/email.service';
 import { generateToken } from '../../utils/jwt';
 import { createDefaultRolesForWorkspace } from '../../services/role.service';
+import { logActivity } from '../../services/activity.service';
 
 // 1. Отримати всіх користувачів робочого простору
 export const getWorkspaceUsers = async (req: AuthRequest, res: Response): Promise<void> => {
@@ -248,6 +249,24 @@ export const inviteUser = async (req: AuthRequest, res: Response): Promise<void>
       return;
     }
 
+    const workspace = await prisma.workspace.findUnique({ where: { id: workspaceId } });
+    if (!workspace) {
+      res.status(404).json({ success: false, error: 'Workspace not found' });
+      return;
+    }
+
+    // Check Plan Limits
+    const { PLANS } = await import('@optidrive/shared');
+    const planLimits = PLANS[workspace.plan as keyof typeof PLANS] || PLANS.FREE;
+    
+    const currentMembersCount = await prisma.workspaceUser.count({ where: { workspaceId } });
+    const pendingInvitesCount = await prisma.invitation.count({ where: { workspaceId, expiresAt: { gt: new Date() } } });
+    
+    if (currentMembersCount + pendingInvitesCount >= planLimits.maxMembers) {
+      res.status(403).json({ success: false, error: `Member limit reached for your ${workspace.plan} plan (${planLimits.maxMembers} members). Please upgrade your plan.` });
+      return;
+    }
+
     const existingMember = await prisma.workspaceUser.findFirst({
       where: {
         workspaceId,
@@ -260,8 +279,6 @@ export const inviteUser = async (req: AuthRequest, res: Response): Promise<void>
       return;
     }
 
-    const workspace = await prisma.workspace.findUnique({ where: { id: workspaceId } });
-    
     const token = crypto.randomBytes(32).toString('hex');
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + 7);
@@ -275,6 +292,8 @@ export const inviteUser = async (req: AuthRequest, res: Response): Promise<void>
     });
 
     await sendInvitationEmail(email, workspace!.name);
+
+    await logActivity(workspaceId, currentUserId, 'MEMBER_INVITED', `Invited ${email} to join the workspace`);
 
     res.json({ success: true, message: 'Invitation sent successfully', data: invitation });
   } catch (error) {
@@ -394,6 +413,7 @@ export const acceptInvitation = async (req: AuthRequest, res: Response): Promise
           roleId: invitation.roleId
         }
       });
+      await logActivity(invitation.workspaceId, userId, 'MEMBER_JOINED', `User ${user.email} joined the workspace`);
     }
 
     const updatedUser = await prisma.user.update({
@@ -455,7 +475,7 @@ export const leaveWorkspace = async (req: AuthRequest, res: Response): Promise<v
           workspaceId
         }
       },
-      include: { role: true }
+      include: { role: true, user: true }
     });
 
     if (!member) {
@@ -463,13 +483,23 @@ export const leaveWorkspace = async (req: AuthRequest, res: Response): Promise<v
       return;
     }
 
+    let shouldDeleteWorkspace = false;
+    
     if (member.role?.name === 'Owner') {
       const ownerCount = await prisma.workspaceUser.count({
         where: { workspaceId, role: { name: 'Owner' } }
       });
       if (ownerCount <= 1) {
-        res.status(400).json({ success: false, error: 'Cannot leave workspace as you are the only owner' });
-        return;
+        const totalMembers = await prisma.workspaceUser.count({
+          where: { workspaceId }
+        });
+        
+        if (totalMembers === 1) {
+          shouldDeleteWorkspace = true;
+        } else {
+          res.status(400).json({ success: false, error: 'Cannot leave workspace as you are the only owner. Transfer ownership first.' });
+          return;
+        }
       }
     }
 
@@ -481,6 +511,12 @@ export const leaveWorkspace = async (req: AuthRequest, res: Response): Promise<v
         }
       }
     });
+
+    await logActivity(workspaceId, userId, 'MEMBER_LEFT', `User ${member.user.email} left the workspace`);
+
+    if (shouldDeleteWorkspace) {
+      await prisma.workspace.delete({ where: { id: workspaceId } });
+    }
 
     const nextMember = await prisma.workspaceUser.findFirst({
       where: { userId }
@@ -525,5 +561,72 @@ export const leaveWorkspace = async (req: AuthRequest, res: Response): Promise<v
   } catch (error) {
     console.error('leaveWorkspace error:', error);
     res.status(500).json({ success: false, error: 'Failed to leave workspace' });
+  }
+};
+
+export const transferOwnership = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const { workspaceId, userId: currentUserId, role: currentUserRole } = req.user!;
+    const { targetUserId } = req.body;
+
+    if (!targetUserId) {
+      res.status(400).json({ success: false, error: 'Target user ID is required' });
+      return;
+    }
+
+    if (currentUserId === targetUserId) {
+      res.status(400).json({ success: false, error: 'Cannot transfer ownership to yourself' });
+      return;
+    }
+
+    if (currentUserRole?.name !== 'Owner') {
+      res.status(403).json({ success: false, error: 'Only the Owner can transfer ownership' });
+      return;
+    }
+
+    const targetMember = await prisma.workspaceUser.findUnique({
+      where: {
+        userId_workspaceId: { userId: targetUserId, workspaceId }
+      }
+    });
+
+    if (!targetMember) {
+      res.status(404).json({ success: false, error: 'Target user is not a member of this workspace' });
+      return;
+    }
+
+    const ownerRole = await prisma.role.findFirst({
+      where: { workspaceId, name: 'Owner', isSystem: true }
+    });
+
+    const adminRole = await prisma.role.findFirst({
+      where: { workspaceId, name: 'Admin', isSystem: true }
+    });
+
+    if (!ownerRole || !adminRole) {
+      res.status(500).json({ success: false, error: 'Critical workspace roles not found' });
+      return;
+    }
+
+    await prisma.$transaction([
+      prisma.workspaceUser.update({
+        where: { userId_workspaceId: { userId: targetUserId, workspaceId } },
+        data: { roleId: ownerRole.id }
+      }),
+      prisma.workspaceUser.update({
+        where: { userId_workspaceId: { userId: currentUserId, workspaceId } },
+        data: { roleId: adminRole.id }
+      })
+    ]);
+
+    const targetUser = await prisma.user.findUnique({ where: { id: targetUserId } });
+    if (targetUser) {
+      await logActivity(workspaceId, currentUserId, 'OWNERSHIP_TRANSFERRED', `Transferred ownership to ${targetUser.email}`);
+    }
+
+    res.json({ success: true, message: 'Ownership transferred successfully' });
+  } catch (error) {
+    console.error('transferOwnership error:', error);
+    res.status(500).json({ success: false, error: 'Failed to transfer ownership' });
   }
 };

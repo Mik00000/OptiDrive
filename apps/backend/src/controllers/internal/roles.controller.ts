@@ -61,6 +61,24 @@ export const createRole = async (req: AuthRequest, res: Response): Promise<void>
       return;
     }
 
+    const workspace = await prisma.workspace.findUnique({ where: { id: workspaceId } });
+    if (!workspace) {
+      res.status(404).json({ success: false, error: 'Workspace not found' });
+      return;
+    }
+
+    const { PLANS } = await import('@optidrive/shared');
+    const planLimits = PLANS[workspace.plan as keyof typeof PLANS] || PLANS.FREE;
+
+    const customRolesCount = await prisma.role.count({
+      where: { workspaceId, isSystem: false }
+    });
+
+    if (customRolesCount >= planLimits.maxCustomRoles) {
+      res.status(403).json({ success: false, error: `Custom role limit reached for your ${workspace.plan} plan (${planLimits.maxCustomRoles} roles). Please upgrade your plan.` });
+      return;
+    }
+
     const role = await prisma.role.create({
       data: {
         name,

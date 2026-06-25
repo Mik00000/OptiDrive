@@ -7,9 +7,12 @@ import { Icon } from '@iconify/react';
 import { ConfirmModal } from './ConfirmModal';
 import { ChangePasswordModal } from './ChangePasswordModal';
 import { useAuth } from '@/contexts/AuthContext';
+import { leaveWorkspaceApi } from '../api';
+import { useRouter } from 'next/navigation';
 
 export const ProfileTab = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const router = useRouter();
   
   const [isRemovePictureModalOpen, setIsRemovePictureModalOpen] = useState(false);
   const [isSaveChangesModalOpen, setIsSaveChangesModalOpen] = useState(false);
@@ -18,18 +21,20 @@ export const ProfileTab = () => {
   const [isChangePasswordModalOpen, setIsChangePasswordModalOpen] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   
-  const { login, user } = useAuth();
+  const { login, user, workspaces } = useAuth();
   const [isLeaving, setIsLeaving] = useState(false);
+
+  const activeWorkspace = workspaces.find((w) => w.id === user?.workspaceId);
+  const isOnlyMember = activeWorkspace?.membersCount === 1;
 
   const handleLeaveWorkspace = async () => {
     try {
       setIsLeaving(true);
-      const { leaveWorkspaceApi } = await import('../api');
       const res = await leaveWorkspaceApi();
-      if (res.success && res.token && user) {
-        login(res.token, user, true);
+      if (res.success && res.token && user && res.workspaceId) {
+        login(res.token, { ...user, workspaceId: res.workspaceId }, true);
         setIsLeaveWorkspaceModalOpen(false);
-        window.location.reload();
+        router.push('/dashboard');
       }
     } catch (err: any) {
       console.error(err);
@@ -146,24 +151,26 @@ export const ProfileTab = () => {
             Security & Danger Zone
           </span>
         </div>
-        <div className="flex flex-col">
-          <div className="border-error/30 flex flex-col justify-between gap-4 border-t p-4 sm:flex-row sm:items-center sm:p-6">
-            <div className="flex flex-col gap-1">
-              <span className="text-text-light text-base font-medium">
+          <div className="flex flex-col">
+          {user?.hasPassword && (
+            <div className="border-error/30 flex flex-col justify-between gap-4 border-t p-4 sm:flex-row sm:items-center sm:p-6">
+              <div className="flex flex-col gap-1">
+                <span className="text-text-light text-base font-medium">
+                  Change Password
+                </span>
+                <p className="text-text-muted text-sm">
+                  Update your password to keep your account secure.
+                </p>
+              </div>
+              <Button
+                variant="primary"
+                className="w-full shrink-0 justify-center sm:w-auto"
+                onClick={() => setIsChangePasswordModalOpen(true)}
+              >
                 Change Password
-              </span>
-              <p className="text-text-muted text-sm">
-                Update your password to keep your account secure.
-              </p>
+              </Button>
             </div>
-            <Button
-              variant="primary"
-              className="w-full shrink-0 justify-center sm:w-auto"
-              onClick={() => setIsChangePasswordModalOpen(true)}
-            >
-              Change Password
-            </Button>
-          </div>
+          )}
           <div className="border-error/30 flex flex-col justify-between gap-4 border-t p-4 sm:flex-row sm:items-center sm:p-6">
             <div className="flex flex-col gap-1">
               <span className="text-text-light text-base font-medium">
@@ -190,10 +197,12 @@ export const ProfileTab = () => {
           <div className="border-error/30 flex flex-col justify-between gap-4 border-t p-4 sm:flex-row sm:items-center sm:p-6">
             <div className="flex flex-col gap-1">
               <span className="text-text-light text-base font-medium">
-                Leave Workspace
+                {isOnlyMember ? "Leave & Delete Workspace" : "Leave Workspace"}
               </span>
               <p className="text-text-muted text-sm">
-                Leave the current workspace. You will be moved to your personal workspace.
+                {isOnlyMember
+                  ? "Leave the current workspace. Since you are the only member, this workspace will be permanently deleted."
+                  : "Leave the current workspace. You will be moved to your personal workspace."}
               </p>
             </div>
             <Button
@@ -207,7 +216,7 @@ export const ProfileTab = () => {
                 height="16"
                 className="mr-2"
               />
-              Leave Workspace
+              {isOnlyMember ? "Leave & Delete" : "Leave Workspace"}
             </Button>
           </div>
         </div>
@@ -244,17 +253,21 @@ export const ProfileTab = () => {
         confirmText="Delete Permanently"
         variant="danger"
         icon="lucide:triangle-alert"
+        requiredInputText="DELETE ACCOUNT"
       />
       
       <ConfirmModal
         isOpen={isLeaveWorkspaceModalOpen}
         onClose={() => setIsLeaveWorkspaceModalOpen(false)}
         onConfirm={handleLeaveWorkspace}
-        title="Leave Workspace"
-        description="Are you sure you want to leave this workspace? You will be moved to a personal workspace and lose access to the current team's data."
-        confirmText={isLeaving ? "Leaving..." : "Leave Workspace"}
+        title={isOnlyMember ? "Leave & Delete Workspace" : "Leave Workspace"}
+        description={isOnlyMember 
+          ? "You are the last member of this workspace. Leaving will permanently delete the workspace and all its data. Are you sure you want to proceed?"
+          : "Are you sure you want to leave this workspace? You will lose access to all projects and files. An owner or admin will need to invite you back."}
+        confirmText={isLeaving ? "Processing..." : (isOnlyMember ? "Leave & Delete" : "Leave Workspace")}
         variant="danger"
-        icon="lucide:door-open"
+        icon={isOnlyMember ? "lucide:trash-2" : "lucide:door-open"}
+        requiredInputText={isOnlyMember ? "DELETE WORKSPACE" : "LEAVE WORKSPACE"}
       />
       
       

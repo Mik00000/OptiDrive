@@ -34,18 +34,18 @@ interface SidebarProps {
 export const Sidebar = ({ className }: SidebarProps) => {
   const pathname = usePathname();
   const { isOpen, setIsOpen } = useSidebar();
-  const { user, logout, workspaces, switchWorkspace } = useAuth();
+  const { createWorkspace, user, workspaces, switchWorkspace, isLoading, logout } = useAuth();
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [isWorkspaceDropdownOpen, setIsWorkspaceDropdownOpen] = useState(false);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [newWorkspaceName, setNewWorkspaceName] = useState('');
   const [isCreating, setIsCreating] = useState(false);
+  const [createError, setCreateError] = useState<string | null>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const workspaceDropdownRef = useRef<HTMLDivElement>(null);
 
-  const { createWorkspace } = useAuth();
 
-  const activeWorkspace = workspaces.find(w => w.id === user?.workspaceId);
+  const activeWorkspace = workspaces.find(w => w.id === user?.workspaceId) || workspaces[0];
 
   // Закриття меню при кліку поза його межами
   useEffect(() => {
@@ -66,15 +66,15 @@ export const Sidebar = ({ className }: SidebarProps) => {
     if (!newWorkspaceName.trim()) return;
 
     try {
+      setCreateError(null);
       setIsCreating(true);
       const newWs = await createWorkspace(newWorkspaceName);
       await switchWorkspace(newWs.id);
       setIsCreateModalOpen(false);
       setNewWorkspaceName('');
       setIsWorkspaceDropdownOpen(false);
-    } catch (error) {
-      console.error('Failed to create workspace:', error);
-      // You could add a toast here
+    } catch (error: any) {
+      setCreateError(error.message || 'Failed to create workspace');
     } finally {
       setIsCreating(false);
     }
@@ -118,7 +118,7 @@ export const Sidebar = ({ className }: SidebarProps) => {
         <div className="relative mb-6 px-1" ref={workspaceDropdownRef}>
           <button
             onClick={() => setIsWorkspaceDropdownOpen(!isWorkspaceDropdownOpen)}
-            className="flex w-full items-center justify-between gap-2 rounded-xl border border-border bg-slate-900/50 p-2.5 text-left transition-all hover:bg-slate-800/80 hover:border-border cursor-pointer focus:outline-none focus:ring-2 focus:ring-accent/50"
+            className="flex w-full items-center justify-between gap-2 rounded-xl border-border bg-slate-900/50 p-2.5 text-left transition-all hover:bg-slate-800/80 hover:border-border cursor-pointer focus:outline-none focus:ring-2 focus:ring-accent/50"
           >
             <div className="flex items-center gap-2.5 min-w-0">
               <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-accent to-indigo-600 text-sm font-bold text-text-light shadow-md shadow-accent/20">
@@ -126,7 +126,7 @@ export const Sidebar = ({ className }: SidebarProps) => {
               </div>
               <div className="flex flex-col min-w-0">
                 <span className="truncate text-sm font-semibold text-text-light">
-                  {activeWorkspace ? activeWorkspace.name : 'Loading...'}
+                  {isLoading ? 'Loading...' : (activeWorkspace ? activeWorkspace.name : 'Unknown Workspace')}
                 </span>
                 <span className="text-[10px] font-medium text-text-muted flex items-center gap-1">
                   <span className="truncate max-w-[80px]">
@@ -312,6 +312,11 @@ export const Sidebar = ({ className }: SidebarProps) => {
             A workspace is a dedicated environment for your projects, API keys, and media files. 
             You can invite other users to collaborate later.
           </p>
+          {createError && (
+            <div className="text-error text-sm bg-error/10 border border-error/20 rounded-lg p-3">
+              {createError}
+            </div>
+          )}
           <Input
             label="Workspace Name"
             placeholder="e.g. Acme Corp, My Startup..."

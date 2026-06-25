@@ -47,7 +47,18 @@ export const compressImageController = async (req: Request & { workspaceId?: str
         resolvedFormat = 'jpeg';
       }
     }
+    // Check plan limits
+    const workspace = await prisma.workspace.findUnique({
+      where: { id: workspaceId },
+      select: { plan: true }
+    });
 
+    if (workspace?.plan === 'FREE') {
+      if (resolvedFormat === 'avif' || mimetype === 'image/svg+xml') {
+        res.status(403).json({ error: 'AVIF format and SVG optimization are only available on PRO and ENTERPRISE plans' });
+        return;
+      }
+    }
     // Prepare options
     const options = {
       raster: {

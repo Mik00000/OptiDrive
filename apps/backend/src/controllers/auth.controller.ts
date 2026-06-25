@@ -28,7 +28,8 @@ export const register = async (req: Request, res: Response): Promise<void> => {
         id: user.id,
         name: user.name,
         email: user.email,
-        workspaceId: user.activeWorkspaceId
+        workspaceId: user.activeWorkspaceId,
+        hasPassword: !!user.passwordHash
       }
     });
   } catch (error: unknown) {
@@ -55,7 +56,8 @@ export const login = async (req: Request, res: Response): Promise<void> => {
         id: user.id,
         name: user.name,
         email: user.email,
-        workspaceId: user.activeWorkspaceId
+        workspaceId: user.activeWorkspaceId,
+        hasPassword: !!user.passwordHash
       }
     });
   } catch (error: unknown) {
@@ -81,7 +83,8 @@ export const verifyEmailController = async (req: Request, res: Response): Promis
         id: user.id,
         name: user.name,
         email: user.email,
-        workspaceId: user.activeWorkspaceId
+        workspaceId: user.activeWorkspaceId,
+        hasPassword: !!user.passwordHash
       }
     });
   } catch (error: unknown) {

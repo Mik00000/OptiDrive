@@ -3,6 +3,8 @@
 import { Button } from "@/components/Button";
 import { Modal } from "@/components/Modal";
 import { Icon } from "@iconify/react";
+import { Input } from "@/components/Inputs";
+import { useState, useEffect } from "react";
 
 interface ConfirmModalProps {
   isOpen: boolean;
@@ -14,6 +16,7 @@ interface ConfirmModalProps {
   cancelText?: string;
   variant?: "danger" | "primary" | "accent";
   icon?: string;
+  requiredInputText?: string;
 }
 
 export function ConfirmModal({
@@ -25,8 +28,16 @@ export function ConfirmModal({
   confirmText = "Confirm",
   cancelText = "Cancel",
   variant = "primary",
-  icon = "lucide:alert-circle"
+  icon = "lucide:alert-circle",
+  requiredInputText
 }: ConfirmModalProps) {
+  const [inputValue, setInputValue] = useState("");
+
+  useEffect(() => {
+    if (isOpen) {
+      setInputValue("");
+    }
+  }, [isOpen]);
   
   const handleConfirm = () => {
     onConfirm();
@@ -57,13 +68,32 @@ export function ConfirmModal({
           {description}
         </p>
 
+        {requiredInputText && (
+          <div className="flex flex-col gap-2">
+            <span className="text-sm font-medium text-text-light">
+              Type <strong className="select-none text-text-light bg-slate-800 px-1.5 py-0.5 rounded border border-border">{requiredInputText}</strong> to confirm:
+            </span>
+            <Input 
+              value={inputValue}
+              onChange={(e) => setInputValue(e.target.value)}
+              onPaste={(e) => e.preventDefault()}
+              placeholder={requiredInputText}
+              autoComplete="off"
+            />
+          </div>
+        )}
+
         <div className="flex justify-end gap-3">
           {cancelText && (
             <Button variant="bordered" onClick={onClose}>
               {cancelText}
             </Button>
           )}
-          <Button variant={variant} onClick={handleConfirm}>
+          <Button 
+            variant={variant} 
+            onClick={handleConfirm}
+            disabled={requiredInputText ? inputValue !== requiredInputText : false}
+          >
             {confirmText}
           </Button>
         </div>

@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import { prisma } from '../config/prisma';
 import { PLANS, PlanType } from '@optidrive/shared';
 import { generateToken } from '../utils/jwt';
+import { logActivity } from '../services/activity.service';
 
 export const getWorkspaceStats = async (req: Request & { user?: any }, res: Response): Promise<void> => {
   try {
@@ -110,6 +111,8 @@ export const getWorkspaceStats = async (req: Request & { user?: any }, res: Resp
           monthlyOptimizations: limits.monthlyOptimizations,
           maxFileSize: limits.maxFileSize.toString(),
           maxApiKeys: limits.maxApiKeys,
+          maxMembers: limits.maxMembers,
+          maxCustomRoles: limits.maxCustomRoles,
         },
         recentActivity,
         analytics
@@ -137,7 +140,8 @@ export const getUserWorkspaces = async (req: Request & { user?: any }, res: Resp
             id: true,
             name: true,
             slug: true,
-            plan: true
+            plan: true,
+            _count: { select: { members: true } }
           }
         },
         role: {
@@ -155,6 +159,7 @@ export const getUserWorkspaces = async (req: Request & { user?: any }, res: Resp
       name: m.workspace.name,
       slug: m.workspace.slug,
       plan: m.workspace.plan,
+      membersCount: m.workspace._count.members,
       role: m.role
     }));
 
@@ -203,7 +208,8 @@ export const switchWorkspace = async (req: Request & { user?: any }, res: Respon
         id: updatedUser.id,
         name: updatedUser.name,
         email: updatedUser.email,
-        workspaceId: updatedUser.activeWorkspaceId
+        workspaceId: updatedUser.activeWorkspaceId,
+        hasPassword: !!updatedUser.passwordHash
       }
     });
   } catch (error) {
@@ -224,6 +230,20 @@ export const createWorkspace = async (req: Request & { user?: any }, res: Respon
 
     if (!name || typeof name !== 'string') {
       res.status(400).json({ error: 'Workspace name is required' });
+      return;
+    }
+
+    // Check if user already owns a FREE workspace
+    const existingFreeWorkspace = await prisma.workspaceUser.findFirst({
+      where: {
+        userId,
+        workspace: { plan: 'FREE' },
+        role: { name: 'Owner', isSystem: true }
+      }
+    });
+
+    if (existingFreeWorkspace) {
+      res.status(403).json({ error: 'You already own a free workspace. Please upgrade your existing workspace or select a paid plan to create a new one.' });
       return;
     }
 
@@ -268,9 +288,15 @@ export const createWorkspace = async (req: Request & { user?: any }, res: Respon
       return workspace;
     });
 
+    await logActivity(newWorkspace.id, userId, 'WORKSPACE_CREATED', `Created workspace ${name}`);
+
     res.status(201).json({
       success: true,
-      data: newWorkspace
+      data: {
+        ...newWorkspace,
+        storageUsed: newWorkspace.storageUsed.toString(),
+        bandwidthUsed: newWorkspace.bandwidthUsed.toString()
+      }
     });
   } catch (error) {
     console.error('createWorkspace Error:', error);

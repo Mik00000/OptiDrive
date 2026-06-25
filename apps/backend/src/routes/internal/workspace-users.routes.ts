@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { requireAuth } from '../../middlewares/auth.middleware';
 import { requirePermissions } from '../../middlewares/rbac.middleware';
-import { getWorkspaceUsers, updateUserRole, removeWorkspaceUser, inviteUser, acceptInvitation, getPendingInvitations, rejectInvitation, leaveWorkspace } from '../../controllers/internal/workspace-users.controller';
+import { getWorkspaceUsers, updateUserRole, removeWorkspaceUser, inviteUser, acceptInvitation, getPendingInvitations, rejectInvitation, leaveWorkspace, transferOwnership } from '../../controllers/internal/workspace-users.controller';
 import { Permission } from '@prisma/client';
 
 const router: Router = Router();
@@ -60,6 +60,13 @@ router.post(
 router.post(
   '/leave',
   leaveWorkspace
+);
+
+// Передати право власності
+router.post(
+  '/transfer-ownership',
+  requirePermissions([Permission.MANAGE_ROLES]),
+  transferOwnership
 );
 
 export default router;

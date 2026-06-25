@@ -22,6 +22,7 @@ interface Workspace {
   name: string;
   slug: string;
   plan: string;
+  membersCount?: number;
   role: WorkspaceRole;
 }
 
@@ -132,7 +133,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         window.location.href = '/dashboard';
       }
     } catch (error) {
-      console.error('Помилка перемикання робочого простору:', error);
       throw error;
     }
   };
@@ -146,7 +146,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
       throw new Error('Failed to create workspace');
     } catch (error) {
-      console.error('Помилка створення робочого простору:', error);
       throw error;
     }
   };

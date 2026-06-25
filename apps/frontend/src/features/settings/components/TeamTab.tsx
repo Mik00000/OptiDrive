@@ -4,16 +4,23 @@ import { useState, useEffect } from 'react';
 import { Button } from '@/components/Button';
 import { Icon } from '@iconify/react';
 import { InviteMemberModal } from './InviteMemberModal';
-import { getWorkspaceUsersApi, removeWorkspaceUserApi, WorkspaceUser } from '../api';
+import { getWorkspaceUsersApi, removeWorkspaceUserApi, transferOwnershipApi, WorkspaceUser } from '../api';
 import { ConfirmModal } from './ConfirmModal';
+import { useAuth } from '@/contexts/AuthContext';
 
 export const TeamTab = () => {
   const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
   const [members, setMembers] = useState<WorkspaceUser[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [userToRemove, setUserToRemove] = useState<WorkspaceUser | null>(null);
+  const [userToTransfer, setUserToTransfer] = useState<WorkspaceUser | null>(null);
   const [isRemoving, setIsRemoving] = useState(false);
+  const [isTransferring, setIsTransferring] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
+
+  const { user, workspaces } = useAuth();
+  const activeWorkspace = workspaces.find((w) => w.id === user?.workspaceId);
+  const isOwner = activeWorkspace?.role?.name === 'Owner';
 
   const fetchMembers = async () => {
     try {
@@ -48,6 +55,21 @@ export const TeamTab = () => {
       setUserToRemove(null);
     } finally {
       setIsRemoving(false);
+    }
+  };
+
+  const confirmTransfer = async () => {
+    if (!userToTransfer) return;
+    setIsTransferring(true);
+    try {
+      await transferOwnershipApi(userToTransfer.id);
+      setUserToTransfer(null);
+      window.location.reload();
+    } catch (error: any) {
+      console.error('Failed to transfer ownership', error);
+      setErrorMessage(error.data?.error || error.response?.data?.error || error.message || 'Failed to transfer ownership');
+      setUserToTransfer(null);
+      setIsTransferring(false);
     }
   };
 
@@ -90,13 +112,24 @@ export const TeamTab = () => {
                   <span className="bg-bg border-border text-text-muted border px-2 py-1 rounded text-xs font-medium uppercase tracking-wide">
                     {member.role?.name || 'Unknown'}
                   </span>
-                  <button 
-                    onClick={() => handleRemoveClick(member)}
-                    className="text-text-muted hover:text-error transition-colors p-1"
-                    title="Remove User"
-                  >
-                    <Icon icon="lucide:x" width="18" height="18" />
-                  </button>
+                  {isOwner && member.id !== user?.id && (
+                    <button 
+                      onClick={() => setUserToTransfer(member)}
+                      className="text-text-muted hover:text-accent transition-colors p-1"
+                      title="Transfer Ownership"
+                    >
+                      <Icon icon="lucide:arrow-right-left" width="18" height="18" />
+                    </button>
+                  )}
+                  {member.id !== user?.id && (
+                    <button 
+                      onClick={() => handleRemoveClick(member)}
+                      className="text-text-muted hover:text-error transition-colors p-1"
+                      title="Remove User"
+                    >
+                      <Icon icon="lucide:x" width="18" height="18" />
+                    </button>
+                  )}
                 </div>
               </div>
             ))
@@ -119,6 +152,19 @@ export const TeamTab = () => {
         confirmText={isRemoving ? "Removing..." : "Remove Member"}
         variant="danger"
         icon="lucide:user-minus"
+        requiredInputText={userToRemove ? `REMOVE ${userToRemove.name?.toUpperCase() || 'USER'}` : undefined}
+      />
+
+      <ConfirmModal
+        isOpen={!!userToTransfer}
+        onClose={() => setUserToTransfer(null)}
+        onConfirm={confirmTransfer}
+        title="Transfer Ownership"
+        description={userToTransfer ? `Are you sure you want to transfer ownership to ${userToTransfer.name || userToTransfer.email}? You will be demoted to an Admin and lose owner privileges.` : ''}
+        confirmText={isTransferring ? "Transferring..." : "Transfer Ownership"}
+        variant="danger"
+        icon="lucide:alert-triangle"
+        requiredInputText="TRANSFER OWNERSHIP"
       />
 
       <ConfirmModal

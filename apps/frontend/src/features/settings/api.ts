@@ -51,6 +51,11 @@ export const updateUserRoleApi = async (userId: string, roleId: string) => {
 };
 
 export const leaveWorkspaceApi = async () => {
-  const response = await apiClient.post<{ success: boolean, message: string, token: string }>('/api/internal/workspace-users/leave');
+  const response = await apiClient.post<{ success: boolean, message: string, token: string, workspaceId: string }>('/api/internal/workspace-users/leave');
+  return response;
+};
+
+export const transferOwnershipApi = async (targetUserId: string) => {
+  const response = await apiClient.post<{ success: boolean, message: string }>('/api/internal/workspace-users/transfer-ownership', { targetUserId });
   return response;
 };
