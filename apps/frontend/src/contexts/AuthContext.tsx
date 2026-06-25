@@ -15,7 +15,7 @@ interface AuthContextType {
   token: string | null;
   isAuthenticated: boolean;
   isLoading: boolean;
-  login: (token: string, user: User) => void;
+  login: (token: string, user: User, skipRedirect?: boolean) => void;
   logout: () => void;
 }
 
@@ -50,12 +50,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }, 0);
   }, []);
 
-  const login = (newToken: string, newUser: User) => {
+  const login = (newToken: string, newUser: User, skipRedirect = false) => {
     localStorage.setItem('optidrive_token', newToken);
     localStorage.setItem('optidrive_user', JSON.stringify(newUser));
     setToken(newToken);
     setUser(newUser);
-    router.push('/dashboard');
+    
+    if (skipRedirect) return;
+
+    const params = new URLSearchParams(window.location.search);
+    const returnTo = params.get('returnTo');
+    if (returnTo && returnTo.startsWith('/')) {
+      router.push(returnTo);
+    } else {
+      router.push('/dashboard');
+    }
   };
 
   const logout = () => {

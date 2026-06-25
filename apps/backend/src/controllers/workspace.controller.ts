@@ -64,12 +64,12 @@ export const getWorkspaceStats = async (req: Request & { user?: any }, res: Resp
     for (let i = 0; i < 30; i++) {
       const d = new Date(thirtyDaysAgo);
       d.setDate(d.getDate() + i);
-      const dateStr = d.toISOString().split('T')[0];
+      const dateStr = d.toISOString().split('T')[0]!;
       analyticsMap.set(dateStr, { bytesSaved: 0, count: 0 });
     }
 
     for (const file of mediaFilesLast30Days) {
-      const dateStr = file.createdAt.toISOString().split('T')[0];
+      const dateStr = file.createdAt.toISOString().split('T')[0]!;
       const saved = Number(file.originalSize) - Number(file.optimizedSize);
       if (analyticsMap.has(dateStr)) {
         const current = analyticsMap.get(dateStr)!;

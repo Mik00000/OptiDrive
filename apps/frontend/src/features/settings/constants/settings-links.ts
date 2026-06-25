@@ -12,6 +12,10 @@ export const SETTINGS_LINKS = [
     href: '/settings/team',
   },
   {
+    title: 'Roles',
+    href: '/settings/roles',
+  },
+  {
     title: 'Notifications',
     href: '/settings/notifications',
   },

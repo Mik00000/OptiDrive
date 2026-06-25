@@ -7,6 +7,7 @@ import Header from '@/components/Header';
 import { Sidebar } from '@/components/Sidebar';
 import { SidebarProvider } from '@/contexts/SidebarContext';
 import { Icon } from '@iconify/react';
+import { InvitationManager } from '@/components/InvitationManager';
 
 export default function DashboardLayout({
   children,
@@ -44,6 +45,7 @@ export default function DashboardLayout({
         <main className="flex flex-1 flex-col w-full min-w-0 xl:h-full xl:overflow-y-auto">
           <Header className="md:hidden" />
           {children}
+          <InvitationManager />
         </main>
       </div>
     </SidebarProvider>

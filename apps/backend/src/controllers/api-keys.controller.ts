@@ -2,6 +2,7 @@ import { Response } from 'express';
 import { ApiKeyService } from '../services/api-keys.service';
 import { AuthRequest } from '../middlewares/auth.middleware';
 import { KeyPermission } from '@prisma/client';
+import { PLANS, PlanType } from '@optidrive/shared';
 
 const apiKeyService = new ApiKeyService();
 
@@ -24,7 +25,6 @@ export const createApiKey = async (
     }
 
     const { prisma } = await import('../config/prisma');
-    const { PLANS, PlanType } = await import('@optidrive/shared');
 
     const workspace = await prisma.workspace.findUnique({
       where: { id: workspaceId },
@@ -84,7 +84,7 @@ export const createApiKey = async (
           type: 'KEY_GENERATED',
           description: `Created API key: ${name}`,
           workspaceId,
-          userId: req.user?.id || null,
+          userId: req.user?.userId || null,
         }
       }).catch(console.error);
     });
@@ -171,7 +171,7 @@ export const revokeApiKey = async (
           type: 'KEY_REVOKED',
           description: `Revoked an API key`,
           workspaceId,
-          userId: req.user?.id || null,
+          userId: req.user?.userId || null,
         }
       }).catch(console.error);
     });

@@ -1,8 +1,14 @@
 import { Request, Response, NextFunction } from 'express';
 import { verifyToken } from '../utils/jwt';
 
+import { Permission, Role } from '@prisma/client';
+
 export interface AuthRequest extends Request {
-  user?: { userId: string; workspaceId: string };
+  user?: { 
+    userId: string; 
+    workspaceId: string; 
+    role?: Role;
+  };
 }
 
 export const requireAuth = (req: AuthRequest, res: Response, next: NextFunction): void => {

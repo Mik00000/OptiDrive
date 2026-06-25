@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import Image from 'next/image';
 import { Icon } from '@iconify/react';
 import { Button } from './Button';
@@ -29,6 +30,7 @@ interface SidebarProps {
 }
 
 export const Sidebar = ({ className }: SidebarProps) => {
+  const pathname = usePathname();
   const { isOpen, setIsOpen } = useSidebar();
   const { user, logout } = useAuth();
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
@@ -81,17 +83,28 @@ export const Sidebar = ({ className }: SidebarProps) => {
 
       <nav className="flex-1">
         <ul className="flex flex-col gap-1">
-          {menu.map((item) => (
-            <li key={item.text}>
-              <Link
-                href={item.link}
-                className="flex items-center gap-3 rounded-lg px-3 py-2 text-text-muted transition-colors duration-200 hover:bg-slate-800/50 hover:text-text-light"
-              >
-                <Icon icon={item.icon} width={20} />
-                <span className="text-sm font-medium">{item.text}</span>
-              </Link>
-            </li>
-          ))}
+          {menu.map((item) => {
+            const isActive = pathname.startsWith(item.link);
+            return (
+              <li key={item.text} className="relative">
+                {isActive && (
+                  <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-8 bg-accent rounded-r-md"></div>
+                )}
+                <Link
+                  href={item.link}
+                  className={twMerge(
+                    "flex items-center gap-3 rounded-lg px-3 py-2 transition-colors duration-200",
+                    isActive 
+                      ? "bg-slate-800/80 text-text-light font-semibold" 
+                      : "text-text-muted hover:bg-slate-800/50 hover:text-text-light"
+                  )}
+                >
+                  <Icon icon={item.icon} width={20} className={isActive ? "text-accent" : ""} />
+                  <span className="text-sm font-medium">{item.text}</span>
+                </Link>
+              </li>
+            );
+          })}
         </ul>
       </nav>
 

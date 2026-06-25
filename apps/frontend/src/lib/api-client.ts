@@ -36,7 +36,10 @@ class ApiClient {
       const errorMessage = data && typeof data === 'object' && 'error' in data && typeof (data as Record<string, unknown>).error === 'string'
         ? (data as Record<string, string>).error 
         : `Помилка запиту: ${response.status} ${response.statusText}`;
-      throw new Error(errorMessage);
+      
+      const errorObj = new Error(errorMessage);
+      (errorObj as any).data = data;
+      throw errorObj;
     }
 
     return data as T;
@@ -64,6 +67,16 @@ class ApiClient {
   public async put<T>(url: string, body?: unknown, options: RequestInit = {}): Promise<T> {
     const response = await fetch(url, {
       method: 'PUT',
+      body: body ? JSON.stringify(body) : undefined,
+      ...options,
+      headers: this.getHeaders((options.headers as Record<string, string>) || {}),
+    });
+    return this.handleResponse<T>(response);
+  }
+
+  public async patch<T>(url: string, body?: unknown, options: RequestInit = {}): Promise<T> {
+    const response = await fetch(url, {
+      method: 'PATCH',
       body: body ? JSON.stringify(body) : undefined,
       ...options,
       headers: this.getHeaders((options.headers as Record<string, string>) || {}),

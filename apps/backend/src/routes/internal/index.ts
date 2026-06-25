@@ -5,6 +5,8 @@ import apiKeysRoutes from './api-keys.routes';
 import oauthRoutes from './oauth.routes';
 import mediaRoutes from './media.routes';
 import workspaceRoutes from './workspace.routes';
+import workspaceUsersRoutes from './workspace-users.routes';
+import rolesRoutes from './roles.routes';
 
 const router: Router = Router();
 
@@ -22,5 +24,7 @@ router.use('/auth', oauthRoutes);
 router.use('/api-keys', apiKeysRoutes);
 router.use('/media', mediaRoutes);
 router.use('/workspace', workspaceRoutes);
+router.use('/workspace-users', workspaceUsersRoutes);
+router.use('/roles', rolesRoutes);
 
 export default router;

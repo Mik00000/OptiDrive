@@ -1,17 +1,20 @@
 "use client";
 
 import React, { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
 import { registerApi } from '@/features/auth/api';
+import { Suspense } from 'react';
 import { SocialLoginButtons } from '@/features/auth/SocialLoginButtons';
 import { Input } from '@/components/Inputs';
 import { Button } from '@/components/Button';
 import { Icon } from '@iconify/react';
 
-export default function RegisterPage() {
+function RegisterForm() {
   const { login } = useAuth();
+  const searchParams = useSearchParams();
+  const returnTo = searchParams.get('returnTo');
   
   // Стани форми
   const [name, setName] = useState('');
@@ -70,7 +73,11 @@ export default function RegisterPage() {
       const response = await registerApi(email, password, name);
 
       if (response.success && response.requiresVerification) {
-        router.push(`/verify-email?email=${encodeURIComponent(email)}`);
+        let verifyUrl = `/verify-email?email=${encodeURIComponent(email)}`;
+        if (returnTo) {
+          verifyUrl += `&returnTo=${encodeURIComponent(returnTo)}`;
+        }
+        router.push(verifyUrl);
       } else {
         setError('Failed to create account. Please try again later.');
       }
@@ -185,5 +192,13 @@ export default function RegisterPage() {
         </Link>
       </div>
     </div>
+  );
+}
+
+export default function RegisterPage() {
+  return (
+    <Suspense fallback={<div className="flex justify-center p-8"><Icon icon="lucide:loader-2" className="animate-spin text-accent" width={24} height={24} /></div>}>
+      <RegisterForm />
+    </Suspense>
   );
 }

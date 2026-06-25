@@ -6,6 +6,7 @@ import { Input } from '@/components/Inputs';
 import { Icon } from '@iconify/react';
 import { ConfirmModal } from './ConfirmModal';
 import { ChangePasswordModal } from './ChangePasswordModal';
+import { useAuth } from '@/contexts/AuthContext';
 
 export const ProfileTab = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -13,7 +14,31 @@ export const ProfileTab = () => {
   const [isRemovePictureModalOpen, setIsRemovePictureModalOpen] = useState(false);
   const [isSaveChangesModalOpen, setIsSaveChangesModalOpen] = useState(false);
   const [isDeleteAccountModalOpen, setIsDeleteAccountModalOpen] = useState(false);
+  const [isLeaveWorkspaceModalOpen, setIsLeaveWorkspaceModalOpen] = useState(false);
   const [isChangePasswordModalOpen, setIsChangePasswordModalOpen] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
+  
+  const { login, user } = useAuth();
+  const [isLeaving, setIsLeaving] = useState(false);
+
+  const handleLeaveWorkspace = async () => {
+    try {
+      setIsLeaving(true);
+      const { leaveWorkspaceApi } = await import('../api');
+      const res = await leaveWorkspaceApi();
+      if (res.success && res.token && user) {
+        login(res.token, user, true);
+        setIsLeaveWorkspaceModalOpen(false);
+        window.location.reload();
+      }
+    } catch (err: any) {
+      console.error(err);
+      setErrorMessage(err.data?.error || err.response?.data?.error || err.message || 'Failed to leave workspace');
+      setIsLeaveWorkspaceModalOpen(false);
+    } finally {
+      setIsLeaving(false);
+    }
+  };
   
   const handleUploadPictureClick = () => {
     fileInputRef.current?.click();
@@ -162,6 +187,29 @@ export const ProfileTab = () => {
               Delete Account
             </Button>
           </div>
+          <div className="border-error/30 flex flex-col justify-between gap-4 border-t p-4 sm:flex-row sm:items-center sm:p-6">
+            <div className="flex flex-col gap-1">
+              <span className="text-text-light text-base font-medium">
+                Leave Workspace
+              </span>
+              <p className="text-text-muted text-sm">
+                Leave the current workspace. You will be moved to your personal workspace.
+              </p>
+            </div>
+            <Button
+              variant="danger"
+              className="w-full shrink-0 justify-center sm:w-auto"
+              onClick={() => setIsLeaveWorkspaceModalOpen(true)}
+            >
+              <Icon
+                icon="lucide:square-arrow-right-exit"
+                width="16"
+                height="16"
+                className="mr-2"
+              />
+              Leave Workspace
+            </Button>
+          </div>
         </div>
       </div>
       
@@ -198,6 +246,30 @@ export const ProfileTab = () => {
         icon="lucide:triangle-alert"
       />
       
+      <ConfirmModal
+        isOpen={isLeaveWorkspaceModalOpen}
+        onClose={() => setIsLeaveWorkspaceModalOpen(false)}
+        onConfirm={handleLeaveWorkspace}
+        title="Leave Workspace"
+        description="Are you sure you want to leave this workspace? You will be moved to a personal workspace and lose access to the current team's data."
+        confirmText={isLeaving ? "Leaving..." : "Leave Workspace"}
+        variant="danger"
+        icon="lucide:door-open"
+      />
+      
+      
+      <ConfirmModal
+        isOpen={!!errorMessage}
+        onClose={() => setErrorMessage('')}
+        onConfirm={() => setErrorMessage('')}
+        title="Error"
+        description={errorMessage}
+        confirmText="OK"
+        cancelText="" // Will hide if we add logic, but for now we just show both or we can create a custom modal
+        variant="danger"
+        icon="lucide:alert-circle"
+      />
+
       <ChangePasswordModal
         isOpen={isChangePasswordModalOpen}
         onClose={() => setIsChangePasswordModalOpen(false)}

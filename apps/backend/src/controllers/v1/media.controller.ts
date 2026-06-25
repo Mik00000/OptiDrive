@@ -75,7 +75,7 @@ export const deleteMediaController = async (req: Request & { workspaceId?: strin
 
     // 1. Fetch file from DB
     const file = await prisma.mediaFile.findUnique({
-      where: { id }
+      where: { id: id as string }
     });
 
     if (!file) {
@@ -120,9 +120,8 @@ export const deleteMediaController = async (req: Request & { workspaceId?: strin
       }
     });
 
-    // 5. Delete from DB
     await prisma.mediaFile.delete({
-      where: { id }
+      where: { id: id as string }
     });
 
     res.status(200).json({

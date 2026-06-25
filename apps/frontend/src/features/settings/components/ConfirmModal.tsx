@@ -22,8 +22,8 @@ export function ConfirmModal({
   onConfirm,
   title,
   description,
-  confirmText = "Підтвердити",
-  cancelText = "Скасувати",
+  confirmText = "Confirm",
+  cancelText = "Cancel",
   variant = "primary",
   icon = "lucide:alert-circle"
 }: ConfirmModalProps) {
@@ -58,9 +58,11 @@ export function ConfirmModal({
         </p>
 
         <div className="flex justify-end gap-3">
-          <Button variant="bordered" onClick={onClose}>
-            {cancelText}
-          </Button>
+          {cancelText && (
+            <Button variant="bordered" onClick={onClose}>
+              {cancelText}
+            </Button>
+          )}
           <Button variant={variant} onClick={handleConfirm}>
             {confirmText}
           </Button>

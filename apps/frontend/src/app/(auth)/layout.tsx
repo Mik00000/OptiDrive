@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import Image from 'next/image';
 import { Icon } from '@iconify/react';
@@ -13,12 +13,13 @@ export default function AuthLayout({
 }) {
   const { isAuthenticated, isLoading } = useAuth();
   const router = useRouter();
+  const pathname = usePathname();
 
   useEffect(() => {
-    if (!isLoading && isAuthenticated) {
+    if (!isLoading && isAuthenticated && pathname !== '/invite') {
       router.push('/dashboard');
     }
-  }, [isLoading, isAuthenticated, router]);
+  }, [isLoading, isAuthenticated, router, pathname]);
 
   if (isLoading) {
     return (
@@ -31,7 +32,7 @@ export default function AuthLayout({
     );
   }
 
-  if (isAuthenticated) {
+  if (isAuthenticated && pathname !== '/invite') {
     return null;
   }
 

@@ -14,6 +14,34 @@ enum KeyPermission {
   UPLOAD_ONLY
 }
 
+// Дозволи для кастомних ролей (RBAC)
+enum Permission {
+  MANAGE_USERS
+  MANAGE_ROLES
+  MANAGE_BILLING
+  UPLOAD_FILES
+  DELETE_FILES
+  MANAGE_API_KEYS
+  VIEW_ANALYTICS
+}
+
+// Роль користувача
+model Role {
+  id          String       @id @default(cuid())
+  name        String
+  description String?
+  isSystem    Boolean      @default(false)
+  permissions Permission[]
+  
+  workspaceId String
+  workspace   Workspace    @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  
+  users       User[]
+  invitations Invitation[]
+
+  @@unique([name, workspaceId])
+}
+
 // Статуси оплати інвойсів
 enum InvoiceStatus {
   PAID
@@ -55,6 +83,8 @@ model User {
   resetPasswordToken     String?
   resetPasswordExpiry    DateTime?
 
+  roleId       String?
+  role         Role?     @relation(fields: [roleId], references: [id], onDelete: SetNull)
   workspaceId  String
   workspace    Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
@@ -83,6 +113,8 @@ model Workspace {
   invoices       Invoice[]
   analyticsLogs  AnalyticsLog[]
   activityLogs   ActivityLog[]
+  invitations    Invitation[]
+  roles          Role[]
 }
 
 // 3. API Ключі для безпечної інтеграції
@@ -157,4 +189,21 @@ model ActivityLog {
   workspace   Workspace    @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
   @@index([workspaceId])
+}
+
+// 8. Запрошення до робочого простору
+model Invitation {
+  id          String   @id @default(cuid())
+  email       String
+  token       String   @unique
+  roleId      String
+  role        Role     @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  expiresAt   DateTime
+  createdAt   DateTime @default(now())
+
+  workspaceId String
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@unique([email, workspaceId])
+  @@index([token])
 }
