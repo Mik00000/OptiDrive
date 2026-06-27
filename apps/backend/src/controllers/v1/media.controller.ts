@@ -11,7 +11,7 @@ export const listMediaController = async (req: Request & { workspaceId?: string;
       return;
     }
 
-    const { page = '1', limit = '20', search = '', format = 'all' } = req.query;
+    const { page = '1', limit = '20', search = '', format = 'all', tag = '' } = req.query;
     
     const pageNum = parseInt(page as string, 10);
     const limitNum = parseInt(limit as string, 10);
@@ -28,10 +28,21 @@ export const listMediaController = async (req: Request & { workspaceId?: string;
       whereClause.format = { equals: format as string, mode: 'insensitive' };
     }
 
+    if (tag && typeof tag === 'string') {
+      whereClause.tags = {
+        some: {
+          name: { equals: tag, mode: 'insensitive' }
+        }
+      };
+    }
+
     // Execute query
     const [files, total] = await Promise.all([
       prisma.mediaFile.findMany({
         where: whereClause,
+        include: {
+          tags: true
+        },
         orderBy: { createdAt: 'desc' },
         skip,
         take: limitNum,

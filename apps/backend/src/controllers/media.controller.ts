@@ -24,6 +24,9 @@ export const getMediaFiles = async (req: AuthRequest, res: Response): Promise<vo
           workspaceId,
           name: { contains: search, mode: 'insensitive' }
         },
+        include: {
+          tags: true
+        },
         orderBy: { createdAt: 'desc' },
       });
 
@@ -36,12 +39,16 @@ export const getMediaFiles = async (req: AuthRequest, res: Response): Promise<vo
         include: {
           _count: {
             select: { files: true, children: true }
-          }
+          },
+          tags: true
         }
       });
     } else {
       mediaFiles = await prisma.mediaFile.findMany({
         where: { workspaceId, folderId },
+        include: {
+          tags: true
+        },
         orderBy: { createdAt: 'desc' },
       });
 
@@ -51,7 +58,8 @@ export const getMediaFiles = async (req: AuthRequest, res: Response): Promise<vo
         include: {
           _count: {
             select: { files: true, children: true }
-          }
+          },
+          tags: true
         }
       });
     }

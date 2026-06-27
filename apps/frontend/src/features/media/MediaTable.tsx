@@ -76,6 +76,17 @@ const SavingsTooltip = ({ children }: { children: React.ReactNode }) => {
   );
 };
 
+const FOLDER_COLORS = [
+  { name: 'Default', value: null },
+  { name: 'Red', value: '#ef4444' },
+  { name: 'Orange', value: '#f97316' },
+  { name: 'Yellow', value: '#eab308' },
+  { name: 'Green', value: '#22c55e' },
+  { name: 'Blue', value: '#3b82f6' },
+  { name: 'Purple', value: '#a855f7' },
+  { name: 'Gray', value: '#64748b' },
+];
+
 interface MediaTableProps {
   searchQuery: string;
   setSearchQuery: (val: string) => void;
@@ -110,6 +121,7 @@ export const MediaTable = ({
   // Folder actions state
   const [isCreateFolderModalOpen, setIsCreateFolderModalOpen] = useState(false);
   const [newFolderName, setNewFolderName] = useState('');
+  const [newFolderColor, setNewFolderColor] = useState<string | null>(null);
   const [isCreatingFolder, setIsCreatingFolder] = useState(false);
 
   const [isRenameFolderModalOpen, setIsRenameFolderModalOpen] = useState(false);
@@ -117,6 +129,7 @@ export const MediaTable = ({
     null,
   );
   const [renameFolderName, setRenameFolderName] = useState('');
+  const [renameFolderColor, setRenameFolderColor] = useState<string | null>(null);
   const [isRenamingFolder, setIsRenamingFolder] = useState(false);
 
   const [isMoveModalOpen, setIsMoveModalOpen] = useState(false);
@@ -285,9 +298,10 @@ export const MediaTable = ({
     if (!newFolderName.trim()) return;
     setIsCreatingFolder(true);
     try {
-      await createFolderApi(newFolderName, currentFolderId);
+      await createFolderApi(newFolderName, currentFolderId, newFolderColor);
       showFeedback(`Folder "${newFolderName}" created successfully`);
       setNewFolderName('');
+      setNewFolderColor(null);
       setIsCreateFolderModalOpen(false);
       fetchLibrary();
     } catch (error: any) {
@@ -307,9 +321,10 @@ export const MediaTable = ({
     if (!renameFolderTarget || !renameFolderName.trim()) return;
     setIsRenamingFolder(true);
     try {
-      await renameFolderApi(renameFolderTarget.id, renameFolderName);
+      await renameFolderApi(renameFolderTarget.id, renameFolderName, renameFolderColor);
       showFeedback('Folder renamed successfully');
       setRenameFolderTarget(null);
+      setRenameFolderColor(null);
       setIsRenameFolderModalOpen(false);
       fetchLibrary();
     } catch (error: any) {
@@ -780,7 +795,14 @@ export const MediaTable = ({
                     </td>
                     <td className="px-4 py-4">
                       <div className="flex items-center gap-3">
-                        <div className="bg-sidebar border-border text-accent flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border">
+                        <div
+                          style={{
+                            borderColor: folder.color ? `${folder.color}35` : undefined,
+                            backgroundColor: folder.color ? `${folder.color}15` : undefined,
+                            color: folder.color || undefined
+                          }}
+                          className="bg-sidebar border-border text-accent flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border transition-colors"
+                        >
                           <Icon
                             icon={
                               isNonEmpty
@@ -877,6 +899,7 @@ export const MediaTable = ({
                           onClick={() => {
                             setRenameFolderTarget(folder);
                             setRenameFolderName(folder.name);
+                            setRenameFolderColor(folder.color || null);
                             setIsRenameFolderModalOpen(true);
                           }}
                           className="text-text-muted hover:text-text-light cursor-pointer p-1.5 align-middle opacity-70 transition-colors group-hover:opacity-100 hover:scale-110 focus:opacity-100"
@@ -961,6 +984,23 @@ export const MediaTable = ({
                         >
                           {file.name}
                         </button>
+                        {file.tags && file.tags.length > 0 && (
+                          <div className="mt-1 flex flex-wrap gap-1">
+                            {file.tags.map((tag: any) => (
+                              <span
+                                key={tag.id}
+                                style={{
+                                  backgroundColor: `${tag.color}15`,
+                                  borderColor: `${tag.color}30`,
+                                  color: tag.color,
+                                }}
+                                className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium border"
+                              >
+                                {tag.name}
+                              </span>
+                            ))}
+                          </div>
+                        )}
                         {searchQuery && file.path && (
                           <span className="text-text-muted mt-0.5 text-[10px] font-medium">
                             In: {file.path}
@@ -1510,6 +1550,27 @@ export const MediaTable = ({
               className="w-full"
             />
           </div>
+          <div className="flex flex-col gap-2">
+            <label className="text-text-muted text-xs font-semibold uppercase">
+              Folder Color
+            </label>
+            <div className="flex flex-wrap gap-2 mt-1">
+              {FOLDER_COLORS.map((c) => (
+                <button
+                  key={c.name}
+                  type="button"
+                  onClick={() => setNewFolderColor(c.value)}
+                  style={{ backgroundColor: c.value || undefined }}
+                  className={`h-7 w-7 rounded-full border transition-all hover:scale-110 flex items-center justify-center ${newFolderColor === c.value ? 'ring-2 ring-white border-transparent scale-105' : 'border-border'} ${!c.value ? 'bg-accent/40' : ''}`}
+                  title={c.name}
+                >
+                  {newFolderColor === c.value && (
+                    <Icon icon="lucide:check" width={14} className="text-white drop-shadow-md" />
+                  )}
+                </button>
+              ))}
+            </div>
+          </div>
           <div className="mt-4 flex justify-end gap-3">
             <Button
               variant="bordered"
@@ -1545,6 +1606,27 @@ export const MediaTable = ({
               required
               className="w-full"
             />
+          </div>
+          <div className="flex flex-col gap-2">
+            <label className="text-text-muted text-xs font-semibold uppercase">
+              Folder Color
+            </label>
+            <div className="flex flex-wrap gap-2 mt-1">
+              {FOLDER_COLORS.map((c) => (
+                <button
+                  key={c.name}
+                  type="button"
+                  onClick={() => setRenameFolderColor(c.value)}
+                  style={{ backgroundColor: c.value || undefined }}
+                  className={`h-7 w-7 rounded-full border transition-all hover:scale-110 flex items-center justify-center ${renameFolderColor === c.value ? 'ring-2 ring-white border-transparent scale-105' : 'border-border'} ${!c.value ? 'bg-accent/40' : ''}`}
+                  title={c.name}
+                >
+                  {renameFolderColor === c.value && (
+                    <Icon icon="lucide:check" width={14} className="text-white drop-shadow-md" />
+                  )}
+                </button>
+              ))}
+            </div>
           </div>
           <div className="mt-4 flex justify-end gap-3">
             <Button

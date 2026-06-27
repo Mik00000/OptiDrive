@@ -41,6 +41,9 @@ export function UploadMediaModal({ isOpen, onClose, onSuccess, folderId }: Uploa
   const [svgAggressive, setSvgAggressive] = useState(false);
   const [svgStripUnused, setSvgStripUnused] = useState(true);
 
+  // Tags Settings
+  const [tagsInput, setTagsInput] = useState("");
+
   // Sync preset to custom settings
   useEffect(() => {
     if (preset === "web_balanced") {
@@ -135,9 +138,14 @@ export function UploadMediaModal({ isOpen, onClose, onSuccess, folderId }: Uploa
       formData.append("removeViewBox", (!svgStripUnused).toString());
     }
 
+    if (tagsInput) {
+      formData.append("tags", tagsInput);
+    }
+
     try {
       await uploadMediaFileApi(formData);
       setFile(null);
+      setTagsInput("");
       if (onSuccess) onSuccess();
       onClose();
     } catch (err: unknown) {
@@ -336,6 +344,17 @@ export function UploadMediaModal({ isOpen, onClose, onSuccess, folderId }: Uploa
                   </p>
                 </div>
               )}
+
+              {/* Tags Input (Applies to all files) */}
+              <div className="flex flex-col gap-1.5 bg-bg border border-border p-4 rounded-xl">
+                <label className="text-xs text-text-muted">Tags (comma-separated)</label>
+                <Input
+                  placeholder="e.g. website, hero-banner, marketing"
+                  value={tagsInput}
+                  onChange={(e) => setTagsInput(e.target.value)}
+                  className="bg-card border-border/80 focus:border-accent"
+                />
+              </div>
             </div>
           </div>
         )}

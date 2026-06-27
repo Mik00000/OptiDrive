@@ -1,5 +1,11 @@
 import { apiClient } from '@/lib/api-client';
 
+export interface Tag {
+  id: string;
+  name: string;
+  color: string;
+}
+
 export interface MediaFile {
   id: string;
   name: string;
@@ -12,11 +18,13 @@ export interface MediaFile {
   createdAt: string;
   folderId?: string | null;
   path?: string;
+  tags?: Tag[];
 }
 
 export interface Folder {
   id: string;
   name: string;
+  color?: string | null;
   parentId: string | null;
   workspaceId: string;
   createdAt: string;
@@ -28,6 +36,7 @@ export interface Folder {
   originalSize?: number;
   optimizedSize?: number;
   path?: string;
+  tags?: Tag[];
 }
 
 export interface MediaLibraryContent {
@@ -53,13 +62,13 @@ export const getFoldersApi = async (all?: boolean): Promise<Folder[]> => {
   return response.data;
 };
 
-export const createFolderApi = async (name: string, parentId?: string | null): Promise<Folder> => {
-  const response = await apiClient.post<{ data: Folder }>('/api/internal/folders', { name, parentId });
+export const createFolderApi = async (name: string, parentId?: string | null, color?: string | null): Promise<Folder> => {
+  const response = await apiClient.post<{ data: Folder }>('/api/internal/folders', { name, parentId, color });
   return response.data;
 };
 
-export const renameFolderApi = async (id: string, name: string): Promise<Folder> => {
-  const response = await apiClient.patch<{ data: Folder }>(`/api/internal/folders/${id}`, { name });
+export const renameFolderApi = async (id: string, name: string, color?: string | null): Promise<Folder> => {
+  const response = await apiClient.patch<{ data: Folder }>(`/api/internal/folders/${id}`, { name, color });
   return response.data;
 };
 

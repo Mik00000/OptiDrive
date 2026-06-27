@@ -32,7 +32,7 @@ export const compressImageController = async (req: Request & { workspaceId?: str
     const {
       format, quality, lossless, width, height, fit, stripMetadata, effort,
       sanitize, removeViewBox, multipass, floatPrecision,
-      pages, colors, folderId
+      pages, colors, folderId, folderPath, tags
     } = req.body;
 
     // Handle "auto" format for raster
@@ -60,10 +60,37 @@ export const compressImageController = async (req: Request & { workspaceId?: str
       }
     }
 
-    // Validate folderId if provided
-    if (folderId && folderId !== 'null') {
+    // Determine target folder ID (auto-create folders if folderPath is provided)
+    let targetFolderId: string | null = folderId && folderId !== 'null' ? folderId : null;
+
+    if (folderPath && typeof folderPath === 'string') {
+      const pathParts = folderPath.split('/').map((p: string) => p.trim()).filter(Boolean);
+      let currentParentId: string | null = null;
+      for (const part of pathParts) {
+        let folderRecord: any = await prisma.folder.findFirst({
+          where: {
+            name: part,
+            parentId: currentParentId,
+            workspaceId
+          }
+        });
+        
+        if (!folderRecord) {
+          folderRecord = await prisma.folder.create({
+            data: {
+              name: part,
+              parentId: currentParentId,
+              workspaceId
+            }
+          });
+        }
+        currentParentId = folderRecord.id;
+      }
+      targetFolderId = currentParentId;
+    } else if (targetFolderId) {
+      // Validate folderId if folderPath is not provided
       const folderExists = await prisma.folder.findFirst({
-        where: { id: folderId, workspaceId }
+        where: { id: targetFolderId, workspaceId }
       });
       if (!folderExists) {
         res.status(400).json({ error: 'Invalid folderId' });
@@ -114,6 +141,21 @@ export const compressImageController = async (req: Request & { workspaceId?: str
       ? (Number(savingsBytes) / result.originalSize * 100) 
       : 0;
 
+    // Parse tags if provided
+    let tagNames: string[] = [];
+    if (tags && typeof tags === 'string') {
+      try {
+        const parsed = JSON.parse(tags);
+        if (Array.isArray(parsed)) {
+          tagNames = parsed.map((t) => String(t).trim()).filter(Boolean);
+        } else {
+          tagNames = tags.split(',').map((t) => t.trim()).filter(Boolean);
+        }
+      } catch (e) {
+        tagNames = tags.split(',').map((t) => t.trim()).filter(Boolean);
+      }
+    }
+
     // Save to MediaFile
     const mediaFile = await prisma.mediaFile.create({
       data: {
@@ -124,7 +166,23 @@ export const compressImageController = async (req: Request & { workspaceId?: str
         savings: savingsPercent,
         cdnUrl: result.cdnUrl,
         workspaceId,
-        folderId: folderId && folderId !== 'null' ? folderId : null,
+        folderId: targetFolderId,
+        ...(tagNames.length > 0 ? {
+          tags: {
+            connectOrCreate: tagNames.map((tagName) => ({
+              where: {
+                name_workspaceId: {
+                  name: tagName,
+                  workspaceId
+                }
+              },
+              create: {
+                name: tagName,
+                workspaceId
+              }
+            }))
+          }
+        } : {})
       }
     });
 

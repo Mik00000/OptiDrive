@@ -29,7 +29,7 @@ export const createFolder = async (req: AuthRequest, res: Response): Promise<voi
       return;
     }
 
-    const { name, parentId } = req.body;
+    const { name, parentId, color } = req.body;
     if (!name) {
       res.status(400).json({ error: 'Folder name is required' });
       return;
@@ -64,7 +64,8 @@ export const createFolder = async (req: AuthRequest, res: Response): Promise<voi
       data: {
         name,
         parentId: parentId || null,
-        workspaceId
+        workspaceId,
+        color: color || null,
       }
     });
 
@@ -114,15 +115,15 @@ export const renameFolder = async (req: AuthRequest, res: Response): Promise<voi
   try {
     const workspaceId = req.user?.workspaceId;
     const folderId = req.params.id as string;
-    const { name } = req.body;
+    const { name, color } = req.body;
 
     if (!workspaceId) {
       res.status(401).json({ error: 'Unauthorized' });
       return;
     }
 
-    if (!name) {
-      res.status(400).json({ error: 'Folder name is required' });
+    if (!name && color === undefined) {
+      res.status(400).json({ error: 'Folder name or color is required' });
       return;
     }
 
@@ -135,24 +136,29 @@ export const renameFolder = async (req: AuthRequest, res: Response): Promise<voi
       return;
     }
 
-    // Check uniqueness in target directory
-    const existing = await prisma.folder.findFirst({
-      where: {
-        name,
-        parentId: folder.parentId,
-        workspaceId,
-        id: { not: folderId }
-      }
-    });
+    // Check uniqueness in target directory if name is changed
+    if (name && name !== folder.name) {
+      const existing = await prisma.folder.findFirst({
+        where: {
+          name,
+          parentId: folder.parentId,
+          workspaceId,
+          id: { not: folderId }
+        }
+      });
 
-    if (existing) {
-      res.status(400).json({ error: 'A folder with this name already exists in this directory' });
-      return;
+      if (existing) {
+        res.status(400).json({ error: 'A folder with this name already exists in this directory' });
+        return;
+      }
     }
 
     const updated = await prisma.folder.update({
       where: { id: folderId },
-      data: { name }
+      data: {
+        name: name !== undefined ? name : undefined,
+        color: color !== undefined ? color : undefined,
+      }
     });
 
     res.status(200).json({ success: true, data: updated });
