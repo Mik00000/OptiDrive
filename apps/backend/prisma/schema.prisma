@@ -116,6 +116,7 @@ model Workspace {
   activeUsers    User[]          @relation("ActiveWorkspace")
   apiKeys        ApiKey[]
   files          MediaFile[]
+  folders        Folder[]
   invoices       Invoice[]
   analyticsLogs  AnalyticsLog[]
   activityLogs   ActivityLog[]
@@ -151,7 +152,26 @@ model ApiKey {
   workspace   Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 }
 
-// 4. Медіатека
+// 4. Папки для організації медіа
+model Folder {
+  id          String   @id @default(cuid())
+  name        String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  parentId    String?
+  parent      Folder?  @relation("FolderToFolder", fields: [parentId], references: [id], onDelete: Cascade)
+  children    Folder[] @relation("FolderToFolder")
+
+  workspaceId String
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  files       MediaFile[]
+
+  @@unique([name, parentId, workspaceId])
+}
+
+// 5. Медіатека
 model MediaFile {
   id            String   @id @default(cuid())
   name          String   // Наприклад, "hero-banner.png"
@@ -162,10 +182,14 @@ model MediaFile {
   cdnUrl        String   // Згенероване CDN-посилання
   createdAt     DateTime @default(now())
 
+  folderId      String?
+  folder        Folder?   @relation(fields: [folderId], references: [id], onDelete: SetNull)
+
   workspaceId   String
   workspace     Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
   @@index([workspaceId])
+  @@index([folderId])
 }
 
 // 5. Історія платежів та інвойси

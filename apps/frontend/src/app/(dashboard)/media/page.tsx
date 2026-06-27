@@ -14,6 +14,7 @@ const MediaLibraryPage = () => {
   const [isSelectionMode, setIsSelectionMode] = useState(false);
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
+  const [currentFolderId, setCurrentFolderId] = useState<string | null>(null);
 
   const handleUploadSuccess = () => {
     setRefreshKey(prev => prev + 1);
@@ -41,45 +42,16 @@ const MediaLibraryPage = () => {
       <div className="flex flex-col gap-6 p-8 pb-0">
 
         <div className='flex flex-col w-full h-fit min-w-0 gap-4 xl:gap-0 xl:bg-card xl:border border-border rounded-2xl '>
-          <div className='w-full flex gap-4 xl:gap-0 xl:justify-between xl:p-4 flex-col xl:flex-row'>
-            <Input 
-              variant='search' 
-              placeholder='Search files by name...' 
-              wrapperClassName='xl:max-w-md w-full h-11.5 xl:h-fit'
-              className=' bg-card xl:bg-bg h-full'
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-            />
-            <Input
-              variant="select"
-              icon="lucide:filter"
-              prefix="Format: "
-              options={[
-                { value: "all", label: "All" },
-                { value: "avif", label: "Avif" },
-                { value: "webp", label: "WebP" },
-                { value: "png", label: "Png" },
-                { value: "jpeg", label: "Jpeg" },
-                { value: "svg", label: "Svg" },
-                { value: "gif", label: "Gif" },
-                { value: "ico", label: "Ico" },
-                { value: "bmp", label: "Bmp" },
-                { value: "tiff", label: "Tiff" },
-                { value: "raw", label: "Raw" },
-                { value: "pdf", label: "Pdf" },
-                { value: "other", label: "Other" },
-              ]}
-              value={formatFilter}
-              onChange={setFormatFilter}
-              className="text-text-light text-sm w-full xl:w-fit bg-card xl:bg-bg rounded-xl h-11.5 xl:h-fit"
-            />
-          </div>
-            <MediaTable 
+          <MediaTable 
             searchQuery={searchQuery} 
+            setSearchQuery={setSearchQuery}
             formatFilter={formatFilter} 
+            setFormatFilter={setFormatFilter}
             isSelectionMode={isSelectionMode}
             onSelectionModeChange={setIsSelectionMode}
             refreshKey={refreshKey}
+            currentFolderId={currentFolderId}
+            onFolderChange={setCurrentFolderId}
           />
         </div>
       </div>
@@ -88,6 +60,7 @@ const MediaLibraryPage = () => {
         isOpen={isUploadModalOpen} 
         onClose={() => setIsUploadModalOpen(false)} 
         onSuccess={handleUploadSuccess}
+        folderId={currentFolderId}
       />
     </section>
   );

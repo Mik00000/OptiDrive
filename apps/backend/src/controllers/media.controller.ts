@@ -12,19 +12,143 @@ export const getMediaFiles = async (req: AuthRequest, res: Response): Promise<vo
       return;
     }
 
-    const mediaFiles = await prisma.mediaFile.findMany({
+    const folderId = req.query.folderId === 'null' || !req.query.folderId ? null : String(req.query.folderId);
+    const search = req.query.search ? String(req.query.search) : undefined;
+
+    let mediaFiles;
+    let folders;
+
+    if (search) {
+      mediaFiles = await prisma.mediaFile.findMany({
+        where: {
+          workspaceId,
+          name: { contains: search, mode: 'insensitive' }
+        },
+        orderBy: { createdAt: 'desc' },
+      });
+
+      folders = await prisma.folder.findMany({
+        where: {
+          workspaceId,
+          name: { contains: search, mode: 'insensitive' }
+        },
+        orderBy: { name: 'asc' },
+        include: {
+          _count: {
+            select: { files: true, children: true }
+          }
+        }
+      });
+    } else {
+      mediaFiles = await prisma.mediaFile.findMany({
+        where: { workspaceId, folderId },
+        orderBy: { createdAt: 'desc' },
+      });
+
+      folders = await prisma.folder.findMany({
+        where: { workspaceId, parentId: folderId },
+        orderBy: { name: 'asc' },
+        include: {
+          _count: {
+            select: { files: true, children: true }
+          }
+        }
+      });
+    }
+
+    // Fetch all folders to construct paths and hierarchy in memory
+    const allFolders = await prisma.folder.findMany({
       where: { workspaceId },
-      orderBy: { createdAt: 'desc' },
+      select: { id: true, name: true, parentId: true }
     });
 
-    // Convert BigInt to Number for JSON serialization
-    const serializedMediaFiles = mediaFiles.map(file => ({
+    const folderMap = new Map<string, { name: string, parentId: string | null }>();
+    const childFoldersMap = new Map<string, string[]>(); // parentId -> childIds
+    for (const f of allFolders) {
+      folderMap.set(f.id, { name: f.name, parentId: f.parentId });
+      if (f.parentId) {
+        const children = childFoldersMap.get(f.parentId) || [];
+        children.push(f.id);
+        childFoldersMap.set(f.parentId, children);
+      }
+    }
+
+    // Fetch all file sizes to construct folder sizes in memory
+    const allFilesSize = await prisma.mediaFile.findMany({
+      where: { workspaceId },
+      select: { folderId: true, originalSize: true, optimizedSize: true }
+    });
+
+    const folderDirectOptimizedSizeMap = new Map<string, bigint>();
+    const folderDirectOriginalSizeMap = new Map<string, bigint>();
+    for (const file of allFilesSize) {
+      if (file.folderId) {
+        const curOpt = folderDirectOptimizedSizeMap.get(file.folderId) || BigInt(0);
+        folderDirectOptimizedSizeMap.set(file.folderId, curOpt + file.optimizedSize);
+
+        const curOrig = folderDirectOriginalSizeMap.get(file.folderId) || BigInt(0);
+        folderDirectOriginalSizeMap.set(file.folderId, curOrig + file.originalSize);
+      }
+    }
+
+    // Helper to calculate folder sizes recursively
+    const memoFolderSizes = new Map<string, { original: number; optimized: number }>();
+    function getRecursiveFolderSizes(folderId: string): { original: number; optimized: number } {
+      if (memoFolderSizes.has(folderId)) return memoFolderSizes.get(folderId)!;
+      
+      let original = Number(folderDirectOriginalSizeMap.get(folderId) || BigInt(0));
+      let optimized = Number(folderDirectOptimizedSizeMap.get(folderId) || BigInt(0));
+      
+      const childIds = childFoldersMap.get(folderId) || [];
+      for (const childId of childIds) {
+        const childSizes = getRecursiveFolderSizes(childId);
+        original += childSizes.original;
+        optimized += childSizes.optimized;
+      }
+      
+      const result = { original, optimized };
+      memoFolderSizes.set(folderId, result);
+      return result;
+    }
+
+    // Helper to build path string
+    function buildPathSync(folderId: string | null): string {
+      if (!folderId) return 'Home';
+      const path: string[] = [];
+      let currentId: string | null = folderId;
+      while (currentId) {
+        const folder = folderMap.get(currentId);
+        if (!folder) break;
+        path.unshift(folder.name);
+        currentId = folder.parentId;
+      }
+      return 'Home / ' + path.join(' / ');
+    }
+
+    const foldersWithDetails = folders.map(folder => {
+      const sizes = getRecursiveFolderSizes(folder.id);
+      return {
+        ...folder,
+        originalSize: sizes.original,
+        optimizedSize: sizes.optimized,
+        size: sizes.optimized, // fallback
+        path: buildPathSync(folder.parentId)
+      };
+    });
+
+    const filesWithDetails = mediaFiles.map(file => ({
       ...file,
       originalSize: Number(file.originalSize),
       optimizedSize: Number(file.optimizedSize),
+      path: buildPathSync(file.folderId)
     }));
 
-    res.status(200).json({ data: serializedMediaFiles });
+    res.status(200).json({ 
+      data: {
+        files: filesWithDetails,
+        folders: foldersWithDetails
+      }
+    });
   } catch (error) {
     console.error('getMediaFiles Error:', error);
     res.status(500).json({ error: 'Internal Server Error' });

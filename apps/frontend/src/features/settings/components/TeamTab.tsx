@@ -16,7 +16,12 @@ export const TeamTab = () => {
   const [userToTransfer, setUserToTransfer] = useState<WorkspaceUser | null>(null);
   const [isRemoving, setIsRemoving] = useState(false);
   const [isTransferring, setIsTransferring] = useState(false);
-  const [errorMessage, setErrorMessage] = useState('');
+  const [actionFeedback, setActionFeedback] = useState<{message: string, type: 'success' | 'error'} | null>(null);
+
+  const showFeedback = (message: string, type: 'success' | 'error' = 'success') => {
+    setActionFeedback({ message, type });
+    setTimeout(() => setActionFeedback(null), 3000);
+  };
 
   const { user, workspaces } = useAuth();
   const activeWorkspace = workspaces.find((w) => w.id === user?.workspaceId);
@@ -49,9 +54,10 @@ export const TeamTab = () => {
       await removeWorkspaceUserApi(userToRemove.id);
       fetchMembers();
       setUserToRemove(null);
+      showFeedback('User removed successfully');
     } catch (error: any) {
       console.error('Failed to remove user', error);
-      setErrorMessage(error.data?.error || error.response?.data?.error || error.message || 'Failed to remove user');
+      showFeedback(error.data?.error || error.response?.data?.error || error.message || 'Failed to remove user', 'error');
       setUserToRemove(null);
     } finally {
       setIsRemoving(false);
@@ -64,10 +70,11 @@ export const TeamTab = () => {
     try {
       await transferOwnershipApi(userToTransfer.id);
       setUserToTransfer(null);
-      window.location.reload();
+      showFeedback('Ownership transferred successfully');
+      setTimeout(() => window.location.reload(), 1000);
     } catch (error: any) {
       console.error('Failed to transfer ownership', error);
-      setErrorMessage(error.data?.error || error.response?.data?.error || error.message || 'Failed to transfer ownership');
+      showFeedback(error.data?.error || error.response?.data?.error || error.message || 'Failed to transfer ownership', 'error');
       setUserToTransfer(null);
       setIsTransferring(false);
     }
@@ -140,7 +147,10 @@ export const TeamTab = () => {
       <InviteMemberModal 
         isOpen={isInviteModalOpen} 
         onClose={() => setIsInviteModalOpen(false)} 
-        onSuccess={fetchMembers}
+        onSuccess={() => {
+          fetchMembers();
+          showFeedback('Invitation sent successfully!');
+        }}
       />
 
       <ConfirmModal
@@ -167,17 +177,13 @@ export const TeamTab = () => {
         requiredInputText="TRANSFER OWNERSHIP"
       />
 
-      <ConfirmModal
-        isOpen={!!errorMessage}
-        onClose={() => setErrorMessage('')}
-        onConfirm={() => setErrorMessage('')}
-        title="Error"
-        description={errorMessage}
-        confirmText="OK"
-        cancelText=""
-        variant="danger"
-        icon="lucide:alert-circle"
-      />
+      {/* Toast Feedback */}
+      {actionFeedback && (
+        <div className={`fixed top-6 left-1/2 -translate-x-1/2 z-[9999] flex items-center gap-2 px-4 py-2.5 rounded-full shadow-lg border ${actionFeedback.type === 'success' ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400' : 'bg-red-500/10 border-red-500/20 text-red-400'} animate-in fade-in slide-in-from-top-4 duration-300`}>
+          <Icon icon={actionFeedback.type === 'success' ? 'lucide:check-circle' : 'lucide:alert-circle'} width={18} />
+          <span className="text-sm font-medium">{actionFeedback.message}</span>
+        </div>
+      )}
     </div>
   );
 };

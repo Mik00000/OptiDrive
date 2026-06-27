@@ -88,6 +88,26 @@ export const updateUserRole = async (req: AuthRequest, res: Response): Promise<v
       return;
     }
 
+    const newRoleObj = await prisma.role.findUnique({ where: { id: newRoleId } });
+
+    if (newRoleObj?.name === 'Owner' && targetMember.role?.name !== 'Owner') {
+      const workspace = await prisma.workspace.findUnique({ where: { id: workspaceId } });
+      if (workspace?.plan === 'FREE') {
+        const existingFreeWorkspace = await prisma.workspaceUser.findFirst({
+          where: {
+            userId: targetUserId,
+            role: { name: 'Owner' },
+            workspace: { plan: 'FREE' }
+          }
+        });
+        
+        if (existingFreeWorkspace) {
+          res.status(403).json({ success: false, error: 'Target user already owns a free workspace.' });
+          return;
+        }
+      }
+    }
+
     if (targetMember.userId === currentUserId && targetMember.role?.name === 'Owner') {
       const newRoleObj = await prisma.role.findUnique({ where: { id: newRoleId } });
       if (newRoleObj?.name !== 'Owner') {
@@ -236,7 +256,7 @@ export const removeWorkspaceUser = async (req: AuthRequest, res: Response): Prom
 // 4. Надіслати запрошення
 export const inviteUser = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    const { workspaceId, role: currentUserRole } = req.user!;
+    const { workspaceId, userId: currentUserId, role: currentUserRole } = req.user!;
     const { email, roleId } = req.body;
 
     if (!currentUserRole?.permissions.includes(Permission.MANAGE_ROLES) && !currentUserRole?.isSystem) {
@@ -423,23 +443,7 @@ export const acceptInvitation = async (req: AuthRequest, res: Response): Promise
       }
     });
 
-    if (currentWorkspaceId && currentWorkspaceId !== invitation.workspaceId) {
-      const currentWorkspaceFiles = await prisma.mediaFile.count({ where: { workspaceId: currentWorkspaceId } });
-      const currentWorkspaceKeys = await prisma.apiKey.count({ where: { workspaceId: currentWorkspaceId } });
-      const remainingMembers = await prisma.workspaceUser.count({ where: { workspaceId: currentWorkspaceId } });
-      
-      if (remainingMembers === 1 && currentWorkspaceFiles === 0 && currentWorkspaceKeys === 0) {
-        await prisma.workspaceUser.delete({
-          where: {
-            userId_workspaceId: {
-              userId,
-              workspaceId: currentWorkspaceId
-            }
-          }
-        });
-        await prisma.workspace.delete({ where: { id: currentWorkspaceId } });
-      }
-    }
+
 
     await prisma.invitation.delete({ where: { id: invitation.id } });
 
@@ -593,6 +597,22 @@ export const transferOwnership = async (req: AuthRequest, res: Response): Promis
     if (!targetMember) {
       res.status(404).json({ success: false, error: 'Target user is not a member of this workspace' });
       return;
+    }
+
+    const workspace = await prisma.workspace.findUnique({ where: { id: workspaceId } });
+    if (workspace?.plan === 'FREE') {
+      const existingFreeWorkspace = await prisma.workspaceUser.findFirst({
+        where: {
+          userId: targetUserId,
+          role: { name: 'Owner' },
+          workspace: { plan: 'FREE' }
+        }
+      });
+      
+      if (existingFreeWorkspace) {
+        res.status(403).json({ success: false, error: 'Target user already owns a free workspace.' });
+        return;
+      }
     }
 
     const ownerRole = await prisma.role.findFirst({

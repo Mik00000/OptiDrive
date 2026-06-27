@@ -32,7 +32,7 @@ export const compressImageController = async (req: Request & { workspaceId?: str
     const {
       format, quality, lossless, width, height, fit, stripMetadata, effort,
       sanitize, removeViewBox, multipass, floatPrecision,
-      pages, colors
+      pages, colors, folderId
     } = req.body;
 
     // Handle "auto" format for raster
@@ -59,6 +59,18 @@ export const compressImageController = async (req: Request & { workspaceId?: str
         return;
       }
     }
+
+    // Validate folderId if provided
+    if (folderId && folderId !== 'null') {
+      const folderExists = await prisma.folder.findFirst({
+        where: { id: folderId, workspaceId }
+      });
+      if (!folderExists) {
+        res.status(400).json({ error: 'Invalid folderId' });
+        return;
+      }
+    }
+
     // Prepare options
     const options = {
       raster: {
@@ -112,6 +124,7 @@ export const compressImageController = async (req: Request & { workspaceId?: str
         savings: savingsPercent,
         cdnUrl: result.cdnUrl,
         workspaceId,
+        folderId: folderId && folderId !== 'null' ? folderId : null,
       }
     });
 

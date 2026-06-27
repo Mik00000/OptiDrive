@@ -10,10 +10,69 @@ export interface MediaFile {
   cdnUrl: string;
   workspaceId: string;
   createdAt: string;
+  folderId?: string | null;
+  path?: string;
 }
 
-export const getMediaFilesApi = async (): Promise<MediaFile[]> => {
-  const response = await apiClient.get<{ data: MediaFile[] }>('/api/internal/media');
+export interface Folder {
+  id: string;
+  name: string;
+  parentId: string | null;
+  workspaceId: string;
+  createdAt: string;
+  _count?: {
+    files: number;
+    children: number;
+  };
+  size?: number;
+  originalSize?: number;
+  optimizedSize?: number;
+  path?: string;
+}
+
+export interface MediaLibraryContent {
+  files: MediaFile[];
+  folders: Folder[];
+}
+
+export const getMediaFilesApi = async (folderId?: string | null, search?: string): Promise<MediaLibraryContent> => {
+  let url = '/api/internal/media';
+  const params = new URLSearchParams();
+  if (folderId) params.append('folderId', folderId);
+  if (search) params.append('search', search);
+  const queryString = params.toString();
+  if (queryString) url += `?${queryString}`;
+
+  const response = await apiClient.get<{ data: MediaLibraryContent }>(url);
+  return response.data;
+};
+
+export const getFoldersApi = async (all?: boolean): Promise<Folder[]> => {
+  const url = all ? '/api/internal/folders?all=true' : '/api/internal/folders';
+  const response = await apiClient.get<{ data: Folder[] }>(url);
+  return response.data;
+};
+
+export const createFolderApi = async (name: string, parentId?: string | null): Promise<Folder> => {
+  const response = await apiClient.post<{ data: Folder }>('/api/internal/folders', { name, parentId });
+  return response.data;
+};
+
+export const renameFolderApi = async (id: string, name: string): Promise<Folder> => {
+  const response = await apiClient.patch<{ data: Folder }>(`/api/internal/folders/${id}`, { name });
+  return response.data;
+};
+
+export const deleteFolderApi = async (id: string): Promise<void> => {
+  await apiClient.delete(`/api/internal/folders/${id}`);
+};
+
+export const moveItemsApi = async (folderIds: string[], fileIds: string[], targetFolderId: string | null): Promise<void> => {
+  await apiClient.post('/api/internal/folders/move', { folderIds, fileIds, targetFolderId });
+};
+
+export const getFolderNavigationPathApi = async (id: string): Promise<{ id: string; name: string }[]> => {
+  const response = await apiClient.get<{ data: { id: string; name: string }[] }>(`/api/internal/folders/${id}/path`);
   return response.data;
 };
 
@@ -74,6 +133,30 @@ export const downloadMediaFileClientApi = async (id: string, filename: string): 
   const link = document.createElement('a');
   link.href = objectUrl;
   link.download = filename || 'download';
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  window.URL.revokeObjectURL(objectUrl);
+};
+
+export const downloadFolderClientApi = async (id: string, name: string): Promise<void> => {
+  const token = localStorage.getItem('optidrive_token');
+  const response = await fetch(`/api/internal/folders/${id}/download`, {
+    method: 'GET',
+    headers: {
+      'Authorization': `Bearer ${token}`
+    }
+  });
+
+  if (!response.ok) {
+    throw new Error(`Download failed: ${response.statusText}`);
+  }
+
+  const blob = await response.blob();
+  const objectUrl = window.URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = objectUrl;
+  link.download = `${name}.zip`;
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);

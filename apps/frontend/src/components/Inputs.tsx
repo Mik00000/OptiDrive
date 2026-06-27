@@ -33,7 +33,7 @@ interface SelectInputProps extends Omit<BaseInputProps, 'children'> {
 type InputProps = TextInputProps | SelectInputProps;
 
 const baseStyles =
-  'px-3 py-2 bg-bg text-text-light border border-border rounded-xl focus:border-accent outline-none placeholder:text-text-muted text-sm';
+  'px-3 py-2 bg-bg text-text-light border border-slate-700 rounded-xl focus:border-accent focus:bg-white/5 outline-none placeholder:text-text-muted text-sm transition-all duration-200';
 
 function SelectInput(props: SelectInputProps) {
   const { options, value, onChange, placeholder, icon, prefix, className: selectClass } = props;
@@ -113,7 +113,7 @@ function SelectInput(props: SelectInputProps) {
       {isOpen && (
         <div 
           className={twMerge(
-            "bg-bg border-border absolute z-50 max-h-60 min-w-full w-max overflow-y-auto rounded-xl border py-1 shadow-lg",
+            "bg-bg border-border absolute z-50 max-h-60 min-w-full w-max overflow-y-auto rounded-xl border p-1 shadow-lg",
             dropdownPosition === 'top' ? 'bottom-full mb-1' : 'top-full mt-1'
           )}
         >
@@ -124,7 +124,7 @@ function SelectInput(props: SelectInputProps) {
                 onChange?.(option.value);
                 setIsOpen(false);
               }}
-              className={`hover:bg-accent/10 hover:text-accent cursor-pointer whitespace-nowrap px-3 py-2 text-sm transition-colors ${
+              className={`hover:bg-accent/10 hover:text-accent cursor-pointer whitespace-nowrap px-3 py-2 text-sm rounded-lg transition-colors ${
                 value === option.value
                   ? 'bg-accent/20 text-accent'
                   : 'text-text-light'

@@ -12,11 +12,12 @@ interface UploadMediaModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSuccess?: () => void;
+  folderId?: string | null;
 }
 
 type OptimizationPreset = "web_balanced" | "ultra_light" | "lossless" | "custom";
 
-export function UploadMediaModal({ isOpen, onClose, onSuccess }: UploadMediaModalProps) {
+export function UploadMediaModal({ isOpen, onClose, onSuccess, folderId }: UploadMediaModalProps) {
   const [isDragging, setIsDragging] = useState(false);
   const [file, setFile] = useState<File | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -112,6 +113,9 @@ export function UploadMediaModal({ isOpen, onClose, onSuccess }: UploadMediaModa
 
     const formData = new FormData();
     formData.append("image", file);
+    if (folderId) {
+      formData.append("folderId", folderId);
+    }
     
     // Raster
     formData.append("format", format);
@@ -167,7 +171,7 @@ export function UploadMediaModal({ isOpen, onClose, onSuccess }: UploadMediaModa
             className={`border-2 border-dashed rounded-xl p-8 flex flex-col items-center justify-center text-center transition-colors cursor-pointer ${
               isDragging
                 ? "border-accent bg-accent/10"
-                : "border-border bg-transparent hover:bg-white/5"
+                : "border-slate-600 bg-transparent hover:bg-white/5 hover:border-slate-500"
             }`}
           >
             <input
