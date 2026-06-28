@@ -4,6 +4,8 @@ import { authenticateApiKey } from '../../middlewares/apiKey.middleware';
 import { compressImageController } from '../../controllers/v1/compression.controller';
 import { viewMediaController } from '../../controllers/v1/view.controller';
 import { listMediaController, deleteMediaController } from '../../controllers/v1/media.controller';
+import { listFoldersController, createFolderController, deleteFolderController } from '../../controllers/v1/folders.controller';
+import { listTagsController, createTagController, updateTagController, deleteTagController } from '../../controllers/v1/tags.controller';
 
 const router: Router = Router();
 
@@ -30,5 +32,16 @@ router.post('/compress', upload.single('image'), checkQuota, compressImageContro
 // Media Management Endpoints
 router.get('/media', listMediaController);
 router.delete('/media/:id', deleteMediaController);
+
+// Folders Management Endpoints
+router.get('/folders', listFoldersController);
+router.post('/folders', createFolderController);
+router.delete('/folders/:id', deleteFolderController);
+
+// Tags Management Endpoints
+router.get('/tags', listTagsController);
+router.post('/tags', createTagController);
+router.patch('/tags/:id', updateTagController);
+router.delete('/tags/:id', deleteTagController);
 
 export default router;
