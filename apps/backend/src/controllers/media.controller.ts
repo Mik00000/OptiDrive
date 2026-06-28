@@ -209,6 +209,14 @@ export const deleteMediaFile = async (req: AuthRequest, res: Response): Promise<
       where: { id: String(fileId) },
     });
 
+    // Clean up orphaned tags in the workspace
+    await prisma.tag.deleteMany({
+      where: {
+        workspaceId,
+        files: { none: {} }
+      }
+    });
+
     // Reduce storage usage
     await prisma.workspace.update({
       where: { id: workspaceId },
@@ -238,31 +246,98 @@ export const updateMediaFile = async (req: AuthRequest, res: Response): Promise<
   try {
     const workspaceId = req.user?.workspaceId;
     const fileId = req.params.id;
-    const { name } = req.body;
+    const { name, tags } = req.body;
 
     if (!workspaceId) {
       res.status(401).json({ error: 'Unauthorized' });
       return;
     }
 
-    if (!name) {
-      res.status(400).json({ error: 'Name is required' });
+    if (!name && tags === undefined) {
+      res.status(400).json({ error: 'Name or tags are required' });
       return;
     }
 
-    const updatedFile = await prisma.mediaFile.updateMany({
-      where: { id: String(fileId), workspaceId: String(workspaceId) },
-      data: { name },
+    const mediaFile = await prisma.mediaFile.findFirst({
+      where: { id: String(fileId), workspaceId: String(workspaceId) }
     });
 
-    if (updatedFile.count === 0) {
+    if (!mediaFile) {
       res.status(404).json({ error: 'File not found' });
       return;
     }
 
-    res.status(200).json({ success: true, message: 'File updated' });
+    if (tags !== undefined && Array.isArray(tags)) {
+      // Disconnect all current tags first
+      await prisma.mediaFile.update({
+        where: { id: String(fileId) },
+        data: {
+          tags: { set: [] }
+        }
+      });
+      
+      // Connect/create the new ones
+      await prisma.mediaFile.update({
+        where: { id: String(fileId) },
+        data: {
+          name: name !== undefined ? name : undefined,
+          tags: {
+            connectOrCreate: tags.map((tagName: string) => {
+              const cleanTagName = tagName.trim();
+              return {
+                where: {
+                  name_workspaceId: {
+                    name: cleanTagName,
+                    workspaceId: workspaceId
+                  }
+                },
+                create: {
+                  name: cleanTagName,
+                  workspaceId: workspaceId
+                }
+              };
+            })
+          }
+        }
+      });
+
+      // Clean up orphaned tags in the workspace
+      await prisma.tag.deleteMany({
+        where: {
+          workspaceId,
+          files: { none: {} }
+        }
+      });
+    } else if (name !== undefined) {
+      await prisma.mediaFile.update({
+        where: { id: String(fileId) },
+        data: { name }
+      });
+    }
+
+    res.status(200).json({ success: true, message: 'File updated successfully' });
   } catch (error) {
     console.error('updateMediaFile Error:', error);
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
+};
+
+export const getWorkspaceTags = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const workspaceId = req.user?.workspaceId;
+    if (!workspaceId) {
+      res.status(401).json({ error: 'Unauthorized' });
+      return;
+    }
+
+    const tags = await prisma.tag.findMany({
+      where: { workspaceId },
+      orderBy: { name: 'asc' }
+    });
+
+    res.status(200).json({ data: tags });
+  } catch (error) {
+    console.error('getWorkspaceTags Error:', error);
     res.status(500).json({ error: 'Internal Server Error' });
   }
 };

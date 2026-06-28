@@ -9,6 +9,7 @@ interface User {
   name: string;
   email: string;
   workspaceId?: string;
+  hasPassword?: boolean;
 }
 
 interface WorkspaceRole {

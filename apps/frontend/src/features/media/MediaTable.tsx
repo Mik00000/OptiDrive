@@ -19,6 +19,9 @@ import {
   getFolderNavigationPathApi,
   getFoldersApi,
   downloadFolderClientApi,
+  getWorkspaceTagsApi,
+  updateMediaFileApi,
+  Tag,
 } from './api';
 import { MediaPreviewModal } from './MediaPreviewModal';
 
@@ -138,6 +141,15 @@ export const MediaTable = ({
   );
   const [moveFoldersList, setMoveFoldersList] = useState<Folder[]>([]);
   const [isMoving, setIsMoving] = useState(false);
+
+  // Tag editing state
+  const [isEditTagsModalOpen, setIsEditTagsModalOpen] = useState(false);
+  const [editTagsTargetFile, setEditTagsTargetFile] = useState<MediaFile | null>(null);
+  const [editTagsList, setEditTagsList] = useState<string[]>([]);
+  const [allWorkspaceTags, setAllWorkspaceTags] = useState<Tag[]>([]);
+  const [tagInputVal, setTagInputVal] = useState('');
+  const [isSavingTags, setIsSavingTags] = useState(false);
+  const [selectedTagFilter, setSelectedTagFilter] = useState('all');
 
   // Bulk Actions / Delete State
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
@@ -281,6 +293,9 @@ export const MediaTable = ({
       const data = await getMediaFilesApi(currentFolderId, debouncedSearch);
       setFiles(data.files);
       setFolders(data.folders);
+      
+      const tags = await getWorkspaceTagsApi();
+      setAllWorkspaceTags(tags);
     } catch (error) {
       console.error('Failed to fetch media files', error);
       showFeedback('Failed to fetch media library.', 'error');
@@ -366,6 +381,38 @@ export const MediaTable = ({
       );
     } finally {
       setIsMoving(false);
+    }
+  };
+
+  const handleOpenEditTags = async (file: MediaFile) => {
+    setEditTagsTargetFile(file);
+    setEditTagsList(file.tags ? file.tags.map((t) => t.name) : []);
+    setTagInputVal('');
+    setIsEditTagsModalOpen(true);
+    try {
+      const tags = await getWorkspaceTagsApi();
+      setAllWorkspaceTags(tags);
+    } catch (err) {
+      console.error('Failed to load workspace tags:', err);
+    }
+  };
+
+  const handleSaveTags = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editTagsTargetFile) return;
+    setIsSavingTags(true);
+    try {
+      await updateMediaFileApi(editTagsTargetFile.id, undefined, editTagsList);
+      showFeedback('Tags updated successfully');
+      setIsEditTagsModalOpen(false);
+      fetchLibrary();
+    } catch (error: any) {
+      showFeedback(
+        error.message || 'Failed to update tags',
+        'error',
+      );
+    } finally {
+      setIsSavingTags(false);
     }
   };
 
@@ -480,9 +527,12 @@ export const MediaTable = ({
       const matchesFormat =
         formatFilter === 'all' ||
         file.format.toLowerCase() === formatFilter.toLowerCase();
-      return matchesSearch && matchesFormat;
+      const matchesTag =
+        selectedTagFilter === 'all' ||
+        (file.tags && file.tags.some((t) => t.name.toLowerCase() === selectedTagFilter.toLowerCase()));
+      return matchesSearch && matchesFormat && matchesTag;
     });
-  }, [searchQuery, formatFilter, files]);
+  }, [searchQuery, formatFilter, selectedTagFilter, files]);
 
   // Pagination for files
   const totalPages = Math.ceil(filteredFiles.length / itemsPerPage);
@@ -630,6 +680,18 @@ export const MediaTable = ({
             ]}
             value={formatFilter}
             onChange={setFormatFilter}
+            className="text-text-light text-sm w-full md:w-fit bg-bg rounded-xl h-10 border-border/80"
+          />
+          <Input
+            variant="select"
+            icon="lucide:tag"
+            prefix="Tag: "
+            options={[
+              { value: "all", label: "All" },
+              ...allWorkspaceTags.map((t) => ({ value: t.name, label: t.name })),
+            ]}
+            value={selectedTagFilter}
+            onChange={setSelectedTagFilter}
             className="text-text-light text-sm w-full md:w-fit bg-bg rounded-xl h-10 border-border/80"
           />
           <Button
@@ -994,7 +1056,7 @@ export const MediaTable = ({
                                   borderColor: `${tag.color}30`,
                                   color: tag.color,
                                 }}
-                                className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium border"
+                                className="inline-flex items-center px-1 py-0.25 rounded text-[11px] font-medium border"
                               >
                                 {tag.name}
                               </span>
@@ -1042,6 +1104,13 @@ export const MediaTable = ({
                     onClick={(e) => e.stopPropagation()}
                   >
                     <div className="flex items-center justify-end gap-1.5">
+                      <button
+                        onClick={() => handleOpenEditTags(file)}
+                        className="text-text-muted hover:text-accent cursor-pointer p-1.5 align-middle opacity-70 transition-colors group-hover:opacity-100 hover:scale-110 focus:opacity-100"
+                        title="Manage Tags"
+                      >
+                        <Icon icon="lucide:tag" width={16} />
+                      </button>
                       <button
                         onClick={() => copyToClipboard(file.cdnUrl)}
                         className="text-text-muted hover:text-text-light cursor-pointer p-1.5 align-middle opacity-70 transition-colors group-hover:opacity-100 hover:scale-110 focus:opacity-100"
@@ -1686,6 +1755,191 @@ export const MediaTable = ({
             </Button>
           </div>
         </div>
+      </Modal>
+
+      {/* Edit Tags Modal */}
+      <Modal
+        isOpen={isEditTagsModalOpen}
+        onClose={() => setIsEditTagsModalOpen(false)}
+        title="Manage File Tags"
+        icon="lucide:tag"
+      >
+        {editTagsTargetFile && (
+          <form onSubmit={handleSaveTags} className="flex flex-col gap-5">
+            <div>
+              <span className="text-text-muted text-xs font-semibold uppercase tracking-wider block mb-1">
+                Selected File
+              </span>
+              <div className="flex items-center gap-2 bg-slate-900/50 p-2.5 rounded-xl border border-border">
+                <Icon icon="lucide:image" className="text-accent shrink-0" width={18} />
+                <span className="text-sm font-medium text-text-light truncate">
+                  {editTagsTargetFile.name}
+                </span>
+              </div>
+            </div>
+
+            {/* Current tags list */}
+            <div>
+              <span className="text-text-muted text-xs font-semibold uppercase tracking-wider block mb-2">
+                Active Tags
+              </span>
+              <div className="flex flex-wrap gap-2 min-h-11 bg-slate-950/40 p-2.5 rounded-xl border border-border/80">
+                {editTagsList.length === 0 ? (
+                  <span className="text-text-muted text-xs italic self-center pl-1">
+                    No tags associated. Use the field below or click workspace tags to add.
+                  </span>
+                ) : (
+                  editTagsList.map((tag) => (
+                    <span
+                      key={tag}
+                      className="inline-flex items-center gap-1 bg-accent/15 border border-accent/30 text-accent text-xs font-medium px-2.5 py-1 rounded-full transition-all"
+                    >
+                      {tag}
+                      <button
+                        type="button"
+                        onClick={() => setEditTagsList(editTagsList.filter((t) => t !== tag))}
+                        className="hover:bg-accent/20 rounded-full p-0.5 transition-colors"
+                        title="Remove Tag"
+                      >
+                        <Icon icon="lucide:x" width={12} height={12} />
+                      </button>
+                    </span>
+                  ))
+                )}
+              </div>
+            </div>
+
+            {/* Tag search/input field */}
+            <div className="flex flex-col gap-1.5 relative">
+              <label className="text-text-muted text-xs font-semibold uppercase tracking-wider">
+                Add Tag
+              </label>
+              <div className="flex gap-2">
+                <Input
+                  value={tagInputVal}
+                  onChange={(e) => setTagInputVal(e.target.value)}
+                  placeholder="Type tag name..."
+                  className="w-full"
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      const trimmed = tagInputVal.trim();
+                      if (trimmed && !editTagsList.includes(trimmed)) {
+                        setEditTagsList([...editTagsList, trimmed]);
+                        setTagInputVal('');
+                      }
+                    }
+                  }}
+                />
+                <Button
+                  type="button"
+                  variant="bordered"
+                  onClick={() => {
+                    const trimmed = tagInputVal.trim();
+                    if (trimmed && !editTagsList.includes(trimmed)) {
+                      setEditTagsList([...editTagsList, trimmed]);
+                      setTagInputVal('');
+                    }
+                  }}
+                >
+                  Add
+                </Button>
+              </div>
+
+              {/* Autocomplete suggestion dropdown if matching */}
+              {tagInputVal.trim() && (
+                <div className="absolute top-full left-0 right-0 mt-1 bg-slate-950 border border-border rounded-xl shadow-xl z-50 max-h-40 overflow-y-auto p-1">
+                  {(() => {
+                    const matches = allWorkspaceTags.filter(
+                      (t) =>
+                        t.name.toLowerCase().includes(tagInputVal.toLowerCase()) &&
+                        !editTagsList.includes(t.name)
+                    );
+                    if (matches.length === 0) {
+                      return (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const trimmed = tagInputVal.trim();
+                            setEditTagsList([...editTagsList, trimmed]);
+                            setTagInputVal('');
+                          }}
+                          className="flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-left text-xs text-accent hover:bg-slate-900 transition-colors"
+                        >
+                          <Icon icon="lucide:plus" width={12} />
+                          <span>Create new tag &ldquo;{tagInputVal.trim()}&rdquo;</span>
+                        </button>
+                      );
+                    }
+                    return matches.map((t) => (
+                      <button
+                        key={t.id}
+                        type="button"
+                        onClick={() => {
+                          setEditTagsList([...editTagsList, t.name]);
+                          setTagInputVal('');
+                        }}
+                        className="flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-left text-xs text-text-light hover:bg-slate-900 transition-colors"
+                      >
+                        <Icon icon="lucide:tag" width={12} className="text-text-muted" />
+                        <span>{t.name}</span>
+                      </button>
+                    ));
+                  })()}
+                </div>
+              )}
+            </div>
+
+            {/* Quick-toggle workspace tags */}
+            <div>
+              <span className="text-text-muted text-xs font-semibold uppercase tracking-wider block mb-2">
+                All Workspace Tags
+              </span>
+              <div className="flex flex-wrap gap-2 max-h-36 overflow-y-auto p-1 border border-border/40 rounded-xl bg-slate-900/10 custom-scrollbar">
+                {allWorkspaceTags.length === 0 ? (
+                  <span className="text-text-muted text-xs italic pl-1 py-1">
+                    No workspace tags found. They will appear here once created.
+                  </span>
+                ) : (
+                  allWorkspaceTags.map((t) => {
+                    const isActive = editTagsList.includes(t.name);
+                    return (
+                      <button
+                        key={t.id}
+                        type="button"
+                        onClick={() => {
+                          if (isActive) {
+                            setEditTagsList(editTagsList.filter((item) => item !== t.name));
+                          } else {
+                            setEditTagsList([...editTagsList, t.name]);
+                          }
+                        }}
+                        className={`inline-flex items-center text-xs px-3 py-1 rounded-full border transition-all hover:scale-105 active:scale-95 cursor-pointer ${isActive ? 'bg-accent/20 border-accent/40 text-accent font-medium' : 'bg-slate-800/30 border-slate-700/80 text-text-muted hover:border-slate-600 hover:text-text-light'}`}
+                      >
+                        {t.name}
+                      </button>
+                    );
+                  })
+                )}
+              </div>
+            </div>
+
+            {/* Buttons */}
+            <div className="mt-2 flex justify-end gap-3">
+              <Button
+                variant="bordered"
+                type="button"
+                onClick={() => setIsEditTagsModalOpen(false)}
+                disabled={isSavingTags}
+              >
+                Cancel
+              </Button>
+              <Button variant="accent" type="submit" disabled={isSavingTags}>
+                {isSavingTags ? 'Saving...' : 'Save Tags'}
+              </Button>
+            </div>
+          </form>
+        )}
       </Modal>
 
       <MediaPreviewModal

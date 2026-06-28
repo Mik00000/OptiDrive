@@ -3,7 +3,10 @@ import { apiClient } from '@/lib/api-client';
 export interface Tag {
   id: string;
   name: string;
-  color: string;
+  color?: string | null;
+  createdAt?: string;
+  updatedAt?: string;
+  workspaceId?: string;
 }
 
 export interface MediaFile {
@@ -89,7 +92,24 @@ export const deleteMediaFileApi = async (id: string): Promise<void> => {
   await apiClient.delete(`/api/internal/media/${id}`);
 };
 
-export const updateMediaFileApi = async (id: string, name: string): Promise<void> => {
+
+export const getWorkspaceTagsApi = async (): Promise<Tag[]> => {
+  const token = localStorage.getItem('optidrive_token');
+  const response = await fetch('/api/internal/media/tags', {
+    method: 'GET',
+    headers: {
+      'Authorization': `Bearer ${token}`
+    }
+  });
+
+  const data = await response.json();
+  if (!response.ok) {
+    throw new Error(data.error || 'Failed to fetch workspace tags');
+  }
+  return data.data;
+};
+
+export const updateMediaFileApi = async (id: string, name?: string, tags?: string[]): Promise<void> => {
   const token = localStorage.getItem('optidrive_token');
   const response = await fetch(`/api/internal/media/${id}`, {
     method: 'PATCH',
@@ -97,7 +117,7 @@ export const updateMediaFileApi = async (id: string, name: string): Promise<void
       'Content-Type': 'application/json',
       'Authorization': `Bearer ${token}`
     },
-    body: JSON.stringify({ name }),
+    body: JSON.stringify({ name, tags }),
   });
   if (!response.ok) {
     const data = await response.json().catch(() => ({}));

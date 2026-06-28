@@ -317,19 +317,24 @@ export const Sidebar = ({ className }: SidebarProps) => {
               {createError}
             </div>
           )}
-          <Input
-            label="Workspace Name"
-            placeholder="e.g. Acme Corp, My Startup..."
-            value={newWorkspaceName}
-            onChange={(e) => setNewWorkspaceName(e.target.value)}
-            disabled={isCreating}
-            required
-            autoFocus
-          />
+          <div className="flex flex-col gap-2">
+            <label className="text-text-muted text-xs font-semibold uppercase">
+              Workspace Name
+            </label>
+            <Input
+              placeholder="e.g. Acme Corp, My Startup..."
+              value={newWorkspaceName}
+              onChange={(e) => setNewWorkspaceName(e.target.value)}
+              disabled={isCreating}
+              required
+              autoFocus
+              className="w-full"
+            />
+          </div>
           <div className="flex justify-end gap-3 mt-4">
             <Button
               type="button"
-              variant="outline"
+              variant="bordered"
               onClick={() => setIsCreateModalOpen(false)}
               disabled={isCreating}
             >

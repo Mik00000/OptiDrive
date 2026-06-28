@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { requireAuth } from '../../middlewares/auth.middleware';
 import { compressImageController } from '../../controllers/v1/compression.controller';
-import { getMediaFiles, deleteMediaFile, updateMediaFile, downloadMediaFile } from '../../controllers/media.controller';
+import { getMediaFiles, deleteMediaFile, updateMediaFile, downloadMediaFile, getWorkspaceTags } from '../../controllers/media.controller';
 import multer from 'multer';
 
 const router: Router = Router();
@@ -18,6 +18,7 @@ import { checkQuota } from '../../middlewares/quota.middleware';
 router.use(requireAuth);
 
 router.post('/compress', upload.single('image'), checkQuota, compressImageController);
+router.get('/tags', getWorkspaceTags);
 router.get('/', getMediaFiles);
 router.get('/download/:id', downloadMediaFile);
 router.delete('/:id', deleteMediaFile);
