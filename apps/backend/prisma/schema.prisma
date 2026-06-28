@@ -160,6 +160,8 @@ model Folder {
   color       String?  // Кольорова мітка папки
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+  isDeleted   Boolean  @default(false)
+  deletedAt   DateTime?
 
   parentId    String?
   parent      Folder?  @relation("FolderToFolder", fields: [parentId], references: [id], onDelete: Cascade)
@@ -184,6 +186,8 @@ model MediaFile {
   savings       Float    // Відсоток економії, наприклад, 81.5
   cdnUrl        String   // Згенероване CDN-посилання
   createdAt     DateTime @default(now())
+  isDeleted     Boolean  @default(false)
+  deletedAt     DateTime?
 
   folderId      String?
   folder        Folder?   @relation(fields: [folderId], references: [id], onDelete: SetNull)

@@ -24,6 +24,7 @@ const menu: MenuItem[] = [
   { text: 'API Keys', link: '/api-keys', icon: 'lucide:key' },
   { text: 'Billing', link: '/billing', icon: 'lucide:credit-card' },
   { text: 'Documentation', link: '/api-docs', icon: 'lucide:book' },
+  { text: 'Recycle Bin', link: '/trash', icon: 'lucide:trash-2' },
   { text: 'Settings', link: '/settings', icon: 'lucide:settings' },
 ];
 

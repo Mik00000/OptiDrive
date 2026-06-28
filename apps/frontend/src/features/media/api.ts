@@ -22,6 +22,8 @@ export interface MediaFile {
   folderId?: string | null;
   path?: string;
   tags?: Tag[];
+  isDeleted?: boolean;
+  deletedAt?: string;
 }
 
 export interface Folder {
@@ -31,6 +33,8 @@ export interface Folder {
   parentId: string | null;
   workspaceId: string;
   createdAt: string;
+  isDeleted?: boolean;
+  deletedAt?: string;
   _count?: {
     files: number;
     children: number;
@@ -38,6 +42,9 @@ export interface Folder {
   size?: number;
   originalSize?: number;
   optimizedSize?: number;
+  savings?: number;
+  filesCount?: number;
+  subfoldersCount?: number;
   path?: string;
   tags?: Tag[];
 }
@@ -190,4 +197,129 @@ export const downloadFolderClientApi = async (id: string, name: string): Promise
   link.click();
   document.body.removeChild(link);
   window.URL.revokeObjectURL(objectUrl);
+};
+
+export const getTrashItemsApi = async (folderId: string | null = null): Promise<{ folders: Folder[]; files: MediaFile[] }> => {
+  const token = localStorage.getItem('optidrive_token');
+  const response = await fetch(`/api/internal/trash?folderId=${folderId || 'null'}`, {
+    method: 'GET',
+    headers: {
+      'Authorization': `Bearer ${token}`
+    }
+  });
+
+  const data = await response.json();
+  if (!response.ok) {
+    throw new Error(data.error || 'Failed to fetch Trash items');
+  }
+  return data.data;
+};
+
+export const restoreMediaFileApi = async (id: string): Promise<void> => {
+  const token = localStorage.getItem('optidrive_token');
+  const response = await fetch(`/api/internal/trash/media/${id}/restore`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${token}`
+    }
+  });
+
+  if (!response.ok) {
+    const data = await response.json().catch(() => ({}));
+    throw new Error(data.error || 'Failed to restore file');
+  }
+};
+
+export const restoreFolderApi = async (id: string): Promise<void> => {
+  const token = localStorage.getItem('optidrive_token');
+  const response = await fetch(`/api/internal/trash/folders/${id}/restore`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${token}`
+    }
+  });
+
+  if (!response.ok) {
+    const data = await response.json().catch(() => ({}));
+    throw new Error(data.error || 'Failed to restore folder');
+  }
+};
+
+export const deleteMediaFilePermanentlyApi = async (id: string): Promise<void> => {
+  const token = localStorage.getItem('optidrive_token');
+  const response = await fetch(`/api/internal/trash/media/${id}/permanent`, {
+    method: 'DELETE',
+    headers: {
+      'Authorization': `Bearer ${token}`
+    }
+  });
+
+  if (!response.ok) {
+    const data = await response.json().catch(() => ({}));
+    throw new Error(data.error || 'Failed to permanently delete file');
+  }
+};
+
+export const deleteFolderPermanentlyApi = async (id: string): Promise<void> => {
+  const token = localStorage.getItem('optidrive_token');
+  const response = await fetch(`/api/internal/trash/folders/${id}/permanent`, {
+    method: 'DELETE',
+    headers: {
+      'Authorization': `Bearer ${token}`
+    }
+  });
+
+  if (!response.ok) {
+    const data = await response.json().catch(() => ({}));
+    throw new Error(data.error || 'Failed to permanently delete folder');
+  }
+};
+
+export const emptyTrashApi = async (): Promise<void> => {
+  const token = localStorage.getItem('optidrive_token');
+  const response = await fetch('/api/internal/trash/empty', {
+    method: 'DELETE',
+    headers: {
+      'Authorization': `Bearer ${token}`
+    }
+  });
+
+  if (!response.ok) {
+    const data = await response.json().catch(() => ({}));
+    throw new Error(data.error || 'Failed to empty Trash');
+  }
+};
+
+export const restoreBulkApi = async (folderIds: string[], fileIds: string[]): Promise<void> => {
+  const token = localStorage.getItem('optidrive_token');
+  const response = await fetch('/api/internal/trash/restore-bulk', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({ folderIds, fileIds })
+  });
+
+  if (!response.ok) {
+    const data = await response.json().catch(() => ({}));
+    throw new Error(data.error || 'Failed to bulk restore items');
+  }
+};
+
+export const deleteBulkPermanentlyApi = async (folderIds: string[], fileIds: string[]): Promise<void> => {
+  const token = localStorage.getItem('optidrive_token');
+  const response = await fetch('/api/internal/trash/delete-bulk', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({ folderIds, fileIds })
+  });
+
+  if (!response.ok) {
+    const data = await response.json().catch(() => ({}));
+    throw new Error(data.error || 'Failed to bulk delete items permanently');
+  }
 };

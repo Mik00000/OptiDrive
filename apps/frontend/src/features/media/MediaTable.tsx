@@ -1570,8 +1570,7 @@ export const MediaTable = ({
                 />
                 <p className="text-sm text-red-200">
                   <strong>Warning:</strong> The selected folder(s) contain files
-                  or subfolders. Deleting will permanently destroy all contents
-                  inside them.
+                  or subfolders. Deleting will move all contents to Trash.
                 </p>
               </div>
             ) : null;
@@ -1592,7 +1591,7 @@ export const MediaTable = ({
               onClick={executeDelete}
               disabled={isDeleting}
             >
-              {isDeleting ? 'Deleting...' : 'Delete Permanently'}
+              {isDeleting ? 'Deleting...' : 'Delete'}
             </Button>
           </div>
         </div>

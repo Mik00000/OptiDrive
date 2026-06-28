@@ -44,4 +44,17 @@ router.post('/tags', createTagController);
 router.patch('/tags/:id', updateTagController);
 router.delete('/tags/:id', deleteTagController);
 
+// Trash Management Endpoints
+import {
+  listTrashV1Controller,
+  restoreFileV1Controller,
+  restoreFolderV1Controller,
+  emptyTrashV1Controller
+} from '../../controllers/v1/trash.controller';
+
+router.get('/trash', listTrashV1Controller);
+router.post('/media/:id/restore', restoreFileV1Controller);
+router.post('/folders/:id/restore', restoreFolderV1Controller);
+router.delete('/trash/empty', emptyTrashV1Controller);
+
 export default router;

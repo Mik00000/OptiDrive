@@ -18,7 +18,7 @@ export const listMediaController = async (req: Request & { workspaceId?: string;
     const skip = (pageNum - 1) * limitNum;
 
     // Build filter
-    const whereClause: any = { workspaceId };
+    const whereClause: any = { workspaceId, isDeleted: false };
     
     if (search) {
       whereClause.name = { contains: search as string, mode: 'insensitive' };
@@ -85,8 +85,8 @@ export const deleteMediaController = async (req: Request & { workspaceId?: strin
     }
 
     // 1. Fetch file from DB
-    const file = await prisma.mediaFile.findUnique({
-      where: { id: id as string }
+    const file = await prisma.mediaFile.findFirst({
+      where: { id: id as string, workspaceId, isDeleted: false }
     });
 
     if (!file) {
@@ -94,50 +94,28 @@ export const deleteMediaController = async (req: Request & { workspaceId?: strin
       return;
     }
 
-    if (file.workspaceId !== workspaceId) {
-      res.status(403).json({ error: 'Forbidden' });
-      return;
-    }
-
-    // 2. Delete from R2 (S3)
-    const key = `${workspaceId}/${file.cdnUrl.split('/').pop()}`; // Extract filename from CDN URL
-    const command = new DeleteObjectCommand({
-      Bucket: BUCKET_NAME,
-      Key: key,
-    });
-    
-    try {
-      await s3Client.send(command);
-    } catch (s3Error) {
-      console.error(`Failed to delete from R2: ${key}`, s3Error);
-      // We continue to delete from DB even if R2 fails (to avoid orphan records if R2 already deleted)
-    }
-
-    // 3. Update Workspace Storage
-    await prisma.workspace.update({
-      where: { id: workspaceId },
+    // 2. Soft delete
+    await prisma.mediaFile.update({
+      where: { id: id as string },
       data: {
-        storageUsed: { decrement: file.optimizedSize }
+        isDeleted: true,
+        deletedAt: new Date()
       }
     });
 
-    // 4. Create Activity Log
+    // 3. Create Activity Log
     await prisma.activityLog.create({
       data: {
         type: 'FILE_DELETED',
-        description: `Deleted API file ${file.name}`,
+        description: `Moved file ${file.name} to Trash via API`,
         workspaceId,
         userId: null,
       }
     });
 
-    await prisma.mediaFile.delete({
-      where: { id: id as string }
-    });
-
     res.status(200).json({
       success: true,
-      message: 'File deleted successfully'
+      message: 'File moved to Trash'
     });
 
   } catch (error: any) {

@@ -22,7 +22,8 @@ export const getMediaFiles = async (req: AuthRequest, res: Response): Promise<vo
       mediaFiles = await prisma.mediaFile.findMany({
         where: {
           workspaceId,
-          name: { contains: search, mode: 'insensitive' }
+          name: { contains: search, mode: 'insensitive' },
+          isDeleted: false
         },
         include: {
           tags: true
@@ -33,7 +34,8 @@ export const getMediaFiles = async (req: AuthRequest, res: Response): Promise<vo
       folders = await prisma.folder.findMany({
         where: {
           workspaceId,
-          name: { contains: search, mode: 'insensitive' }
+          name: { contains: search, mode: 'insensitive' },
+          isDeleted: false
         },
         orderBy: { name: 'asc' },
         include: {
@@ -45,7 +47,7 @@ export const getMediaFiles = async (req: AuthRequest, res: Response): Promise<vo
       });
     } else {
       mediaFiles = await prisma.mediaFile.findMany({
-        where: { workspaceId, folderId },
+        where: { workspaceId, folderId, isDeleted: false },
         include: {
           tags: true
         },
@@ -53,7 +55,7 @@ export const getMediaFiles = async (req: AuthRequest, res: Response): Promise<vo
       });
 
       folders = await prisma.folder.findMany({
-        where: { workspaceId, parentId: folderId },
+        where: { workspaceId, parentId: folderId, isDeleted: false },
         orderBy: { name: 'asc' },
         include: {
           _count: {
@@ -66,7 +68,7 @@ export const getMediaFiles = async (req: AuthRequest, res: Response): Promise<vo
 
     // Fetch all folders to construct paths and hierarchy in memory
     const allFolders = await prisma.folder.findMany({
-      where: { workspaceId },
+      where: { workspaceId, isDeleted: false },
       select: { id: true, name: true, parentId: true }
     });
 
@@ -83,7 +85,7 @@ export const getMediaFiles = async (req: AuthRequest, res: Response): Promise<vo
 
     // Fetch all file sizes to construct folder sizes in memory
     const allFilesSize = await prisma.mediaFile.findMany({
-      where: { workspaceId },
+      where: { workspaceId, isDeleted: false },
       select: { folderId: true, originalSize: true, optimizedSize: true }
     });
 
@@ -174,7 +176,7 @@ export const deleteMediaFile = async (req: AuthRequest, res: Response): Promise<
     }
 
     const mediaFile = await prisma.mediaFile.findFirst({
-      where: { id: String(fileId), workspaceId: String(workspaceId) },
+      where: { id: String(fileId), workspaceId: String(workspaceId), isDeleted: false },
     });
 
     if (!mediaFile) {
@@ -182,46 +184,12 @@ export const deleteMediaFile = async (req: AuthRequest, res: Response): Promise<
       return;
     }
 
-    // Extract R2 Key from cdnUrl
-    // cdnUrl format: https://[account_id].r2.cloudflarestorage.com/[bucket]/[workspaceId]/[filename]
-    // Or custom public URL: https://pub-[id].r2.dev/[workspaceId]/[filename]
-    // The key is always [workspaceId]/[filename]
-    const parts = mediaFile.cdnUrl.split('/');
-    const filename = parts.pop();
-    const folder = parts.pop();
-    const key = `${folder}/${filename}`;
-
-    // Delete from R2
-    const deleteCommand = new DeleteObjectCommand({
-      Bucket: BUCKET_NAME,
-      Key: key,
-    });
-    
-    try {
-      await s3Client.send(deleteCommand);
-    } catch (s3Error) {
-      console.error('Failed to delete from S3/R2:', s3Error);
-      // We continue to delete from DB even if S3 fails, or maybe just log it
-    }
-
-    // Delete from DB
-    await prisma.mediaFile.delete({
+    // Soft Delete
+    await prisma.mediaFile.update({
       where: { id: String(fileId) },
-    });
-
-    // Clean up orphaned tags in the workspace
-    await prisma.tag.deleteMany({
-      where: {
-        workspaceId,
-        files: { none: {} }
-      }
-    });
-
-    // Reduce storage usage
-    await prisma.workspace.update({
-      where: { id: workspaceId },
       data: {
-        storageUsed: { decrement: mediaFile.optimizedSize }
+        isDeleted: true,
+        deletedAt: new Date()
       }
     });
 
@@ -229,13 +197,13 @@ export const deleteMediaFile = async (req: AuthRequest, res: Response): Promise<
     await prisma.activityLog.create({
       data: {
         type: 'FILE_DELETED',
-        description: `Deleted file ${mediaFile.name}`,
+        description: `Moved file ${mediaFile.name} to Trash`,
         workspaceId,
         userId: (req as any).user?.id || null,
       }
     });
 
-    res.status(200).json({ success: true, message: 'File deleted successfully' });
+    res.status(200).json({ success: true, message: 'File moved to Trash' });
   } catch (error) {
     console.error('deleteMediaFile Error:', error);
     res.status(500).json({ error: 'Internal Server Error' });

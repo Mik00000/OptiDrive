@@ -29,7 +29,7 @@ export const listFoldersController = async (req: Request & { workspaceId?: strin
     const all = req.query.all === 'true';
     if (all) {
       const folders = await prisma.folder.findMany({
-        where: { workspaceId },
+        where: { workspaceId, isDeleted: false },
         orderBy: { name: 'asc' },
         include: {
           _count: {
@@ -46,7 +46,8 @@ export const listFoldersController = async (req: Request & { workspaceId?: strin
     const folders = await prisma.folder.findMany({
       where: {
         workspaceId,
-        parentId
+        parentId,
+        isDeleted: false
       },
       orderBy: { name: 'asc' },
       include: {
@@ -80,7 +81,7 @@ export const createFolderController = async (req: Request & { workspaceId?: stri
     // Check parent folder
     if (parentId) {
       const parent = await prisma.folder.findFirst({
-        where: { id: parentId, workspaceId }
+        where: { id: parentId, workspaceId, isDeleted: false }
       });
       if (!parent) {
         res.status(400).json({ error: 'Parent folder not found' });
@@ -88,12 +89,13 @@ export const createFolderController = async (req: Request & { workspaceId?: stri
       }
     }
 
-    // Check unique constraint in target folder level
+    // Check unique constraint in target folder level (among active folders)
     const existing = await prisma.folder.findFirst({
       where: {
         name,
         parentId: parentId || null,
-        workspaceId
+        workspaceId,
+        isDeleted: false
       }
     });
 
@@ -129,7 +131,7 @@ export const deleteFolderController = async (req: Request & { workspaceId?: stri
     }
 
     const folder = await prisma.folder.findFirst({
-      where: { id: id as string, workspaceId }
+      where: { id: id as string, workspaceId, isDeleted: false }
     });
 
     if (!folder) {
@@ -137,69 +139,44 @@ export const deleteFolderController = async (req: Request & { workspaceId?: stri
       return;
     }
 
-    // Recursively collect all folders to delete
+    // Recursively collect all folders to soft delete
     const folderIds: string[] = [id as string, ...(await getAllSubfolderIds(id as string))];
 
-    // Find all files in these folders to delete them from S3/R2
-    const files = await prisma.mediaFile.findMany({
+    // Soft delete all files inside these folders
+    await prisma.mediaFile.updateMany({
       where: {
         folderId: { in: folderIds },
         workspaceId
+      },
+      data: {
+        isDeleted: true,
+        deletedAt: new Date()
       }
     });
 
-    // Delete files from S3/R2
-    let totalStorageFreed = BigInt(0);
-    for (const file of files) {
-      const parts = file.cdnUrl.split('/');
-      const filename = parts.pop();
-      const folderName = parts.pop();
-      const key = `${folderName}/${filename}`;
-
-      const deleteCommand = new DeleteObjectCommand({
-        Bucket: BUCKET_NAME,
-        Key: key
-      });
-
-      try {
-        await s3Client.send(deleteCommand);
-      } catch (s3Error) {
-        console.error(`Failed to delete file ${file.id} from S3/R2:`, s3Error);
+    // Soft delete all folders
+    await prisma.folder.updateMany({
+      where: {
+        id: { in: folderIds },
+        workspaceId
+      },
+      data: {
+        isDeleted: true,
+        deletedAt: new Date()
       }
-      totalStorageFreed += file.optimizedSize;
-    }
-
-    // Delete files from DB
-    await prisma.mediaFile.deleteMany({
-      where: { id: { in: files.map(f => f.id) } }
     });
-
-    // Delete folders (Cascades to subfolders automatically because of onDelete: Cascade on the parent relation)
-    await prisma.folder.delete({
-      where: { id: id as string }
-    });
-
-    // Update workspace storage
-    if (totalStorageFreed > BigInt(0)) {
-      await prisma.workspace.update({
-        where: { id: workspaceId },
-        data: {
-          storageUsed: { decrement: totalStorageFreed }
-        }
-      });
-    }
 
     // Log Activity
     await prisma.activityLog.create({
       data: {
         type: 'FILE_DELETED',
-        description: `Deleted folder ${folder.name} and all its contents via API`,
+        description: `Moved folder ${folder.name} and all its contents to Trash via API`,
         workspaceId,
         userId: null,
       }
     });
 
-    res.status(200).json({ success: true, message: 'Folder and contents deleted successfully' });
+    res.status(200).json({ success: true, message: 'Folder and contents moved to Trash' });
   } catch (error) {
     console.error('deleteFolderController Error:', error);
     res.status(500).json({ error: 'Internal Server Error' });
