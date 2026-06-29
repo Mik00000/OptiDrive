@@ -24,6 +24,7 @@ import {
   Tag,
 } from './api';
 import { MediaPreviewModal } from './MediaPreviewModal';
+import { ShareModal } from '../share/ShareModal';
 
 const SavingsTooltip = ({ children }: { children: React.ReactNode }) => {
   const [show, setShow] = useState(false);
@@ -159,6 +160,14 @@ export const MediaTable = ({
     name: string;
   } | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+
+  // Share state
+  const [isShareModalOpen, setIsShareModalOpen] = useState(false);
+  const [shareTarget, setShareTarget] = useState<{
+    id: string;
+    type: 'file' | 'folder';
+    name: string;
+  } | null>(null);
 
   const [actionFeedback, setActionFeedback] = useState<{
     message: string;
@@ -959,6 +968,16 @@ export const MediaTable = ({
                         </button>
                         <button
                           onClick={() => {
+                            setShareTarget({ id: folder.id, type: 'folder', name: folder.name });
+                            setIsShareModalOpen(true);
+                          }}
+                          className="text-text-muted hover:text-blue-400 cursor-pointer p-1.5 align-middle opacity-70 transition-colors group-hover:opacity-100 hover:scale-110 focus:opacity-100"
+                          title="Share Folder"
+                        >
+                          <Icon icon="lucide:share-2" width={16} />
+                        </button>
+                        <button
+                          onClick={() => {
                             setRenameFolderTarget(folder);
                             setRenameFolderName(folder.name);
                             setRenameFolderColor(folder.color || null);
@@ -1112,6 +1131,16 @@ export const MediaTable = ({
                         <Icon icon="lucide:tag" width={16} />
                       </button>
                       <button
+                        onClick={() => {
+                          setShareTarget({ id: file.id, type: 'file', name: file.name });
+                          setIsShareModalOpen(true);
+                        }}
+                        className="text-text-muted hover:text-blue-400 cursor-pointer p-1.5 align-middle opacity-70 transition-colors group-hover:opacity-100 hover:scale-110 focus:opacity-100"
+                        title="Share File"
+                      >
+                        <Icon icon="lucide:share-2" width={16} />
+                      </button>
+                      <button
                         onClick={() => copyToClipboard(file.cdnUrl)}
                         className="text-text-muted hover:text-text-light cursor-pointer p-1.5 align-middle opacity-70 transition-colors group-hover:opacity-100 hover:scale-110 focus:opacity-100"
                         title="Copy URL"
@@ -1247,6 +1276,16 @@ export const MediaTable = ({
                     </button>
                     <button
                       onClick={() => {
+                        setShareTarget({ id: folder.id, type: 'folder', name: folder.name });
+                        setIsShareModalOpen(true);
+                      }}
+                      className="text-text-muted hover:text-blue-400 p-1.5 transition-colors"
+                      title="Share Folder"
+                    >
+                      <Icon icon="lucide:share-2" width={16} />
+                    </button>
+                    <button
+                      onClick={() => {
                         setRenameFolderTarget(folder);
                         setRenameFolderName(folder.name);
                         setIsRenameFolderModalOpen(true);
@@ -1364,18 +1403,32 @@ export const MediaTable = ({
                 </div>
               </div>
 
-              <Button
-                variant="bordered"
-                mobileBehavior="full-width"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  copyToClipboard(file.cdnUrl);
-                }}
-                className="bg-bg/50 border-border mt-1 justify-center py-2 text-sm"
-              >
-                <Icon icon="lucide:copy" width={16} />
-                Copy CDN URL
-              </Button>
+              <div className="flex gap-2 w-full mt-1">
+                <Button
+                  variant="bordered"
+                  mobileBehavior="full-width"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    copyToClipboard(file.cdnUrl);
+                  }}
+                  className="bg-bg/50 border-border flex-1 justify-center py-2 text-sm"
+                >
+                  <Icon icon="lucide:copy" width={16} />
+                  Copy CDN URL
+                </Button>
+                <Button
+                  variant="bordered"
+                  mobileBehavior="icon-only"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setShareTarget({ id: file.id, type: 'file', name: file.name });
+                    setIsShareModalOpen(true);
+                  }}
+                  className="bg-bg/50 border-border justify-center py-2 text-sm"
+                >
+                  <Icon icon="lucide:share-2" width={16} />
+                </Button>
+              </div>
             </div>
           ))}
 
@@ -1946,6 +1999,14 @@ export const MediaTable = ({
         onClose={() => setPreviewFile(null)}
         file={previewFile}
         onDelete={confirmDelete}
+      />
+
+      <ShareModal
+        isOpen={isShareModalOpen}
+        onClose={() => setIsShareModalOpen(false)}
+        targetId={shareTarget?.id || null}
+        targetType={shareTarget?.type || null}
+        targetName={shareTarget?.name || ''}
       />
     </div>
   );

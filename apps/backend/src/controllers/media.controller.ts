@@ -310,6 +310,9 @@ export const getWorkspaceTags = async (req: AuthRequest, res: Response): Promise
   }
 };
 
+import { GetObjectCommand } from '@aws-sdk/client-s3';
+import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
+
 export const downloadMediaFile = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const workspaceId = req.user?.workspaceId;
@@ -329,29 +332,23 @@ export const downloadMediaFile = async (req: AuthRequest, res: Response): Promis
       return;
     }
 
-    const response = await fetch(mediaFile.cdnUrl);
-    if (!response.ok) {
-      throw new Error(`Failed to fetch from CDN: ${response.statusText}`);
-    }
+    // Extract the S3 key from the cdnUrl (format is always workspaceId/filename)
+    const urlParts = mediaFile.cdnUrl.split('/');
+    const fileKey = `${urlParts[urlParts.length - 2]}/${urlParts[urlParts.length - 1]}`;
 
-    // Set headers to force download
-    res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(mediaFile.name)}"`);
-    res.setHeader('Content-Type', response.headers.get('content-type') || 'application/octet-stream');
+    const command = new GetObjectCommand({
+      Bucket: BUCKET_NAME,
+      Key: fileKey,
+      ResponseContentDisposition: `attachment; filename="${encodeURIComponent(mediaFile.name)}"`,
+    });
 
-    // Pipe the response body to the client
-    if (response.body) {
-      const reader = response.body.getReader();
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        res.write(value);
-      }
-      res.end();
-    } else {
-      res.status(500).json({ error: 'Failed to read file stream' });
-    }
+    // Generate a presigned URL valid for 1 hour
+    const presignedUrl = await getSignedUrl(s3Client, command, { expiresIn: 3600 });
+
+    res.status(200).json({ url: presignedUrl });
   } catch (error) {
     console.error('downloadMediaFile Error:', error);
     res.status(500).json({ error: 'Internal Server Error' });
   }
 };
+

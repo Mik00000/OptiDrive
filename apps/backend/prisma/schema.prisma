@@ -123,6 +123,7 @@ model Workspace {
   activityLogs   ActivityLog[]
   invitations    Invitation[]
   roles          Role[]
+  shareLinks     ShareLink[]
 }
 
 model WorkspaceUser {
@@ -172,6 +173,7 @@ model Folder {
 
   files       MediaFile[]
   tags        Tag[]
+  shareLinks  ShareLink[]
 
   @@unique([name, parentId, workspaceId])
 }
@@ -196,6 +198,7 @@ model MediaFile {
   workspace     Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
   tags          Tag[]
+  shareLinks    ShareLink[]
 
   @@index([workspaceId])
   @@index([folderId])
@@ -276,5 +279,28 @@ model Tag {
   folders     Folder[]
 
   @@unique([name, workspaceId])
+  @@index([workspaceId])
+}
+
+// 10. Публічні посилання
+model ShareLink {
+  id          String    @id @default(cuid())
+  slug        String    @unique
+  isFolder    Boolean   @default(false)
+  fileId      String?
+  folderId    String?
+  password    String?
+  expiresAt   DateTime?
+  downloads   Int       @default(0)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  workspaceId String
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  file        MediaFile? @relation(fields: [fileId], references: [id], onDelete: Cascade)
+  folder      Folder?    @relation(fields: [folderId], references: [id], onDelete: Cascade)
+
+  @@index([slug])
   @@index([workspaceId])
 }

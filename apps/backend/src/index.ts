@@ -17,6 +17,10 @@ app.use('/api/internal', internalRoutes);
 // Зовнішнє API для використання користувачами (через API-ключі)
 app.use('/api/v1', v1Routes);
 
+// Публічні лінки для розшарювання
+import publicShareRoutes from './routes/public/share.routes';
+app.use('/api/public/share', publicShareRoutes);
+
 // Функція-костиль (keep-alive) для NeonDB, щоб він не засинав
 const keepNeonAwake = () => {
   // Робимо простий запит кожні 2 хвилини

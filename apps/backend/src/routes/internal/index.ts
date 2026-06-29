@@ -9,6 +9,7 @@ import trashRoutes from './trash.routes';
 import workspaceRoutes from './workspace.routes';
 import workspaceUsersRoutes from './workspace-users.routes';
 import rolesRoutes from './roles.routes';
+import shareRoutes from './share.routes';
 
 const router: Router = Router();
 
@@ -30,5 +31,6 @@ router.use('/trash', trashRoutes);
 router.use('/workspace', workspaceRoutes);
 router.use('/workspace-users', workspaceUsersRoutes);
 router.use('/roles', rolesRoutes);
+router.use('/share', shareRoutes);
 
 export default router;

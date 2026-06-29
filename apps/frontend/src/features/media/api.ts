@@ -164,15 +164,14 @@ export const downloadMediaFileClientApi = async (id: string, filename: string): 
     throw new Error(`Download failed: ${response.statusText}`);
   }
 
-  const blob = await response.blob();
-  const objectUrl = window.URL.createObjectURL(blob);
-  const link = document.createElement('a');
-  link.href = objectUrl;
-  link.download = filename || 'download';
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-  window.URL.revokeObjectURL(objectUrl);
+  const data = await response.json();
+  if (data.url) {
+    const link = document.createElement('a');
+    link.href = data.url;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  }
 };
 
 export const downloadFolderClientApi = async (id: string, name: string): Promise<void> => {

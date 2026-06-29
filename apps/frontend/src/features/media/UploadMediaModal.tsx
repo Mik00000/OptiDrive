@@ -13,16 +13,23 @@ interface UploadMediaModalProps {
   onClose: () => void;
   onSuccess?: () => void;
   folderId?: string | null;
+  initialFile?: File | null;
 }
 
 type OptimizationPreset = "web_balanced" | "ultra_light" | "lossless" | "custom";
 
-export function UploadMediaModal({ isOpen, onClose, onSuccess, folderId }: UploadMediaModalProps) {
+export function UploadMediaModal({ isOpen, onClose, onSuccess, folderId, initialFile }: UploadMediaModalProps) {
   const [isDragging, setIsDragging] = useState(false);
   const [file, setFile] = useState<File | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (initialFile) {
+      setFile(initialFile);
+    }
+  }, [initialFile]);
 
   // Settings state
   const [preset, setPreset] = useState<OptimizationPreset>("web_balanced");
