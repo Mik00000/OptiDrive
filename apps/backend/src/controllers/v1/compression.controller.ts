@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import { ApiRequest } from '../../middlewares/apiKey.middleware';
 import { compressImage } from '../../services/compression.service';
 import { prisma } from '../../config/prisma';
+import { triggerWebhooks } from '../../services/webhook.service';
 
 export const compressImageController = async (req: Request & { workspaceId?: string; user?: { workspaceId: string } }, res: Response): Promise<void> => {
   try {
@@ -212,6 +213,18 @@ export const compressImageController = async (req: Request & { workspaceId?: str
         storageUsed: { increment: optimizedSizeBigInt },
         monthlyOptimizations: { increment: 1 }
       }
+    });
+
+    // Trigger Webhooks
+    triggerWebhooks(workspaceId, 'file.optimized', {
+      id: mediaFile.id,
+      name: originalname,
+      format: result.format,
+      originalSize: result.originalSize,
+      optimizedSize: result.optimizedSize,
+      savings: Number(savingsPercent.toFixed(2)),
+      cdnUrl: result.cdnUrl,
+      createdAt: mediaFile.createdAt,
     });
 
     res.status(200).json({

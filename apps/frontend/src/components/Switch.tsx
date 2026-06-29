@@ -29,7 +29,7 @@ export default function Switch({ initialChecked = false, onChange }: SwitchProps
         relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none
       `}
     >
-      <span className="sr-only">Перемикач налаштувань</span>
+      <span className="sr-only">Toggle setting</span>
       <span
         className={`
           ${enabled ? 'translate-x-5 bg-bg' : 'translate-x-0 bg-text-muted'}

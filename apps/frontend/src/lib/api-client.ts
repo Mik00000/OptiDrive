@@ -32,6 +32,14 @@ class ApiClient {
     }
 
     if (!response.ok) {
+      if (response.status === 401 && typeof window !== 'undefined') {
+        localStorage.removeItem('optidrive_token');
+        localStorage.removeItem('optidrive_user');
+        if (!window.location.pathname.startsWith('/login') && !window.location.pathname.startsWith('/register')) {
+          window.location.href = `/login?returnTo=${encodeURIComponent(window.location.pathname + window.location.search)}`;
+        }
+      }
+
       // Якщо сервер повернув об'єкт помилки, використовуємо його повідомлення
       const errorMessage = data && typeof data === 'object' && 'error' in data && typeof (data as Record<string, unknown>).error === 'string'
         ? (data as Record<string, string>).error 

@@ -22,6 +22,7 @@ const menu: MenuItem[] = [
   { text: 'Dashboard', link: '/dashboard', icon: 'lucide:layout-dashboard' },
   { text: 'Media Library', link: '/media', icon: 'lucide:image' },
   { text: 'API Keys', link: '/api-keys', icon: 'lucide:key' },
+  { text: 'Webhooks', link: '/webhooks', icon: 'lucide:webhook' },
   { text: 'Billing', link: '/billing', icon: 'lucide:credit-card' },
   { text: 'Documentation', link: '/api-docs', icon: 'lucide:book' },
   { text: 'Recycle Bin', link: '/trash', icon: 'lucide:trash-2' },

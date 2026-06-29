@@ -124,6 +124,7 @@ model Workspace {
   invitations    Invitation[]
   roles          Role[]
   shareLinks     ShareLink[]
+  webhooks       Webhook[]
 }
 
 model WorkspaceUser {
@@ -303,4 +304,38 @@ model ShareLink {
 
   @@index([slug])
   @@index([workspaceId])
+}
+
+// 11. Вебхуки для користувачів
+model Webhook {
+  id          String   @id @default(cuid())
+  name        String
+  url         String
+  secret      String   // Для підпису payload (HMAC-SHA256)
+  isActive    Boolean  @default(true)
+  events      String[] // наприклад ["file.optimized"]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  workspaceId String
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  deliveries  WebhookDelivery[]
+
+  @@index([workspaceId])
+}
+
+model WebhookDelivery {
+  id         String   @id @default(cuid())
+  webhookId  String
+  webhook    Webhook  @relation(fields: [webhookId], references: [id], onDelete: Cascade)
+  event      String
+  status     Int      // HTTP status code (наприклад 200, 500)
+  success    Boolean
+  payload    String   // JSON payload sent
+  response   String?  // Response body if any
+  duration   Int      // Response time in ms
+  createdAt  DateTime @default(now())
+
+  @@index([webhookId])
 }
