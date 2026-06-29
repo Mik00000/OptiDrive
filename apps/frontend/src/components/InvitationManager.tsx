@@ -5,6 +5,7 @@ import { apiClient } from '@/lib/api-client';
 import { Modal } from '@/components/Modal';
 import { Button } from '@/components/Button';
 import { useAuth } from '@/contexts/AuthContext';
+import { toast } from 'react-toastify';
 
 interface Invitation {
   id: string;
@@ -63,7 +64,7 @@ export function InvitationManager() {
         setCurrentInvite(invitations.find(i => i.id === invitationId) || null);
         setShowConfirmModal(true);
       } else {
-        alert(error.message || 'Failed to accept invitation');
+        toast.error(error.message || 'Failed to accept invitation');
       }
     } finally {
       setLoading(false);

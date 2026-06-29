@@ -38,7 +38,7 @@ export function ConfirmModal({
       <p className="text-sm text-text-muted">{description}</p>
       
       <div className="flex items-center justify-end gap-3 pt-2">
-        <Button variant="secondary" onClick={onClose} disabled={isLoading}>
+        <Button variant="bordered" onClick={onClose} disabled={isLoading}>
           {cancelText}
         </Button>
         <Button

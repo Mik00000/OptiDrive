@@ -159,7 +159,7 @@ const BillingAndSubscriptionsPage = () => {
                     </td>
                     <td className="px-6 py-4 text-right">
                       <button 
-                        className="text-text-muted hover:text-text-light cursor-pointer p-1.5 align-middle opacity-70 transition-colors hover:opacity-100 hover:scale-110"
+                        className="text-text-muted hover:text-text-light cursor-pointer p-1.5 align-middle opacity-70 transition-colors hover:opacity-100 hover:scale-110 "
                         onClick={() => toast.info(`Downloading ${invoice.id}...`)}
                       >
                         <Icon icon="lucide:download" width={18} />

@@ -11,7 +11,7 @@ export const listMediaController = async (req: Request & { workspaceId?: string;
       return;
     }
 
-    const { page = '1', limit = '20', search = '', format = 'all', tag = '', folderId = '' } = req.query;
+    const { page = '1', limit = '20', search = '', format = 'all', tag = '', operator = 'OR', folderId = '' } = req.query;
     
     const pageNum = parseInt(page as string, 10);
     const limitNum = parseInt(limit as string, 10);
@@ -29,11 +29,30 @@ export const listMediaController = async (req: Request & { workspaceId?: string;
     }
 
     if (tag && typeof tag === 'string') {
-      whereClause.tags = {
-        some: {
-          name: { equals: tag, mode: 'insensitive' }
+      const tagList = tag.split(',').map((t) => t.trim()).filter(Boolean);
+      
+      if (tagList.length > 0) {
+        if (String(operator).toUpperCase() === 'AND') {
+          whereClause.AND = whereClause.AND || [];
+          tagList.forEach((tagName) => {
+            whereClause.AND.push({
+              tags: {
+                some: {
+                  name: { equals: tagName, mode: 'insensitive' }
+                }
+              }
+            });
+          });
+        } else {
+          whereClause.tags = {
+            some: {
+              OR: tagList.map(tagName => ({
+                name: { equals: tagName, mode: 'insensitive' }
+              }))
+            }
+          };
         }
-      };
+      }
     }
 
     if (folderId && typeof folderId === 'string') {
