@@ -15,8 +15,8 @@ export const getMediaFiles = async (req: AuthRequest, res: Response): Promise<vo
     const folderId = req.query.folderId === 'null' || !req.query.folderId ? null : String(req.query.folderId);
     const search = req.query.search ? String(req.query.search) : undefined;
 
-    let mediaFiles;
-    let folders;
+    let mediaFiles: any[] = [];
+    let folders: any[] = [];
 
     if (search) {
       mediaFiles = await prisma.mediaFile.findMany({

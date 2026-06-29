@@ -247,8 +247,8 @@ export const MediaTable = ({
       if (!dataStr) return;
       const data = JSON.parse(dataStr);
 
-      let fileIds: string[] = [];
-      let folderIds: string[] = [];
+      const fileIds: string[] = [];
+      const folderIds: string[] = [];
 
       const idsToMove = data.ids as string[];
       for (const id of idsToMove) {

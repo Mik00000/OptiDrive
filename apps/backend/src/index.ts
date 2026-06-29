@@ -73,7 +73,7 @@ const runTrashAutoPurge = async () => {
         }
       }
 
-      const fileIds = filesToPurge.map(f => f.id);
+      const fileIds = filesToPurge.map((f: any) => f.id);
       await prisma.mediaFile.deleteMany({
         where: { id: { in: fileIds } }
       });
@@ -107,7 +107,7 @@ const runTrashAutoPurge = async () => {
       console.log(`[Auto-Purge] Found ${foldersToPurge.length} folders to delete permanently`);
       await prisma.folder.deleteMany({
         where: {
-          id: { in: foldersToPurge.map(f => f.id) }
+          id: { in: foldersToPurge.map((f: any) => f.id) }
         }
       });
     }
@@ -152,9 +152,9 @@ const runSystemCleanup = async () => {
 
     if (unverifiedUsers.length > 0) {
       console.log(`[System-Cleanup] Found ${unverifiedUsers.length} unverified users to delete`);
-      const workspaceIdsToCheck = unverifiedUsers.flatMap(u => u.workspaces.map(w => w.workspaceId));
+      const workspaceIdsToCheck = unverifiedUsers.flatMap((u: any) => u.workspaces.map((w: any) => w.workspaceId));
       
-      const userIds = unverifiedUsers.map(u => u.id);
+      const userIds = unverifiedUsers.map((u: any) => u.id);
       await prisma.user.deleteMany({
         where: { id: { in: userIds } }
       });
@@ -171,7 +171,7 @@ const runSystemCleanup = async () => {
         if (orphanedWorkspaces.length > 0) {
           console.log(`[System-Cleanup] Deleting ${orphanedWorkspaces.length} orphaned workspaces`);
           await prisma.workspace.deleteMany({
-            where: { id: { in: orphanedWorkspaces.map(w => w.id) } }
+            where: { id: { in: orphanedWorkspaces.map((w: any) => w.id) } }
           });
         }
       }

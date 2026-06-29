@@ -11,7 +11,7 @@ async function getAllSubfolderIdsIncludingDeleted(folderId: string): Promise<str
     select: { id: true }
   });
 
-  let ids = subfolders.map(sf => sf.id);
+  let ids = subfolders.map((sf: any) => sf.id);
   for (const id of ids) {
     const subIds = await getAllSubfolderIdsIncludingDeleted(id);
     ids = ids.concat(subIds);
@@ -69,7 +69,7 @@ export const getTrashItems = async (req: AuthRequest, res: Response): Promise<vo
     });
 
     // For each folder, aggregate sizes and counts recursively
-    const foldersWithDetails = await Promise.all(folders.map(async (folder) => {
+    const foldersWithDetails = await Promise.all(folders.map(async (folder: any) => {
       const folderIds = [folder.id, ...(await getAllSubfolderIdsIncludingDeleted(folder.id))];
 
       // Sum sizes of all files under this directory
@@ -81,8 +81,8 @@ export const getTrashItems = async (req: AuthRequest, res: Response): Promise<vo
         select: { originalSize: true, optimizedSize: true }
       });
 
-      const originalSizeSum = filesInFolder.reduce((sum, f) => sum + f.originalSize, BigInt(0));
-      const optimizedSizeSum = filesInFolder.reduce((sum, f) => sum + f.optimizedSize, BigInt(0));
+      const originalSizeSum = filesInFolder.reduce((sum: bigint, f: any) => sum + f.originalSize, BigInt(0));
+      const optimizedSizeSum = filesInFolder.reduce((sum: bigint, f: any) => sum + f.optimizedSize, BigInt(0));
 
       let savings = 0;
       if (originalSizeSum > BigInt(0)) {
@@ -109,7 +109,7 @@ export const getTrashItems = async (req: AuthRequest, res: Response): Promise<vo
     }));
 
     // Format files (convert BigInt size properties to Number)
-    const formattedFiles = files.map(file => ({
+    const formattedFiles = files.map((file: any) => ({
       ...file,
       originalSize: Number(file.originalSize),
       optimizedSize: Number(file.optimizedSize)
@@ -447,7 +447,7 @@ export const deleteFolderPermanently = async (req: AuthRequest, res: Response): 
 
     // Delete files from DB
     await prisma.mediaFile.deleteMany({
-      where: { id: { in: files.map(f => f.id) } }
+      where: { id: { in: files.map((f: any) => f.id) } }
     });
 
     // Delete folders (Cascades to subfolders automatically because of onDelete: Cascade on the parent relation)
@@ -534,7 +534,7 @@ export const deleteBulkPermanently = async (req: AuthRequest, res: Response): Pr
         }
 
         await prisma.mediaFile.deleteMany({
-          where: { id: { in: files.map(f => f.id) } }
+          where: { id: { in: files.map((f: any) => f.id) } }
         });
       }
     }
@@ -573,7 +573,7 @@ export const deleteBulkPermanently = async (req: AuthRequest, res: Response): Pr
           }
 
           await prisma.mediaFile.deleteMany({
-            where: { id: { in: filesInFolders.map(f => f.id) } }
+            where: { id: { in: filesInFolders.map((f: any) => f.id) } }
           });
 
           await prisma.folder.delete({
@@ -654,7 +654,7 @@ export const emptyTrash = async (req: AuthRequest, res: Response): Promise<void>
 
     // Delete files from DB
     await prisma.mediaFile.deleteMany({
-      where: { id: { in: files.map(f => f.id) } }
+      where: { id: { in: files.map((f: any) => f.id) } }
     });
 
     // Delete folders in Trash

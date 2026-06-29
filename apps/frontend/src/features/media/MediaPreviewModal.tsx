@@ -13,10 +13,10 @@ interface MediaPreviewModalProps {
 }
 
 export function MediaPreviewModal({ isOpen, onClose, file, onDelete }: MediaPreviewModalProps) {
-  if (!file) return null;
-
   const [isCopied, setIsCopied] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
+
+  if (!file) return null;
 
   const copyToClipboard = () => {
     navigator.clipboard.writeText(file.cdnUrl);

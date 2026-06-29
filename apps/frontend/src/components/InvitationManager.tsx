@@ -23,10 +23,6 @@ export function InvitationManager() {
   const [loading, setLoading] = useState(false);
   const { login, token, user } = useAuth();
 
-  useEffect(() => {
-    fetchInvitations();
-  }, []);
-
   const fetchInvitations = async () => {
     try {
       const res = await apiClient.get<{ data: Invitation[] }>('/api/internal/workspace-users/pending-invitations');
@@ -37,6 +33,10 @@ export function InvitationManager() {
       console.error('Failed to fetch invitations', e);
     }
   };
+
+  useEffect(() => {
+    fetchInvitations();
+  }, []);
 
   const handleAccept = async (invitationId: string, confirmLeave = false) => {
     setLoading(true);

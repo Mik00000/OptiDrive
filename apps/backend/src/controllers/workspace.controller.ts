@@ -154,7 +154,7 @@ export const getUserWorkspaces = async (req: Request & { user?: any }, res: Resp
       }
     });
 
-    const workspaces = members.map(m => ({
+    const workspaces = members.map((m: any) => ({
       id: m.workspace.id,
       name: m.workspace.name,
       slug: m.workspace.slug,
@@ -250,7 +250,7 @@ export const createWorkspace = async (req: Request & { user?: any }, res: Respon
     const slug = `${name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-${Date.now()}`;
 
     // Use transaction to ensure workspace and initial roles/members are created together
-    const newWorkspace = await prisma.$transaction(async (tx) => {
+    const newWorkspace = await prisma.$transaction(async (tx: any) => {
       const workspace = await tx.workspace.create({
         data: {
           name,

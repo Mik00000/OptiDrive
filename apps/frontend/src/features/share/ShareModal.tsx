@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Icon } from '@iconify/react';
 import { Modal } from '@/components/Modal';
 import { Button } from '@/components/Button';
@@ -26,23 +26,12 @@ export function ShareModal({ isOpen, onClose, targetId, targetType, targetName }
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
 
-  useEffect(() => {
-    if (isOpen && targetId && targetType) {
-      loadLinks();
-    } else {
-      setLinks([]);
-      setPassword('');
-      setExpiresIn('7');
-      setErrorMsg(null);
-      setDeleteId(null);
-    }
-  }, [isOpen, targetId, targetType]);
-
-  const loadLinks = async () => {
+  const loadLinks = useCallback(async () => {
+    if (!targetId || !targetType) return;
     setLoading(true);
     try {
       const data = await getShareLinksApi(
-        targetType === 'file' ? { fileId: targetId! } : { folderId: targetId! }
+        targetType === 'file' ? { fileId: targetId } : { folderId: targetId }
       );
       setLinks(data);
     } catch (err) {
@@ -50,6 +39,21 @@ export function ShareModal({ isOpen, onClose, targetId, targetType, targetName }
     } finally {
       setLoading(false);
     }
+  }, [targetId, targetType]);
+
+  useEffect(() => {
+    if (isOpen && targetId && targetType) {
+      loadLinks();
+    }
+  }, [isOpen, targetId, targetType, loadLinks]);
+
+  const handleClose = () => {
+    setLinks([]);
+    setPassword('');
+    setExpiresIn('7');
+    setErrorMsg(null);
+    setDeleteId(null);
+    onClose();
   };
 
   const handleCreate = async () => {
@@ -65,9 +69,10 @@ export function ShareModal({ isOpen, onClose, targetId, targetType, targetName }
       setPassword('');
       setExpiresIn('7');
       await loadLinks();
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(err);
-      setErrorMsg(err.response?.data?.error || err.message || 'Failed to create link');
+      const error = err as Error & { response?: { data?: { error?: string } } };
+      setErrorMsg(error.response?.data?.error || error.message || 'Failed to create link');
     } finally {
       setCreating(false);
     }
@@ -80,9 +85,10 @@ export function ShareModal({ isOpen, onClose, targetId, targetType, targetName }
       await deleteShareLinkApi(deleteId);
       setLinks(links.filter(l => l.id !== deleteId));
       setDeleteId(null);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(err);
-      setErrorMsg(err.response?.data?.error || err.message || 'Failed to delete link');
+      const error = err as Error & { response?: { data?: { error?: string } } };
+      setErrorMsg(error.response?.data?.error || error.message || 'Failed to delete link');
     } finally {
       setDeleting(false);
     }
@@ -96,7 +102,7 @@ export function ShareModal({ isOpen, onClose, targetId, targetType, targetName }
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title={`Share ${targetType === 'folder' ? 'Folder' : 'File'}`} icon="lucide:share-2">
+    <Modal isOpen={isOpen} onClose={handleClose} title={`Share ${targetType === 'folder' ? 'Folder' : 'File'}`} icon="lucide:share-2">
       <div className="flex flex-col gap-6">
         <p className="text-sm text-text-light">
           Create public links to share <strong className="font-semibold">{targetName}</strong> with anyone.

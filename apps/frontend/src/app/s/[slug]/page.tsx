@@ -18,10 +18,6 @@ export default function SharedLinkPage({ params }: { params: Promise<{ slug: str
   const [password, setPassword] = useState('');
   const [pwdError, setPwdError] = useState('');
 
-  useEffect(() => {
-    fetchInfo();
-  }, [slug]);
-
   const fetchInfo = async (pwd?: string) => {
     setLoading(true);
     setError(null);
@@ -42,6 +38,10 @@ export default function SharedLinkPage({ params }: { params: Promise<{ slug: str
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    fetchInfo();
+  }, [slug]);
 
   const handlePasswordSubmit = (e: React.FormEvent) => {
     e.preventDefault();

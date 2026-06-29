@@ -250,7 +250,7 @@ export const compressImageController = async (req: Request & { workspaceId?: str
           bytesSaved: 0,
           workspaceId: req.workspaceId,
         }
-      }).catch(err => console.error('Failed to log analytics error', err));
+      }).catch((err: any) => console.error('Failed to log analytics error', err));
     }
 
     res.status(500).json({ error: error instanceof Error ? error.message : 'Failed to compress image' });

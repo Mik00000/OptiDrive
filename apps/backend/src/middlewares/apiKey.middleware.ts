@@ -38,7 +38,7 @@ export const authenticateApiKey = async (req: ApiRequest, res: Response, next: N
     prisma.apiKey.update({
       where: { id: apiKey.id },
       data: { lastUsedAt: new Date() }
-    }).catch(err => console.error('Failed to update apiKey lastUsedAt', err));
+    }).catch((err: any) => console.error('Failed to update apiKey lastUsedAt', err));
 
     req.workspaceId = apiKey.workspaceId;
     req.apiKeyId = apiKey.id;

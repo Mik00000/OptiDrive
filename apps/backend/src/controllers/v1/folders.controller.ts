@@ -10,7 +10,7 @@ async function getAllSubfolderIds(folderId: string): Promise<string[]> {
     select: { id: true },
   });
 
-  let ids = subfolders.map(sf => sf.id);
+  let ids = subfolders.map((sf: any) => sf.id);
   for (const id of ids) {
     const subIds = await getAllSubfolderIds(id);
     ids = ids.concat(subIds);

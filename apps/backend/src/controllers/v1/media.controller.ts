@@ -51,7 +51,7 @@ export const listMediaController = async (req: Request & { workspaceId?: string;
     ]);
 
     // Format response (convert BigInt to string for JSON serialization)
-    const formattedFiles = files.map(file => ({
+    const formattedFiles = files.map((file: any) => ({
       ...file,
       originalSize: file.originalSize.toString(),
       optimizedSize: file.optimizedSize.toString(),

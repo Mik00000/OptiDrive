@@ -10,7 +10,7 @@ async function getAllSubfolderIdsIncludingDeleted(folderId: string): Promise<str
     select: { id: true }
   });
 
-  let ids = subfolders.map(sf => sf.id);
+  let ids = subfolders.map((sf: any) => sf.id);
   for (const id of ids) {
     const subIds = await getAllSubfolderIdsIncludingDeleted(id);
     ids = ids.concat(subIds);
@@ -52,7 +52,7 @@ export const listTrashV1Controller = async (req: Request & { workspaceId?: strin
     });
 
     // For each folder, aggregate sizes and counts recursively
-    const foldersWithDetails = await Promise.all(folders.map(async (folder) => {
+    const foldersWithDetails = await Promise.all(folders.map(async (folder: any) => {
       const folderIds = [folder.id, ...(await getAllSubfolderIdsIncludingDeleted(folder.id))];
 
       const filesInFolder = await prisma.mediaFile.findMany({
@@ -63,8 +63,8 @@ export const listTrashV1Controller = async (req: Request & { workspaceId?: strin
         select: { originalSize: true, optimizedSize: true }
       });
 
-      const originalSizeSum = filesInFolder.reduce((sum, f) => sum + f.originalSize, BigInt(0));
-      const optimizedSizeSum = filesInFolder.reduce((sum, f) => sum + f.optimizedSize, BigInt(0));
+      const originalSizeSum = filesInFolder.reduce((sum: bigint, f: any) => sum + f.originalSize, BigInt(0));
+      const optimizedSizeSum = filesInFolder.reduce((sum: bigint, f: any) => sum + f.optimizedSize, BigInt(0));
 
       let savings = 0;
       if (originalSizeSum > BigInt(0)) {
@@ -89,7 +89,7 @@ export const listTrashV1Controller = async (req: Request & { workspaceId?: strin
       };
     }));
 
-    const formattedFiles = files.map(file => ({
+    const formattedFiles = files.map((file: any) => ({
       ...file,
       originalSize: file.originalSize.toString(),
       optimizedSize: file.optimizedSize.toString()
@@ -239,7 +239,7 @@ export const emptyTrashV1Controller = async (req: Request & { workspaceId?: stri
     }
 
     await prisma.mediaFile.deleteMany({
-      where: { id: { in: files.map(f => f.id) } }
+      where: { id: { in: files.map((f: any) => f.id) } }
     });
 
     await prisma.folder.deleteMany({
