@@ -88,7 +88,14 @@ export const updateUserRole = async (req: AuthRequest, res: Response): Promise<v
       return;
     }
 
-    const newRoleObj = await prisma.role.findUnique({ where: { id: newRoleId } });
+    const newRoleObj = await prisma.role.findFirst({
+      where: { id: newRoleId, workspaceId }
+    });
+
+    if (!newRoleObj) {
+      res.status(400).json({ success: false, error: 'Role not found in this workspace' });
+      return;
+    }
 
     if (newRoleObj?.name === 'Owner' && targetMember.role?.name !== 'Owner') {
       const workspace = await prisma.workspace.findUnique({ where: { id: workspaceId } });
@@ -109,8 +116,7 @@ export const updateUserRole = async (req: AuthRequest, res: Response): Promise<v
     }
 
     if (targetMember.userId === currentUserId && targetMember.role?.name === 'Owner') {
-      const newRoleObj = await prisma.role.findUnique({ where: { id: newRoleId } });
-      if (newRoleObj?.name !== 'Owner') {
+      if (newRoleObj.name !== 'Owner') {
         const ownerCount = await prisma.workspaceUser.count({
           where: { workspaceId, role: { name: 'Owner' } }
         });
@@ -266,6 +272,14 @@ export const inviteUser = async (req: AuthRequest, res: Response): Promise<void>
 
     if (!email || !roleId) {
       res.status(400).json({ success: false, error: 'Invalid email or role' });
+      return;
+    }
+
+    const targetRole = await prisma.role.findFirst({
+      where: { id: roleId, workspaceId }
+    });
+    if (!targetRole) {
+      res.status(400).json({ success: false, error: 'Role not found in this workspace' });
       return;
     }
 

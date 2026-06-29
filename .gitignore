@@ -13,6 +13,9 @@ dist-ssr
 *.local
 .turbo
 .next
+.env
+.env.production
+*.tsbuildinfo
 
 # Editor directories and files
 .vscode/*

@@ -1,10 +1,10 @@
 import { Router } from 'express';
 import { getShareLinkInfo, downloadShareLink } from '../../controllers/public-share.controller';
-import { globalApiLimiter } from '../../middleware/rate-limit';
+import { shareLinkLimiter } from '../../middleware/rate-limit';
 
 const router: Router = Router();
 
-router.use(globalApiLimiter);
+router.use(shareLinkLimiter);
 
 router.post('/:slug', getShareLinkInfo);
 router.get('/:slug/download', downloadShareLink);

@@ -28,6 +28,11 @@ export const requirePermissions = (requiredPermissions: Permission[]) => {
         return;
       }
 
+      if (member.role.workspaceId !== workspaceId) {
+        res.status(403).json({ error: 'Forbidden: Invalid role assignment' });
+        return;
+      }
+
       const hasPermission = requiredPermissions.every(p => member.role.permissions.includes(p));
 
       // Special case: if user has a system role 'Owner' they have all permissions

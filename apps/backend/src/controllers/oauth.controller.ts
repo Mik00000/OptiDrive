@@ -86,6 +86,10 @@ export const googleCallback = async (req: Request, res: Response): Promise<void>
 
     const profile = userInfoResponse.data;
     
+    if (profile.verified_email === false || profile.email_verified === false) {
+      return res.redirect(`${FRONTEND_URL}/login?error=oauth_unverified_email`);
+    }
+
     let user = await prisma.user.findUnique({ where: { email: profile.email } });
     
     if (!user) {
@@ -102,6 +106,7 @@ export const googleCallback = async (req: Request, res: Response): Promise<void>
           name: profile.name,
           avatarUrl: profile.picture,
           googleId: profile.id,
+          emailVerified: true,
           activeWorkspaceId: workspace.id,
           workspaces: {
             create: {
@@ -161,7 +166,13 @@ export const githubCallback = async (req: Request, res: Response): Promise<void>
     });
 
     const profile = userInfoResponse.data;
-    const primaryEmail = emailsResponse.data.find((e: { primary?: boolean; email: string }) => e.primary)?.email || emailsResponse.data[0]?.email;
+    const primaryEmailObj = emailsResponse.data.find((e: { primary?: boolean; verified?: boolean; email: string }) => e.primary);
+    
+    if (!primaryEmailObj || !primaryEmailObj.verified) {
+      return res.redirect(`${FRONTEND_URL}/login?error=oauth_unverified_email`);
+    }
+    
+    const primaryEmail = primaryEmailObj.email;
 
     let user = await prisma.user.findUnique({ where: { email: primaryEmail } });
     
@@ -179,6 +190,7 @@ export const githubCallback = async (req: Request, res: Response): Promise<void>
           name: profile.name || profile.login,
           avatarUrl: profile.avatar_url,
           githubId: String(profile.id),
+          emailVerified: true,
           activeWorkspaceId: workspace.id,
           workspaces: {
             create: {

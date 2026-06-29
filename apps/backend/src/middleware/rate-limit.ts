@@ -44,3 +44,12 @@ export const globalApiLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
 });
+
+// Обмеження для перегляду shared links (захист від brute-force паролів): 15 спроб на 15 хвилин
+export const shareLinkLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 15,
+  message: { error: 'Too many attempts to access shared links, please try again after 15 minutes' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});

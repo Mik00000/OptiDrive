@@ -11,6 +11,15 @@ export const viewMediaController = async (req: Request, res: Response): Promise<
       return;
     }
 
+    // Prevent path traversal and cross-workspace access
+    if (
+      workspaceId.includes('/') || workspaceId.includes('\\') || workspaceId.includes('..') ||
+      filename.includes('/') || filename.includes('\\') || filename.includes('..')
+    ) {
+      res.status(400).json({ error: 'Access denied: Invalid parameters' });
+      return;
+    }
+
     const key = `${workspaceId}/${filename}`;
 
     const command = new GetObjectCommand({

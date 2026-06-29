@@ -8,7 +8,12 @@ import { s3Client, BUCKET_NAME } from './config/s3';
 import { DeleteObjectCommand } from '@aws-sdk/client-s3';
 
 const app = express();
-app.use(cors()); // Дозволяємо CORS запити
+app.use(cors({
+  origin: process.env.FRONTEND_URL as string,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
+  credentials: true
+}));
+
 app.use(express.json()); // Щоб Express розумів JSON з req.body
 
 // Внутрішнє API для взаємодії з дашбордом
@@ -128,8 +133,103 @@ const startRecycleBinAutoPurge = () => {
   setInterval(runTrashAutoPurge, 24 * 60 * 60 * 1000);
 };
 
+// Фонова задача для очищення непідтверджених користувачів, протермінованих посилань та старих логів
+const runSystemCleanup = async () => {
+  try {
+    console.log('[System-Cleanup] Running periodic cleanup tasks...');
+
+    // 1. Очистка непідтверджених користувачів, створених більше 24 годин тому
+    const userThreshold = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    const unverifiedUsers = await prisma.user.findMany({
+      where: {
+        emailVerified: false,
+        createdAt: { lte: userThreshold }
+      },
+      include: {
+        workspaces: true
+      }
+    });
+
+    if (unverifiedUsers.length > 0) {
+      console.log(`[System-Cleanup] Found ${unverifiedUsers.length} unverified users to delete`);
+      const workspaceIdsToCheck = unverifiedUsers.flatMap(u => u.workspaces.map(w => w.workspaceId));
+      
+      const userIds = unverifiedUsers.map(u => u.id);
+      await prisma.user.deleteMany({
+        where: { id: { in: userIds } }
+      });
+
+      // Перевіряємо чи є воркспейси без учасників і видаляємо їх
+      if (workspaceIdsToCheck.length > 0) {
+        const orphanedWorkspaces = await prisma.workspace.findMany({
+          where: {
+            id: { in: workspaceIdsToCheck },
+            members: { none: {} }
+          }
+        });
+
+        if (orphanedWorkspaces.length > 0) {
+          console.log(`[System-Cleanup] Deleting ${orphanedWorkspaces.length} orphaned workspaces`);
+          await prisma.workspace.deleteMany({
+            where: { id: { in: orphanedWorkspaces.map(w => w.id) } }
+          });
+        }
+      }
+    }
+
+    // 2. Видалення протермінованих посилань (ShareLink)
+    const expiredLinks = await prisma.shareLink.deleteMany({
+      where: {
+        expiresAt: { lte: new Date() }
+      }
+    });
+    if (expiredLinks.count > 0) {
+      console.log(`[System-Cleanup] Purged ${expiredLinks.count} expired share links`);
+    }
+
+    // 3. Очистка старих логів (активності та аналітики) старше 90 днів
+    const logsThreshold = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000);
+    
+    const activityPurged = await prisma.activityLog.deleteMany({
+      where: { createdAt: { lte: logsThreshold } }
+    });
+    
+    const analyticsPurged = await prisma.analyticsLog.deleteMany({
+      where: { timestamp: { lte: logsThreshold } }
+    });
+
+    if (activityPurged.count > 0 || analyticsPurged.count > 0) {
+      console.log(`[System-Cleanup] Purged ${activityPurged.count} activity logs and ${analyticsPurged.count} analytics logs`);
+    }
+
+    // 4. Очистка протермінованих запрошень (Invitation)
+    const expiredInvitations = await prisma.invitation.deleteMany({
+      where: {
+        expiresAt: { lte: new Date() }
+      }
+    });
+    
+    if (expiredInvitations.count > 0) {
+      console.log(`[System-Cleanup] Purged ${expiredInvitations.count} expired invitations`);
+    }
+
+    console.log('[System-Cleanup] Cleanup finished');
+  } catch (err) {
+    console.error('[System-Cleanup] Cleanup failed:', err);
+  }
+};
+
+const startSystemCleanup = () => {
+  // Запуск один раз при старті через 10 секунд
+  setTimeout(runSystemCleanup, 10000);
+
+  // Повторний запуск кожні 24 години
+  setInterval(runSystemCleanup, 24 * 60 * 60 * 1000);
+};
+
 app.listen(3001, () => {
   console.log('Server is running on port 3001');
   keepNeonAwake(); // Запускаємо пінгування після старту сервера
   startRecycleBinAutoPurge(); // Запускаємо очищення кошика
+  startSystemCleanup(); // Запускаємо очищення системи
 });
