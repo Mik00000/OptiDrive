@@ -10,6 +10,7 @@ import { WebhookFormModal } from '@/features/webhooks/WebhookFormModal';
 import { WebhookDeliveriesModal } from '@/features/webhooks/WebhookDeliveriesModal';
 import { useWebhooks } from '@/features/webhooks/useWebhooks';
 import { Webhook, WebhookDelivery } from '@/features/webhooks/types';
+import { toast } from 'react-toastify';
 
 export default function WebhooksPage() {
   const {
@@ -73,12 +74,12 @@ export default function WebhooksPage() {
     try {
       const response = await handleTest(id);
       if (response.success) {
-        alert(`Test successful! Response status: ${response.status} in ${response.duration}ms.`);
+        toast.success(`Test successful! Response status: ${response.status} in ${response.duration}ms.`);
       } else {
-        alert(`Test failed. Server returned status: ${response.status}`);
+        toast.error(`Test failed. Server returned status: ${response.status}`);
       }
     } catch (err: any) {
-      alert(`Connection error: ${err?.message || 'Unknown error'}`);
+      toast.error(`Connection error: ${err?.message || 'Unknown error'}`);
     }
   };
 

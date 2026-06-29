@@ -11,7 +11,7 @@ export const listMediaController = async (req: Request & { workspaceId?: string;
       return;
     }
 
-    const { page = '1', limit = '20', search = '', format = 'all', tag = '' } = req.query;
+    const { page = '1', limit = '20', search = '', format = 'all', tag = '', folderId = '' } = req.query;
     
     const pageNum = parseInt(page as string, 10);
     const limitNum = parseInt(limit as string, 10);
@@ -34,6 +34,14 @@ export const listMediaController = async (req: Request & { workspaceId?: string;
           name: { equals: tag, mode: 'insensitive' }
         }
       };
+    }
+
+    if (folderId && typeof folderId === 'string') {
+      if (folderId.toLowerCase() === 'null') {
+        whereClause.folderId = null; // Get files in root
+      } else {
+        whereClause.folderId = folderId;
+      }
     }
 
     // Execute query

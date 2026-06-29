@@ -7,6 +7,7 @@ import { Icon } from '@iconify/react';
 import { UpgradePlanModal } from '@/features/billing/UpgradePlanModal';
 import { UpdatePaymentModal } from '@/features/billing/UpdatePaymentModal';
 import { getWorkspaceStatsApi, WorkspaceStats } from '@/features/dashboard/api';
+import { toast } from 'react-toastify';
 
 const MOCK_INVOICES = [
   { id: 'INV-2023-10-01', date: 'Oct 1, 2023', amount: '$29.00', status: 'Paid' },
@@ -95,7 +96,7 @@ const BillingAndSubscriptionsPage = () => {
               Manage your billing information and credit cards.
             </p>
           </div>
-          <div className="border-border flex flex-col md:flex-row gap-4 md:gap-2 md:justify-between border-b p-5 md:p-6 md:items-center">
+          <div className="border-border flex flex-col md:flex-row gap-4 md:gap-2 md:justify-between p-5 md:p-6 md:items-center">
             <div className='flex gap-4 items-center'>
               <div className="bg-bg border border-border flex h-10 w-16 shrink-0 items-center justify-center rounded-lg">
                 <Icon icon="lucide:credit-card" width="24" height="24px"></Icon>
@@ -159,7 +160,7 @@ const BillingAndSubscriptionsPage = () => {
                     <td className="px-6 py-4 text-right">
                       <button 
                         className="text-text-muted hover:text-text-light cursor-pointer p-1.5 align-middle opacity-70 transition-colors hover:opacity-100 hover:scale-110"
-                        onClick={() => alert(`Downloading ${invoice.id}...`)}
+                        onClick={() => toast.info(`Downloading ${invoice.id}...`)}
                       >
                         <Icon icon="lucide:download" width={18} />
                       </button>
@@ -194,7 +195,7 @@ const BillingAndSubscriptionsPage = () => {
                 <div className="flex items-center">
                   <button 
                     className="flex items-center justify-center w-12 h-12 rounded-xl text-text-muted hover:text-text-light hover:bg-white/5 transition-colors active:scale-95"
-                    onClick={() => alert(`Downloading ${invoice.id}...`)}
+                    onClick={() => toast.info(`Downloading ${invoice.id}...`)}
                   >
                     <Icon icon="lucide:download" width={22} />
                   </button>

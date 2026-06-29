@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { Icon } from '@iconify/react';
 import { Button } from '@/components/Button';
 import Switch from '@/components/Switch';
+import { ConfirmModal } from '@/components/ConfirmModal';
 import { Webhook } from './types';
 
 interface WebhookTableProps {
@@ -29,6 +30,7 @@ export const WebhookTable = ({
 }: WebhookTableProps) => {
   const [revealedSecrets, setRevealedSecrets] = useState<Record<string, boolean>>({});
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [webhookToDelete, setWebhookToDelete] = useState<string | null>(null);
 
   const toggleRevealSecret = (id: string) => {
     setRevealedSecrets(prev => ({ ...prev, [id]: !prev[id] }));
@@ -146,11 +148,7 @@ export const WebhookTable = ({
                       <Button
                         variant="bordered"
                         className="hover:!border-error hover:!text-error"
-                        onClick={() => {
-                          if (confirm('Are you sure you want to delete this webhook?')) {
-                            onDelete(webhook.id);
-                          }
-                        }}
+                        onClick={() => setWebhookToDelete(webhook.id)}
                         title="Delete"
                       >
                         <Icon icon="lucide:trash-2" width={16} />
@@ -163,6 +161,21 @@ export const WebhookTable = ({
           </tbody>
         </table>
       </div>
+
+      <ConfirmModal
+        isOpen={webhookToDelete !== null}
+        onClose={() => setWebhookToDelete(null)}
+        onConfirm={() => {
+          if (webhookToDelete) {
+            onDelete(webhookToDelete);
+            setWebhookToDelete(null);
+          }
+        }}
+        title="Delete Webhook"
+        description="Are you sure you want to delete this webhook? This action cannot be undone."
+        confirmText="Delete"
+        isDestructive={true}
+      />
     </div>
   );
 };

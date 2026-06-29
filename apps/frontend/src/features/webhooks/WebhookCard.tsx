@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { Icon } from '@iconify/react';
 import { Button } from '@/components/Button';
 import Switch from '@/components/Switch';
+import { ConfirmModal } from '@/components/ConfirmModal';
 import { Webhook } from './types';
 
 interface WebhookCardProps {
@@ -27,6 +28,7 @@ export function WebhookCard({
 }: WebhookCardProps) {
   const [revealSecret, setRevealSecret] = useState(false);
   const [isCopied, setIsCopied] = useState(false);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const testing = isTesting === webhook.id;
 
   const handleCopySecret = () => {
@@ -132,16 +134,25 @@ export function WebhookCard({
           <Button
             variant="bordered"
             className="px-2.5 py-1.5 text-xs hover:!border-error hover:!text-error"
-            onClick={() => {
-              if (confirm('Are you sure you want to delete this webhook?')) {
-                onDelete(webhook.id);
-              }
-            }}
+            onClick={() => setIsDeleteModalOpen(true)}
           >
             <Icon icon="lucide:trash-2" width={14} />
           </Button>
         </div>
       </div>
+
+      <ConfirmModal
+        isOpen={isDeleteModalOpen}
+        onClose={() => setIsDeleteModalOpen(false)}
+        onConfirm={() => {
+          setIsDeleteModalOpen(false);
+          onDelete(webhook.id);
+        }}
+        title="Delete Webhook"
+        description="Are you sure you want to delete this webhook? This action cannot be undone."
+        confirmText="Delete"
+        isDestructive={true}
+      />
     </div>
   );
 }
