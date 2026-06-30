@@ -5,6 +5,8 @@ import PageHeading from '@/components/PageHeading';
 import { Button } from '@/components/Button';
 import { Icon } from '@iconify/react';
 import { ConfirmModal } from '@/features/settings/components/ConfirmModal';
+import { useAuth } from '@/contexts/AuthContext';
+import Link from 'next/link';
 import {
   getTrashItemsApi,
   restoreMediaFileApi,
@@ -19,6 +21,10 @@ import {
 } from '@/features/media/api';
 
 export default function TrashPage() {
+  const { workspaces, user } = useAuth();
+  const activeWorkspace = workspaces.find((w) => w.id === user?.workspaceId);
+  const isMigrating = activeWorkspace?.migrationStatus === 'MIGRATING' || activeWorkspace?.migrationStatus === 'REVERTING';
+
   const [folders, setFolders] = useState<Folder[]>([]);
   const [files, setFiles] = useState<MediaFile[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -218,6 +224,7 @@ export default function TrashPage() {
             variant="ghost"
             className="border border-error/20 hover:bg-error/10 text-error flex items-center gap-1.5 text-sm font-semibold py-2.5 px-4 animate-in fade-in"
             onClick={() => setIsEmptyConfirmOpen(true)}
+            disabled={isMigrating}
           >
             <Icon icon="lucide:trash-2" width={16} />
             <span>Empty Recycle Bin</span>
@@ -226,7 +233,23 @@ export default function TrashPage() {
       </PageHeading>
 
       <div className="flex flex-col gap-6 p-8 pb-8 animate-in fade-in duration-350">
-        <div className="bg-card border border-border rounded-2xl overflow-hidden min-w-0 w-full shadow-lg">
+        {isMigrating ? (
+          <div className="bg-card border border-border rounded-2xl p-12 flex flex-col items-center justify-center text-center shadow-lg animate-fadeIn">
+            <div className="h-14 w-14 rounded-full bg-blue-500/10 border border-blue-500/20 flex items-center justify-center mb-4">
+              <Icon icon="line-md:loading-twotone-loop" className="text-blue-400" width={26} />
+            </div>
+            <h3 className="text-lg font-semibold text-text-light">
+              {activeWorkspace?.migrationStatus === 'REVERTING' ? 'Reverting Storage...' : 'Migration in Progress...'}
+            </h3>
+            <p className="text-sm text-text-muted mt-2 max-w-lg leading-relaxed">
+              OptiDrive is transferring files for this workspace ({activeWorkspace?.migrationProgress || '0%'}). All recycle bin operations (restores, permanent deletions) are temporarily locked to prevent data corruption.
+            </p>
+            <Link href="/settings/project" className="mt-5">
+              <Button variant="bordered">Check Migration Status</Button>
+            </Link>
+          </div>
+        ) : (
+          <div className="bg-card border border-border rounded-2xl overflow-hidden min-w-0 w-full shadow-lg">
           {/* Top Banner Notice */}
           <div className="bg-slate-900/40 px-6 py-4 border-b border-border flex items-center gap-3">
             <Icon icon="lucide:info" className="text-accent shrink-0" width={20} />
@@ -537,6 +560,7 @@ export default function TrashPage() {
             </table>
           </div>
         </div>
+        )}
       </div>
 
       {/* Empty Trash Confirmation Modal */}

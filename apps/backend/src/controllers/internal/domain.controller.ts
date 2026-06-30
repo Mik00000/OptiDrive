@@ -3,11 +3,25 @@ import { AuthRequest } from '../../middlewares/auth.middleware';
 import { prisma } from '../../config/prisma';
 import { Permission } from '@prisma/client';
 import dns from 'dns';
+import axios from 'axios';
 
 const dnsPromises = dns.promises;
 
 // Очікуване значення для CNAME
 const EXPECTED_CNAME = process.env.CNAME_TARGET || 'cname.optidrive.com';
+
+let cachedPublicIp: string | null = null;
+const getPublicIp = async (): Promise<string | null> => {
+  if (cachedPublicIp) return cachedPublicIp;
+  try {
+    const res = await axios.get('https://api.ipify.org?format=json', { timeout: 2000 });
+    cachedPublicIp = res.data.ip;
+    return cachedPublicIp;
+  } catch (err) {
+    console.warn('Failed to fetch public IP:', err);
+    return null;
+  }
+};
 
 const resolveCnameWithTimeout = (domain: string, timeoutMs: number = 3000): Promise<string[]> => {
   return Promise.race([
@@ -183,23 +197,34 @@ export const verifyDomain = async (req: AuthRequest, res: Response): Promise<voi
       errorDetail = `CNAME check failed. (Error: ${dnsErr.code || dnsErr.message})`;
     }
 
-    // 2. Якщо CNAME не підтвердився, перевіримо A-записи (корисно, якщо домен проксіюється через Cloudflare)
+    // 2. Якщо CNAME не підтвердився, перевіримо A-записи (корисно, якщо домен проксіюється через Cloudflare або вказаний напряму як A-запис)
     if (!isVerified) {
       try {
-        const [domainIps, targetIps] = await Promise.all([
-          resolveAWithTimeout(domainObj.domain, 3000).catch(() => []),
-          resolveAWithTimeout(EXPECTED_CNAME, 3000).catch(() => [])
-        ]);
+        const domainIps: string[] = await resolveAWithTimeout(domainObj.domain, 3000).catch((): string[] => []);
+        const targetIps: string[] = await resolveAWithTimeout(EXPECTED_CNAME, 3000).catch((): string[] => []);
+        const serverPublicIp: string | null = await getPublicIp().catch(() => null);
 
-        if (domainIps.length > 0 && targetIps.length > 0) {
-          const hasCommonIp = domainIps.some(ip => targetIps.includes(ip));
-          if (hasCommonIp) {
+        if (domainIps.length > 0) {
+          // Варіант А: IP-адреса домену збігається з IP нашого CNAME-призначення
+          const hasCommonIp = targetIps.length > 0 && domainIps.some(ip => targetIps.includes(ip));
+          
+          // Варіант Б: IP-адреса домену збігається з нашою зовнішньою публічною IP-адресою
+          const matchesServerIp = serverPublicIp && domainIps.includes(serverPublicIp);
+
+          // Варіант В: локальна IP (якщо тестується локально)
+          const isLocalIp = process.env.NODE_ENV === 'development' && (domainIps.includes('127.0.0.1') || domainIps.includes('::1'));
+
+          if (hasCommonIp || matchesServerIp || isLocalIp) {
             isVerified = true;
             errorDetail = '';
           } else {
-            errorDetail = `IP mismatch. Your domain points to [${domainIps.join(', ')}], but expected IPs pointing to ${EXPECTED_CNAME} [${targetIps.join(', ')}]`;
+            const expectedList = [
+              targetIps.length > 0 ? `${EXPECTED_CNAME} [${targetIps.join(', ')}]` : null,
+              serverPublicIp ? `Server IP [${serverPublicIp}]` : null
+            ].filter(Boolean).join(' or ');
+            errorDetail = `IP mismatch. Your domain points to [${domainIps.join(', ')}], but expected: ${expectedList}`;
           }
-        } else if (domainIps.length === 0) {
+        } else {
           errorDetail = `Could not resolve A records for ${domainObj.domain}. Make sure DNS configuration is correct.`;
         }
       } catch (aErr: any) {

@@ -10,7 +10,9 @@ import {
   getCompressionDefaults,
   updateCompressionDefaults,
   updateWorkspaceDetails,
-  deleteActiveWorkspace
+  deleteActiveWorkspace,
+  testS3Connection,
+  startWorkspaceMigration
 } from '../../controllers/workspace.controller';
 
 const router: Router = Router();
@@ -25,5 +27,7 @@ router.get('/compression-defaults', getCompressionDefaults);
 router.put('/compression-defaults', requirePermissions([Permission.MANAGE_WORKSPACE]), updateCompressionDefaults);
 router.put('/update', requirePermissions([Permission.MANAGE_WORKSPACE]), updateWorkspaceDetails);
 router.delete('/delete', deleteActiveWorkspace);
+router.post('/test-s3', requirePermissions([Permission.MANAGE_WORKSPACE]), testS3Connection);
+router.post('/start-migration', requirePermissions([Permission.MANAGE_WORKSPACE]), startWorkspaceMigration);
 
 export default router;

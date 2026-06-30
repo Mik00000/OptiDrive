@@ -204,13 +204,29 @@ export const downloadShareLink = async (req: Request, res: Response): Promise<vo
       const urlParts = file.cdnUrl.split('/');
       const fileKey = `${urlParts[urlParts.length - 2]}/${urlParts[urlParts.length - 1]}`;
 
+      const { getS3ConfigForWorkspace, s3Client: defaultS3Client, BUCKET_NAME: defaultBucketName } = await import('../config/s3');
+      const { client, bucketName } = await getS3ConfigForWorkspace(shareLink.workspaceId);
+
+      let activeClient = client;
+      let activeBucket = bucketName;
+
+      if (client !== defaultS3Client) {
+        const { HeadObjectCommand } = await import('@aws-sdk/client-s3');
+        try {
+          await client.send(new HeadObjectCommand({ Bucket: bucketName, Key: fileKey }));
+        } catch (err) {
+          activeClient = defaultS3Client;
+          activeBucket = defaultBucketName;
+        }
+      }
+
       const command = new GetObjectCommand({
-        Bucket: BUCKET_NAME,
+        Bucket: activeBucket,
         Key: fileKey,
         ResponseContentDisposition: `attachment; filename="${encodeURIComponent(file.name)}"`,
       });
 
-      const presignedUrl = await getSignedUrl(s3Client, command, { expiresIn: 3600 });
+      const presignedUrl = await getSignedUrl(activeClient, command, { expiresIn: 3600 });
 
       // Increment bandwidthUsed in workspace
       await prisma.workspace.update({

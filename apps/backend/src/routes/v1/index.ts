@@ -27,6 +27,15 @@ router.get('/media/:workspaceId/:filename', viewMediaController);
 // Protect all v1 routes below with API Key authentication
 router.use(authenticateApiKey);
 
+import { blockDuringMigration } from '../../middlewares/migration.middleware';
+router.use((req, res, next) => {
+  if (req.method !== 'GET') {
+    blockDuringMigration(req, res, next);
+  } else {
+    next();
+  }
+});
+
 // Compression Endpoint
 // The user sends an image via multipart/form-data with the field name 'image'
 import { checkQuota } from '../../middlewares/quota.middleware';

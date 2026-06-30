@@ -45,12 +45,39 @@ export const viewMediaController = async (req: Request, res: Response): Promise<
 
     const key = `${workspaceId}/${filename}`;
 
+    const { getS3ConfigForWorkspace, s3Client: defaultS3Client, BUCKET_NAME: defaultBucketName } = await import('../../config/s3');
+    const { client, bucketName } = await getS3ConfigForWorkspace(workspaceId);
+
     const command = new GetObjectCommand({
-      Bucket: BUCKET_NAME,
+      Bucket: bucketName,
       Key: key,
     });
 
-    const response = await s3Client.send(command);
+    let response;
+    try {
+      response = await client.send(command);
+    } catch (s3Err) {
+      if (client !== defaultS3Client) {
+        try {
+          response = await defaultS3Client.send(new GetObjectCommand({
+            Bucket: defaultBucketName,
+            Key: key
+          }));
+        } catch (fallbackErr) {
+          if (fallbackErr instanceof Error && fallbackErr.name === 'NoSuchKey') {
+            res.status(404).json({ error: 'Image not found' });
+            return;
+          }
+          throw fallbackErr;
+        }
+      } else {
+        if (s3Err instanceof Error && s3Err.name === 'NoSuchKey') {
+          res.status(404).json({ error: 'Image not found' });
+          return;
+        }
+        throw s3Err;
+      }
+    }
 
     if (!response.Body) {
       res.status(404).json({ error: 'Image not found' });

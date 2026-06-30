@@ -26,6 +26,14 @@ interface Workspace {
   plan: string;
   membersCount?: number;
   role: WorkspaceRole;
+  customS3Enabled?: boolean;
+  s3AccessKeyId?: string | null;
+  s3Endpoint?: string | null;
+  s3BucketName?: string | null;
+  s3Region?: string | null;
+  s3PublicUrl?: string | null;
+  migrationStatus?: string;
+  migrationProgress?: string | null;
 }
 
 interface AuthContextType {

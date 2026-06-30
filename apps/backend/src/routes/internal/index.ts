@@ -14,10 +14,27 @@ import webhookRoutes from './webhook.routes';
 import userRoutes from './user.routes';
 import domainsRoutes from './domains.routes';
 
+import { blockDuringMigration } from '../../middlewares/migration.middleware';
+
 const router: Router = Router();
 
 // Apply global API rate limit
 router.use(globalApiLimiter);
+
+router.use((req, res, next) => {
+  if (req.method !== 'GET' && (
+    req.path.startsWith('/media') || 
+    req.path.startsWith('/folders') || 
+    req.path.startsWith('/trash') || 
+    req.path.startsWith('/domains') || 
+    req.path.startsWith('/webhooks') ||
+    req.path.startsWith('/api-keys')
+  )) {
+    blockDuringMigration(req, res, next);
+  } else {
+    next();
+  }
+});
 
 router.post('/register', registerLimiter, register);
 router.post('/login', loginLimiter, login);

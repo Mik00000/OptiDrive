@@ -141,6 +141,14 @@ export const getUserWorkspaces = async (req: Request & { user?: any }, res: Resp
             name: true,
             slug: true,
             plan: true,
+            customS3Enabled: true,
+            s3AccessKeyId: true,
+            s3Endpoint: true,
+            s3BucketName: true,
+            s3Region: true,
+            s3PublicUrl: true,
+            migrationStatus: true,
+            migrationProgress: true,
             _count: { select: { members: true } }
           }
         },
@@ -159,6 +167,14 @@ export const getUserWorkspaces = async (req: Request & { user?: any }, res: Resp
       name: m.workspace.name,
       slug: m.workspace.slug,
       plan: m.workspace.plan,
+      customS3Enabled: m.workspace.customS3Enabled,
+      s3AccessKeyId: m.workspace.s3AccessKeyId,
+      s3Endpoint: m.workspace.s3Endpoint,
+      s3BucketName: m.workspace.s3BucketName,
+      s3Region: m.workspace.s3Region,
+      s3PublicUrl: m.workspace.s3PublicUrl,
+      migrationStatus: m.workspace.migrationStatus,
+      migrationProgress: m.workspace.migrationProgress,
       membersCount: m.workspace._count.members,
       role: m.role
     }));
@@ -399,10 +415,39 @@ export const updateWorkspaceDetails = async (req: Request & { user?: any }, res:
       return;
     }
 
-    const { name, slug } = req.body;
+    const { 
+      name, 
+      slug,
+      customS3Enabled,
+      s3AccessKeyId,
+      s3SecretAccessKey,
+      s3Endpoint,
+      s3BucketName,
+      s3Region,
+      s3PublicUrl
+    } = req.body;
 
     if (!name) {
       res.status(400).json({ error: 'Workspace name is required' });
+      return;
+    }
+
+    const currentWorkspace = await prisma.workspace.findUnique({
+      where: { id: workspaceId },
+      select: {
+        plan: true,
+        customS3Enabled: true,
+        s3AccessKeyId: true,
+        s3SecretAccessKey: true,
+        s3Endpoint: true,
+        s3BucketName: true,
+        s3Region: true,
+        s3PublicUrl: true
+      }
+    });
+
+    if (customS3Enabled === true && currentWorkspace?.plan !== 'ENTERPRISE') {
+      res.status(403).json({ error: 'Custom S3 Storage is only available on ENTERPRISE plans' });
       return;
     }
 
@@ -419,15 +464,70 @@ export const updateWorkspaceDetails = async (req: Request & { user?: any }, res:
       updateData.slug = cleanSlug;
     }
 
+    let startReversion = false;
+
+    if (customS3Enabled === false && currentWorkspace?.customS3Enabled === true) {
+      updateData.migrationStatus = 'REVERTING';
+      updateData.migrationProgress = '0%';
+      startReversion = true;
+    } else if (customS3Enabled === true && currentWorkspace?.customS3Enabled === false) {
+      const filesCount = await prisma.mediaFile.count({
+        where: { workspaceId, isDeleted: false }
+      });
+
+      if (filesCount > 0) {
+        updateData.customS3Enabled = false;
+        updateData.migrationStatus = 'MIGRATION_REQUIRED';
+        updateData.migrationProgress = `0/${filesCount} (0%)`;
+      } else {
+        updateData.customS3Enabled = true;
+        updateData.migrationStatus = 'COMPLETED';
+      }
+
+      if (s3AccessKeyId !== undefined) updateData.s3AccessKeyId = s3AccessKeyId;
+      if (s3SecretAccessKey !== undefined) updateData.s3SecretAccessKey = s3SecretAccessKey;
+      if (s3Endpoint !== undefined) updateData.s3Endpoint = s3Endpoint;
+      if (s3BucketName !== undefined) updateData.s3BucketName = s3BucketName;
+      if (s3Region !== undefined) updateData.s3Region = s3Region;
+      if (s3PublicUrl !== undefined) updateData.s3PublicUrl = s3PublicUrl;
+    } else {
+      if (customS3Enabled !== undefined) updateData.customS3Enabled = Boolean(customS3Enabled);
+      if (s3AccessKeyId !== undefined) updateData.s3AccessKeyId = s3AccessKeyId;
+      if (s3SecretAccessKey !== undefined) updateData.s3SecretAccessKey = s3SecretAccessKey;
+      if (s3Endpoint !== undefined) updateData.s3Endpoint = s3Endpoint;
+      if (s3BucketName !== undefined) updateData.s3BucketName = s3BucketName;
+      if (s3Region !== undefined) updateData.s3Region = s3Region;
+      if (s3PublicUrl !== undefined) updateData.s3PublicUrl = s3PublicUrl;
+    }
+
     const updated = await prisma.workspace.update({
       where: { id: workspaceId },
       data: updateData,
       select: {
         id: true,
         name: true,
-        slug: true
+        slug: true,
+        plan: true,
+        customS3Enabled: true,
+        s3AccessKeyId: true,
+        s3Endpoint: true,
+        s3BucketName: true,
+        s3Region: true,
+        s3PublicUrl: true,
+        migrationStatus: true,
+        migrationProgress: true
       }
     });
+
+    // Clear client cache so new credentials take effect immediately
+    const { clearWorkspaceS3Cache } = await import('../config/s3');
+    clearWorkspaceS3Cache(workspaceId);
+
+    if (startReversion) {
+      runBackgroundReversion(workspaceId, currentWorkspace).catch((err) => {
+        console.error(`[Reversion] Background reversion failed for workspace ${workspaceId}:`, err);
+      });
+    }
 
     res.status(200).json({ success: true, data: updated });
   } catch (error) {
@@ -438,9 +538,6 @@ export const updateWorkspaceDetails = async (req: Request & { user?: any }, res:
 
 export const deleteActiveWorkspace = async (req: Request & { user?: any }, res: Response): Promise<void> => {
   try {
-    const { DeleteObjectCommand } = await import('@aws-sdk/client-s3');
-    const { s3Client, BUCKET_NAME } = await import('../config/s3');
-    
     const userId = req.user?.userId;
     const workspaceId = req.user?.workspaceId;
 
@@ -448,6 +545,9 @@ export const deleteActiveWorkspace = async (req: Request & { user?: any }, res: 
       res.status(401).json({ error: 'Unauthorized' });
       return;
     }
+
+    const { getS3ConfigForWorkspace } = await import('../config/s3');
+    const { client, bucketName } = await getS3ConfigForWorkspace(workspaceId);
 
     const membership = await prisma.workspaceUser.findFirst({
       where: {
@@ -475,8 +575,8 @@ export const deleteActiveWorkspace = async (req: Request & { user?: any }, res: 
       }));
       
       try {
-        await s3Client.send(new DeleteObjectsCommand({
-          Bucket: BUCKET_NAME,
+        await client.send(new DeleteObjectsCommand({
+          Bucket: bucketName,
           Delete: { Objects: objects, Quiet: true }
         }));
       } catch (e) {
@@ -528,6 +628,467 @@ export const deleteActiveWorkspace = async (req: Request & { user?: any }, res: 
 
   } catch (error) {
     console.error('deleteActiveWorkspace Error:', error);
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
+};
+
+export const testS3Connection = async (req: Request & { user?: any }, res: Response): Promise<void> => {
+  try {
+    const workspaceId = req.user?.workspaceId;
+    const { s3AccessKeyId, s3SecretAccessKey, s3Endpoint, s3BucketName, s3Region } = req.body;
+
+    let finalAccessKeyId = s3AccessKeyId;
+    let finalSecretAccessKey = s3SecretAccessKey;
+    let finalBucketName = s3BucketName;
+    let finalEndpoint = s3Endpoint;
+    let finalRegion = s3Region;
+
+    if (workspaceId && (!finalAccessKeyId || !finalSecretAccessKey || !finalBucketName)) {
+      const workspace = await prisma.workspace.findUnique({
+        where: { id: workspaceId },
+        select: {
+          s3AccessKeyId: true,
+          s3SecretAccessKey: true,
+          s3BucketName: true,
+          s3Endpoint: true,
+          s3Region: true
+        }
+      });
+      if (workspace) {
+        if (!finalAccessKeyId) finalAccessKeyId = workspace.s3AccessKeyId;
+        if (!finalSecretAccessKey) finalSecretAccessKey = workspace.s3SecretAccessKey;
+        if (!finalBucketName) finalBucketName = workspace.s3BucketName;
+        if (!finalEndpoint) finalEndpoint = workspace.s3Endpoint;
+        if (!finalRegion) finalRegion = workspace.s3Region;
+      }
+    }
+
+    if (!finalAccessKeyId || !finalSecretAccessKey || !finalBucketName) {
+      res.status(400).json({ error: 'Missing S3 credentials' });
+      return;
+    }
+
+    const { S3Client, ListObjectsV2Command } = await import('@aws-sdk/client-s3');
+    
+    const s3Config: any = {
+      region: finalRegion || 'auto',
+      credentials: {
+        accessKeyId: finalAccessKeyId.trim(),
+        secretAccessKey: finalSecretAccessKey.trim(),
+      },
+    };
+    if (finalEndpoint && finalEndpoint.trim()) {
+      s3Config.endpoint = finalEndpoint.trim();
+    }
+
+    const client = new S3Client(s3Config);
+    
+    // 1. Verify list permission
+    await client.send(new ListObjectsV2Command({
+      Bucket: finalBucketName.trim(),
+      MaxKeys: 1
+    }));
+
+    // 2. Verify write & delete permission
+    const testKey = `.optidrive-connection-test-${Date.now()}.txt`;
+    const { PutObjectCommand, DeleteObjectCommand } = await import('@aws-sdk/client-s3');
+    
+    await client.send(new PutObjectCommand({
+      Bucket: finalBucketName.trim(),
+      Key: testKey,
+      Body: 'OptiDrive Connection Test',
+      ContentType: 'text/plain'
+    }));
+
+    await client.send(new DeleteObjectCommand({
+      Bucket: finalBucketName.trim(),
+      Key: testKey
+    }));
+
+    res.status(200).json({ success: true, message: 'Connection successful (Read & Write permissions verified)' });
+  } catch (err: any) {
+    console.error('[S3 Test] Connection failed:', err);
+    res.status(400).json({ success: false, error: err.message || 'Connection failed' });
+  }
+};
+
+const runBackgroundMigration = async (workspaceId: string, workspaceConfig: any) => {
+  const { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand } = await import('@aws-sdk/client-s3');
+  const { s3Client: defaultS3Client, BUCKET_NAME: defaultBucketName } = await import('../config/s3');
+  
+  try {
+    // Зчитуємо всі активні файли воркспейсу
+    const files = await prisma.mediaFile.findMany({
+      where: { workspaceId, isDeleted: false }
+    });
+
+    if (files.length === 0) {
+      await prisma.workspace.update({
+        where: { id: workspaceId },
+        data: {
+          migrationStatus: 'COMPLETED',
+          migrationProgress: '0/0 (100%)'
+        }
+      });
+      return;
+    }
+
+    // Ініціалізуємо клієнт для кастомного сховища
+    const s3Config: any = {
+      region: workspaceConfig.s3Region || 'auto',
+      credentials: {
+        accessKeyId: workspaceConfig.s3AccessKeyId,
+        secretAccessKey: workspaceConfig.s3SecretAccessKey,
+      },
+    };
+    if (workspaceConfig.s3Endpoint) {
+      s3Config.endpoint = workspaceConfig.s3Endpoint;
+    }
+    const customClient = new S3Client(s3Config);
+
+    console.log(`[Migration] Starting parallel migration of ${files.length} files for workspace: ${workspaceId}`);
+
+    let migratedCount = 0;
+    const batchSize = 15;
+
+    for (let i = 0; i < files.length; i += batchSize) {
+      const batch = files.slice(i, i + batchSize);
+
+      await Promise.all(batch.map(async (file) => {
+        const urlParts = file.cdnUrl.split('/');
+        const filename = urlParts[urlParts.length - 1];
+        const folderName = urlParts[urlParts.length - 2];
+        const fileKey = `${folderName}/${filename}`;
+
+        try {
+          // 1. Скачуємо файл з дефолтного бакету R2
+          const getCmd = new GetObjectCommand({
+            Bucket: defaultBucketName,
+            Key: fileKey
+          });
+          const r2Response = await defaultS3Client.send(getCmd);
+          
+          if (r2Response.Body) {
+            const chunks = [];
+            for await (const chunk of r2Response.Body as any) {
+              chunks.push(chunk);
+            }
+            const fileBuffer = Buffer.concat(chunks);
+
+            // 2. Завантажуємо файл у новий кастомний бакет
+            const contentTypeMap: Record<string, string> = {
+              'webp': 'image/webp',
+              'avif': 'image/avif',
+              'jpeg': 'image/jpeg',
+              'jpg': 'image/jpeg',
+              'png': 'image/png',
+              'gif': 'image/gif',
+              'svg': 'image/svg+xml',
+            };
+            const fileFormat = file.format.toLowerCase();
+
+            await customClient.send(new PutObjectCommand({
+              Bucket: workspaceConfig.s3BucketName,
+              Key: fileKey,
+              Body: fileBuffer,
+              ContentType: contentTypeMap[fileFormat] || 'application/octet-stream',
+              CacheControl: 'public, max-age=31536000',
+            }));
+
+            // 3. Оновлюємо CDN URL у базі даних (якщо вказано custom public CDN url)
+            let newCdnUrl = '';
+            if (workspaceConfig.s3PublicUrl) {
+              newCdnUrl = `${workspaceConfig.s3PublicUrl}/${fileKey}`;
+            } else {
+              const apiBase = process.env.API_URL || 'http://localhost:3001';
+              newCdnUrl = `${apiBase}/api/v1/media/${fileKey}`;
+            }
+
+            await prisma.mediaFile.update({
+              where: { id: file.id },
+              data: { cdnUrl: newCdnUrl }
+            });
+
+            // 4. Видаляємо оригінальний файл із дефолтного R2 бакету
+            await defaultS3Client.send(new DeleteObjectCommand({
+              Bucket: defaultBucketName,
+              Key: fileKey
+            }));
+          }
+        } catch (fileErr) {
+          console.error(`[Migration] Failed to migrate file ${file.id} (${file.name}):`, fileErr);
+        }
+      }));
+
+      migratedCount += batch.length;
+      const progressPercent = Math.round((migratedCount / files.length) * 100);
+      await prisma.workspace.update({
+        where: { id: workspaceId },
+        data: {
+          migrationProgress: `${migratedCount}/${files.length} (${progressPercent}%)`
+        }
+      });
+    }
+
+    await prisma.workspace.update({
+      where: { id: workspaceId },
+      data: {
+        customS3Enabled: true,
+        migrationStatus: 'COMPLETED'
+      }
+    });
+
+    console.log(`[Migration] Successfully completed migration of ${migratedCount} files for workspace: ${workspaceId}`);
+  } catch (error) {
+    console.error(`[Migration] Fatal error in migration for workspace: ${workspaceId}`, error);
+    await prisma.workspace.update({
+      where: { id: workspaceId },
+      data: {
+        migrationStatus: 'FAILED'
+      }
+    });
+  }
+};
+
+const runBackgroundReversion = async (workspaceId: string, workspaceConfig: any) => {
+  const { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand } = await import('@aws-sdk/client-s3');
+  const { s3Client: defaultS3Client, BUCKET_NAME: defaultBucketName } = await import('../config/s3');
+  
+  try {
+    const files = await prisma.mediaFile.findMany({
+      where: { workspaceId, isDeleted: false }
+    });
+
+    if (files.length === 0) {
+      await prisma.workspace.update({
+        where: { id: workspaceId },
+        data: {
+          customS3Enabled: false,
+          s3AccessKeyId: null,
+          s3SecretAccessKey: null,
+          s3Endpoint: null,
+          s3BucketName: null,
+          s3Region: null,
+          s3PublicUrl: null,
+          migrationStatus: 'NONE',
+          migrationProgress: null
+        }
+      });
+      return;
+    }
+
+    const s3Config: any = {
+      region: workspaceConfig.s3Region || 'auto',
+      credentials: {
+        accessKeyId: workspaceConfig.s3AccessKeyId,
+        secretAccessKey: workspaceConfig.s3SecretAccessKey,
+      },
+    };
+    if (workspaceConfig.s3Endpoint) {
+      s3Config.endpoint = workspaceConfig.s3Endpoint;
+    }
+    const customClient = new S3Client(s3Config);
+
+    console.log(`[Reversion] Starting parallel reversion of ${files.length} files for workspace: ${workspaceId}`);
+
+    let revertedCount = 0;
+    const batchSize = 15;
+
+    for (let i = 0; i < files.length; i += batchSize) {
+      const batch = files.slice(i, i + batchSize);
+
+      await Promise.all(batch.map(async (file) => {
+        const urlParts = file.cdnUrl.split('/');
+        const filename = urlParts[urlParts.length - 1];
+        const folderName = urlParts[urlParts.length - 2];
+        const fileKey = `${folderName}/${filename}`;
+
+        try {
+          // 1. Скачуємо файл з кастомного сховища
+          const customResponse = await customClient.send(new GetObjectCommand({
+            Bucket: workspaceConfig.s3BucketName,
+            Key: fileKey
+          }));
+
+          if (customResponse.Body) {
+            const chunks = [];
+            for await (const chunk of customResponse.Body as any) {
+              chunks.push(chunk);
+            }
+            const fileBuffer = Buffer.concat(chunks);
+
+            // 2. Завантажуємо файл у стандартний бакет R2
+            const contentTypeMap: Record<string, string> = {
+              'webp': 'image/webp',
+              'avif': 'image/avif',
+              'jpeg': 'image/jpeg',
+              'jpg': 'image/jpeg',
+              'png': 'image/png',
+              'gif': 'image/gif',
+              'svg': 'image/svg+xml',
+            };
+            const fileFormat = file.format.toLowerCase();
+
+            await defaultS3Client.send(new PutObjectCommand({
+              Bucket: defaultBucketName,
+              Key: fileKey,
+              Body: fileBuffer,
+              ContentType: contentTypeMap[fileFormat] || 'application/octet-stream',
+              CacheControl: 'public, max-age=31536000',
+            }));
+
+            // 3. Оновлюємо CDN URL у базі даних (повертаємо стандартний локальний проксі-шлях)
+            const apiBase = process.env.API_URL || 'http://localhost:3001';
+            const newCdnUrl = `${apiBase}/api/v1/media/${fileKey}`;
+
+            await prisma.mediaFile.update({
+              where: { id: file.id },
+              data: { cdnUrl: newCdnUrl }
+            });
+
+            // 4. Видаляємо файл із кастомного бакету
+            await customClient.send(new DeleteObjectCommand({
+              Bucket: workspaceConfig.s3BucketName,
+              Key: fileKey
+            }));
+          }
+        } catch (fileErr) {
+          console.error(`[Reversion] Failed to revert file ${file.id} (${file.name}):`, fileErr);
+        }
+      }));
+
+      revertedCount += batch.length;
+      const progressPercent = Math.round((revertedCount / files.length) * 100);
+      await prisma.workspace.update({
+        where: { id: workspaceId },
+        data: {
+          migrationProgress: `${revertedCount}/${files.length} (${progressPercent}%)`
+        }
+      });
+    }
+
+    // Вимикаємо кастомне сховище після успішного реверсу
+    await prisma.workspace.update({
+      where: { id: workspaceId },
+      data: {
+        customS3Enabled: false,
+        s3AccessKeyId: null,
+        s3SecretAccessKey: null,
+        s3Endpoint: null,
+        s3BucketName: null,
+        s3Region: null,
+        s3PublicUrl: null,
+        migrationStatus: 'NONE',
+        migrationProgress: null
+      }
+    });
+
+    console.log(`[Reversion] Successfully completed reversion of ${revertedCount} files for workspace: ${workspaceId}`);
+  } catch (error) {
+    console.error(`[Reversion] Fatal error in reversion for workspace: ${workspaceId}`, error);
+    await prisma.workspace.update({
+      where: { id: workspaceId },
+      data: {
+        migrationStatus: 'FAILED'
+      }
+    });
+  }
+};
+
+export const startWorkspaceMigration = async (req: Request & { user?: any }, res: Response): Promise<void> => {
+  try {
+    const workspaceId = req.user?.workspaceId;
+    if (!workspaceId) {
+      res.status(401).json({ error: 'Unauthorized' });
+      return;
+    }
+
+    const workspace = await prisma.workspace.findUnique({
+      where: { id: workspaceId },
+      select: {
+        plan: true,
+        customS3Enabled: true,
+        s3AccessKeyId: true,
+        s3SecretAccessKey: true,
+        s3Endpoint: true,
+        s3BucketName: true,
+        s3Region: true,
+        s3PublicUrl: true,
+        migrationStatus: true
+      }
+    });
+
+    if (!workspace || workspace.plan !== 'ENTERPRISE') {
+      res.status(403).json({ error: 'Migration is only available for Enterprise workspaces.' });
+      return;
+    }
+
+    if (workspace.migrationStatus === 'MIGRATING') {
+      res.status(400).json({ error: 'Migration is already in progress.' });
+      return;
+    }
+
+    if (!workspace.s3AccessKeyId || !workspace.s3SecretAccessKey || !workspace.s3BucketName) {
+      res.status(400).json({ error: 'S3 credentials are not fully configured.' });
+      return;
+    }
+
+    // 1. Перевірка доступу перед запуском міграції
+    const { S3Client, ListObjectsV2Command } = await import('@aws-sdk/client-s3');
+    const s3Config: any = {
+      region: workspace.s3Region || 'auto',
+      credentials: {
+        accessKeyId: workspace.s3AccessKeyId,
+        secretAccessKey: workspace.s3SecretAccessKey,
+      },
+    };
+    if (workspace.s3Endpoint) {
+      s3Config.endpoint = workspace.s3Endpoint;
+    }
+
+     const client = new S3Client(s3Config);
+     try {
+       // 1. Verify list
+       await client.send(new ListObjectsV2Command({
+         Bucket: workspace.s3BucketName,
+         MaxKeys: 1
+       }));
+
+       // 2. Verify write & delete
+       const testKey = `.optidrive-connection-test-${Date.now()}.txt`;
+       const { PutObjectCommand, DeleteObjectCommand } = await import('@aws-sdk/client-s3');
+       await client.send(new PutObjectCommand({
+         Bucket: workspace.s3BucketName,
+         Key: testKey,
+         Body: 'OptiDrive Connection Test',
+         ContentType: 'text/plain'
+       }));
+       await client.send(new DeleteObjectCommand({
+         Bucket: workspace.s3BucketName,
+         Key: testKey
+       }));
+     } catch (pingErr: any) {
+       res.status(400).json({ error: `Could not connect or write to S3 bucket. Ensure credentials have both Read and Write permissions. Error: ${pingErr.message}` });
+       return;
+     }
+
+    // 2. Встановлюємо статус MIGRATING
+    await prisma.workspace.update({
+      where: { id: workspaceId },
+      data: {
+        migrationStatus: 'MIGRATING',
+        migrationProgress: '0%'
+      }
+    });
+
+    // 3. Запускаємо фоновий процес міграції
+    runBackgroundMigration(workspaceId, workspace).catch((err) => {
+      console.error(`[Migration] Background migration for workspaceId ${workspaceId} failed:`, err);
+    });
+
+    res.status(200).json({ success: true, message: 'Migration started in the background.' });
+  } catch (error) {
+    console.error('startWorkspaceMigration Error:', error);
     res.status(500).json({ error: 'Internal Server Error' });
   }
 };

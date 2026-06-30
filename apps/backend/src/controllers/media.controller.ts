@@ -346,14 +346,34 @@ export const downloadMediaFile = async (req: AuthRequest, res: Response): Promis
     const urlParts = mediaFile.cdnUrl.split('/');
     const fileKey = `${urlParts[urlParts.length - 2]}/${urlParts[urlParts.length - 1]}`;
 
+    const { getS3ConfigForWorkspace, s3Client: defaultS3Client, BUCKET_NAME: defaultBucketName } = await import('../config/s3');
+    const { client, bucketName } = await getS3ConfigForWorkspace(workspaceId);
+
+    // Спершу пробуємо кастомний S3. Якщо файл там є, генеруємо посилання на нього.
+    // Якщо ж файл старий і лежить на дефолтному бакеті R2, ми маємо згенерувати посилання на дефолтний бакет.
+    // Оскільки ми генеруємо presigned посилання, ми маємо перевірити чи є об'єкт у кастомному бакеті через HeadObjectCommand.
+    let activeClient = client;
+    let activeBucket = bucketName;
+
+    if (client !== defaultS3Client) {
+      const { HeadObjectCommand } = await import('@aws-sdk/client-s3');
+      try {
+        await client.send(new HeadObjectCommand({ Bucket: bucketName, Key: fileKey }));
+      } catch (err) {
+        // Якщо об'єкта немає в кастомному S3, робимо fallback на дефолтний R2
+        activeClient = defaultS3Client;
+        activeBucket = defaultBucketName;
+      }
+    }
+
     const command = new GetObjectCommand({
-      Bucket: BUCKET_NAME,
+      Bucket: activeBucket,
       Key: fileKey,
       ResponseContentDisposition: `attachment; filename="${encodeURIComponent(mediaFile.name)}"`,
     });
 
     // Generate a presigned URL valid for 1 hour
-    const presignedUrl = await getSignedUrl(s3Client, command, { expiresIn: 3600 });
+    const presignedUrl = await getSignedUrl(activeClient, command, { expiresIn: 3600 });
 
     // Increment bandwidthUsed in workspace
     await prisma.workspace.update({

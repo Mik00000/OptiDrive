@@ -29,16 +29,32 @@ export const viewMediaFileOnTheFly = async (req: Request, res: Response): Promis
     const fileKey = `${urlParts[urlParts.length - 2]}/${urlParts[urlParts.length - 1]}`;
 
     // Завантажуємо файл з S3/R2
+    const { getS3ConfigForWorkspace, s3Client: defaultS3Client, BUCKET_NAME: defaultBucketName } = await import('../config/s3');
+    const { client, bucketName } = await getS3ConfigForWorkspace(mediaFile.workspaceId);
+
     let s3Response;
     try {
-      s3Response = await s3Client.send(new GetObjectCommand({
-        Bucket: BUCKET_NAME,
+      s3Response = await client.send(new GetObjectCommand({
+        Bucket: bucketName,
         Key: fileKey
       }));
     } catch (s3Err) {
-      console.error(`[On-The-Fly] Failed to fetch file ${fileKey} from S3:`, s3Err);
-      res.status(404).json({ error: 'Original file not found in storage' });
-      return;
+      if (client !== defaultS3Client) {
+        try {
+          s3Response = await defaultS3Client.send(new GetObjectCommand({
+            Bucket: defaultBucketName,
+            Key: fileKey
+          }));
+        } catch (fallbackErr) {
+          console.error(`[On-The-Fly] Failed to fetch file ${fileKey} from fallback default S3:`, fallbackErr);
+          res.status(404).json({ error: 'Original file not found in storage' });
+          return;
+        }
+      } else {
+        console.error(`[On-The-Fly] Failed to fetch file ${fileKey} from S3:`, s3Err);
+        res.status(404).json({ error: 'Original file not found in storage' });
+        return;
+      }
     }
 
     const bodyStream = s3Response.Body;

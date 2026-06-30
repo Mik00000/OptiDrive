@@ -143,10 +143,33 @@ export interface WorkspaceUpdateData {
   id: string;
   name: string;
   slug: string;
+  plan: string;
+  customS3Enabled: boolean;
+  s3AccessKeyId: string | null;
+  s3Endpoint: string | null;
+  s3BucketName: string | null;
+  s3Region: string | null;
+  s3PublicUrl: string | null;
 }
 
-export const updateWorkspaceApi = async (name: string, slug?: string) => {
-  const response = await apiClient.put<{ data: WorkspaceUpdateData }>('/api/internal/workspace/update', { name, slug });
+export const updateWorkspaceApi = async (
+  name: string, 
+  slug?: string,
+  customS3?: {
+    customS3Enabled: boolean;
+    s3AccessKeyId?: string;
+    s3SecretAccessKey?: string;
+    s3Endpoint?: string;
+    s3BucketName?: string;
+    s3Region?: string;
+    s3PublicUrl?: string;
+  }
+) => {
+  const response = await apiClient.put<{ data: WorkspaceUpdateData }>('/api/internal/workspace/update', { 
+    name, 
+    slug,
+    ...customS3
+  });
   return response.data;
 };
 
@@ -190,6 +213,22 @@ export const deleteDomainApi = async (id: string) => {
 export const verifyDomainApi = async (id: string, mock = false) => {
   const url = mock ? `/api/internal/domains/${id}/verify?mock=true` : `/api/internal/domains/${id}/verify`;
   const response = await apiClient.post<{ success: boolean; verified: boolean; data: CustomDomain; errorDetail?: string }>(url);
+  return response;
+};
+
+export const testS3ConnectionApi = async (credentials: {
+  s3AccessKeyId: string;
+  s3SecretAccessKey: string;
+  s3Endpoint?: string;
+  s3BucketName: string;
+  s3Region?: string;
+}) => {
+  const response = await apiClient.post<{ success: boolean; message: string; error?: string }>('/api/internal/workspace/test-s3', credentials);
+  return response;
+};
+
+export const startWorkspaceMigrationApi = async () => {
+  const response = await apiClient.post<{ success: boolean; message: string }>('/api/internal/workspace/start-migration');
   return response;
 };
 

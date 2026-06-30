@@ -367,6 +367,9 @@ export const deleteAccount = async (req: AuthRequest, res: Response): Promise<vo
         where: { workspaceId: ow.workspaceId }
       });
 
+      const { getS3ConfigForWorkspace } = await import('../config/s3');
+      const { client, bucketName } = await getS3ConfigForWorkspace(ow.workspaceId);
+
       const chunkSize = 1000;
       for (let i = 0; i < files.length; i += chunkSize) {
         const chunk = files.slice(i, i + chunkSize);
@@ -374,8 +377,8 @@ export const deleteAccount = async (req: AuthRequest, res: Response): Promise<vo
           Key: `${ow.workspaceId}/${file.cdnUrl.split('/').pop()}`
         }));
         try {
-          await s3Client.send(new DeleteObjectsCommand({
-            Bucket: BUCKET_NAME,
+          await client.send(new DeleteObjectsCommand({
+            Bucket: bucketName,
             Delete: { Objects: objects, Quiet: true }
           }));
         } catch (e) {

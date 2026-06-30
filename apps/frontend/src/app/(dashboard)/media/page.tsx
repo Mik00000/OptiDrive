@@ -1,7 +1,6 @@
 'use client';
 
 import { Button } from '@/components/Button';
-import { Input } from '@/components/Inputs';
 import PageHeading from '@/components/PageHeading';
 import Link from 'next/link';
 import { Icon } from '@iconify/react';
@@ -10,8 +9,33 @@ import { MediaTable } from '@/features/media/MediaTable';
 import { UploadMediaModal } from '@/features/media/UploadMediaModal';
 import { getWorkspaceStatsApi, WorkspaceStats } from '@/features/dashboard/api';
 import QuotaAlerts from '@/features/dashboard/QuotaAlerts';
+import { useAuth } from '@/contexts/AuthContext';
 
 const MediaLibraryPage = () => {
+  const { workspaces, user, login } = useAuth();
+  const activeWorkspace = workspaces.find((w) => w.id === user?.workspaceId);
+  const isMigrating = activeWorkspace?.migrationStatus === 'MIGRATING' || activeWorkspace?.migrationStatus === 'REVERTING';
+
+  const [isStartingMigration, setIsStartingMigration] = useState(false);
+
+  const handleStartMigration = async () => {
+    setIsStartingMigration(true);
+    try {
+      const { startWorkspaceMigrationApi } = await import('@/features/settings/api');
+      const res = await startWorkspaceMigrationApi();
+      if (res.success) {
+        if (user) {
+          const token = localStorage.getItem('optidrive_token') || '';
+          login(token, { ...user }, true);
+        }
+      }
+    } catch (err: any) {
+      console.error('Failed to start migration:', err);
+    } finally {
+      setIsStartingMigration(false);
+    }
+  };
+
   const [formatFilter, setFormatFilter] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [isSelectionMode, setIsSelectionMode] = useState(false);
@@ -32,15 +56,15 @@ const MediaLibraryPage = () => {
     getWorkspaceStatsApi().then(setStats).catch(console.error);
   }, [refreshKey]);
 
-  const isUploadBlocked = stats
+  const isUploadBlocked = isMigrating || (stats
     ? Number(stats.storageUsed) >= Number(stats.limits.storageBytes) ||
       Number(stats.bandwidthUsed) >= Number(stats.limits.bandwidthBytes) ||
       stats.monthlyOptimizations >= stats.limits.monthlyOptimizations
-    : false;
+    : false);
 
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
-    if (isUploadBlocked) return;
+    if (isUploadBlocked || isMigrating) return;
     if (e.dataTransfer.types.includes('Files')) {
       setIsDraggingOverPage(true);
     }
@@ -54,7 +78,7 @@ const MediaLibraryPage = () => {
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
     setIsDraggingOverPage(false);
-    if (isUploadBlocked) return;
+    if (isUploadBlocked || isMigrating) return;
     if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
       setDroppedFile(e.dataTransfer.files[0]);
       setIsUploadModalOpen(true);
@@ -84,6 +108,7 @@ const MediaLibraryPage = () => {
               variant="ghost" 
               className="xl:hidden border border-border bg-card"
               onClick={() => setIsSelectionMode(!isSelectionMode)}
+              disabled={isMigrating}
             >
               {isSelectionMode ? 'Cancel' : 'Select'}
             </Button>
@@ -110,19 +135,61 @@ const MediaLibraryPage = () => {
         </PageHeading>
         <div className="flex flex-col gap-6 p-8 pb-0">
           <QuotaAlerts />
-          <div className='flex flex-col w-full h-fit min-w-0 gap-4 xl:gap-0 xl:bg-card xl:border border-border rounded-2xl '>
-            <MediaTable 
-              searchQuery={searchQuery} 
-              setSearchQuery={setSearchQuery}
-              formatFilter={formatFilter} 
-              setFormatFilter={setFormatFilter}
-              isSelectionMode={isSelectionMode}
-              onSelectionModeChange={setIsSelectionMode}
-              refreshKey={refreshKey}
-              currentFolderId={currentFolderId}
-              onFolderChange={setCurrentFolderId}
-            />
-          </div>
+
+          {activeWorkspace?.migrationStatus === 'MIGRATION_REQUIRED' && (
+            <div className="bg-amber-500/10 border border-amber-500/20 rounded-2xl p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 animate-in fade-in slide-in-from-top-4 duration-300">
+              <div className="flex gap-3">
+                <div className="h-10 w-10 rounded-full bg-amber-500/10 border border-amber-500/20 flex items-center justify-center shrink-0">
+                  <Icon icon="lucide:arrow-right-left" className="text-amber-400" width={20} />
+                </div>
+                <div className="flex flex-col gap-0.5">
+                  <h4 className="text-sm font-semibold text-text-light">Custom Storage Activation Required</h4>
+                  <p className="text-xs text-text-muted leading-relaxed max-w-2xl">
+                    Your custom S3 storage is connected, but not active. You must migrate your existing files to activate custom S3. Currently, all new files are still uploaded to the default storage.
+                  </p>
+                </div>
+              </div>
+              <Button
+                variant="accent"
+                className="w-full sm:w-auto h-10 px-5 shrink-0 justify-center font-semibold text-sm hover:scale-102 transition-transform duration-200"
+                onClick={handleStartMigration}
+                disabled={isStartingMigration}
+              >
+                {isStartingMigration ? 'Starting...' : 'Migrate Now'}
+              </Button>
+            </div>
+          )}
+
+          {isMigrating ? (
+            <div className="flex flex-col items-center justify-center p-12 text-center bg-card border border-border rounded-2xl animate-fadeIn">
+              <div className="h-14 w-14 rounded-full bg-blue-500/10 border border-blue-500/20 flex items-center justify-center mb-4">
+                <Icon icon="line-md:loading-twotone-loop" className="text-blue-400" width={26} />
+              </div>
+              <h3 className="text-lg font-semibold text-text-light">
+                {activeWorkspace?.migrationStatus === 'REVERTING' ? 'Reverting Storage...' : 'Migration in Progress...'}
+              </h3>
+              <p className="text-sm text-text-muted mt-2 max-w-lg leading-relaxed">
+                OptiDrive is transferring files for this workspace ({activeWorkspace?.migrationProgress || '0%'}). All media library write operations (uploads, deletes, folder creation) are temporarily locked to prevent data corruption.
+              </p>
+              <Link href="/settings/project" className="mt-5">
+                <Button variant="bordered">Check Migration Status</Button>
+              </Link>
+            </div>
+          ) : (
+            <div className='flex flex-col w-full h-fit min-w-0 gap-4 xl:gap-0 xl:bg-card xl:border border-border rounded-2xl '>
+              <MediaTable 
+                searchQuery={searchQuery} 
+                setSearchQuery={setSearchQuery}
+                formatFilter={formatFilter} 
+                setFormatFilter={setFormatFilter}
+                isSelectionMode={isSelectionMode}
+                onSelectionModeChange={setIsSelectionMode}
+                refreshKey={refreshKey}
+                currentFolderId={currentFolderId}
+                onFolderChange={setCurrentFolderId}
+              />
+            </div>
+          )}
         </div>
         
         <UploadMediaModal 

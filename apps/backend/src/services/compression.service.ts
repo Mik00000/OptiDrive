@@ -1,5 +1,5 @@
 import { PutObjectCommand } from '@aws-sdk/client-s3';
-import { s3Client, BUCKET_NAME } from '../config/s3';
+import { s3Client, BUCKET_NAME, getS3ConfigForWorkspace } from '../config/s3';
 import crypto from 'crypto';
 import path from 'path';
 import sharp from 'sharp';
@@ -34,6 +34,7 @@ export const compressImage = async ({
   workspaceId,
   options
 }: CompressImageParams): Promise<CompressionResult> => {
+  const { client, bucketName, publicUrl } = await getS3ConfigForWorkspace(workspaceId);
   const originalSize = buffer.length;
   let optimizedBuffer: Buffer;
   let finalFormat: string;
@@ -81,19 +82,19 @@ export const compressImage = async ({
   };
 
   const uploadCommand = new PutObjectCommand({
-    Bucket: BUCKET_NAME,
+    Bucket: bucketName,
     Key: fileKey,
     Body: optimizedBuffer,
     ContentType: contentTypeMap[finalFormat] || 'application/octet-stream',
     CacheControl: 'public, max-age=31536000',
   });
 
-  await s3Client.send(uploadCommand);
+  await client.send(uploadCommand);
 
   // Construct CDN URL
   let cdnUrl = '';
-  if (process.env.R2_PUBLIC_URL) {
-    cdnUrl = `${process.env.R2_PUBLIC_URL}/${fileKey}`;
+  if (publicUrl) {
+    cdnUrl = `${publicUrl}/${fileKey}`;
   } else {
     // Return the local proxy URL 
     const apiBase = process.env.API_URL || 'http://localhost:3001';
