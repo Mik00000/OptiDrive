@@ -6,6 +6,7 @@ import { Modal } from '@/components/Modal';
 import { Button } from '@/components/Button';
 import { Input } from '@/components/Inputs';
 import { createShareLinkApi, getShareLinksApi, deleteShareLinkApi, ShareLink } from './api';
+import { getDomainsApi } from '../settings/api';
 
 interface ShareModalProps {
   isOpen: boolean;
@@ -25,6 +26,8 @@ export function ShareModal({ isOpen, onClose, targetId, targetType, targetName }
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [activeDomains, setActiveDomains] = useState<string[]>([]);
+  const [selectedDomain, setSelectedDomain] = useState<string>('default');
 
   const loadLinks = useCallback(async () => {
     if (!targetId || !targetType) return;
@@ -41,11 +44,22 @@ export function ShareModal({ isOpen, onClose, targetId, targetType, targetName }
     }
   }, [targetId, targetType]);
 
+  const loadActiveDomains = useCallback(async () => {
+    try {
+      const result = await getDomainsApi();
+      const active = result.filter((d: any) => d.status === 'ACTIVE').map((d: any) => d.domain);
+      setActiveDomains(active);
+    } catch (err) {
+      console.error('Failed to load active domains for share modal:', err);
+    }
+  }, []);
+
   useEffect(() => {
     if (isOpen && targetId && targetType) {
       loadLinks();
+      loadActiveDomains();
     }
-  }, [isOpen, targetId, targetType, loadLinks]);
+  }, [isOpen, targetId, targetType, loadLinks, loadActiveDomains]);
 
   const handleClose = () => {
     setLinks([]);
@@ -53,6 +67,8 @@ export function ShareModal({ isOpen, onClose, targetId, targetType, targetName }
     setExpiresIn('7');
     setErrorMsg(null);
     setDeleteId(null);
+    setActiveDomains([]);
+    setSelectedDomain('default');
     onClose();
   };
 
@@ -95,7 +111,10 @@ export function ShareModal({ isOpen, onClose, targetId, targetType, targetName }
   };
 
   const handleCopy = (slug: string) => {
-    const url = `${window.location.origin}/s/${slug}`;
+    const base = selectedDomain === 'default'
+      ? window.location.origin
+      : `${window.location.protocol}//${selectedDomain}${window.location.port ? `:${window.location.port}` : ''}`;
+    const url = `${base}/s/${slug}`;
     navigator.clipboard.writeText(url);
     setCopiedSlug(slug);
     setTimeout(() => setCopiedSlug(null), 2000);
@@ -152,6 +171,24 @@ export function ShareModal({ isOpen, onClose, targetId, targetType, targetName }
           </Button>
         </div>
 
+        {activeDomains.length > 0 && (
+          <div className="flex flex-col gap-1.5 border border-border bg-card p-4 rounded-xl">
+            <label className="text-xs font-semibold text-text-light flex items-center gap-2">
+              <Icon icon="lucide:globe" className="text-accent" />
+              Domain for share links
+            </label>
+            <Input 
+              variant="select" 
+              value={selectedDomain}
+              onChange={(val) => setSelectedDomain(val)}
+              options={[
+                { label: `Default (${window.location.host})`, value: "default" },
+                ...activeDomains.map(d => ({ label: d, value: d }))
+              ]}
+            />
+          </div>
+        )}
+
         {loading ? (
           <div className="py-4 text-center text-text-muted"><Icon icon="lucide:loader-2" className="animate-spin mx-auto text-xl" /></div>
         ) : links.length > 0 ? (
@@ -161,7 +198,7 @@ export function ShareModal({ isOpen, onClose, targetId, targetType, targetName }
               {links.map(link => (
                 <div key={link.id} className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 bg-bg border border-border rounded-lg">
                   <div className="flex flex-col">
-                    <span className="text-sm font-mono text-text-light">{window.location.host}/s/{link.slug}</span>
+                    <span className="text-sm font-mono text-text-light">{selectedDomain === 'default' ? window.location.host : selectedDomain}/s/{link.slug}</span>
                     <div className="flex items-center gap-3 text-xs text-text-muted mt-1">
                       {link.password && <span className="flex items-center gap-1"><Icon icon="lucide:lock" width={12} /> Protected</span>}
                       {link.expiresAt && <span className="flex items-center gap-1"><Icon icon="lucide:clock" width={12} /> Expires {new Date(link.expiresAt).toLocaleDateString()}</span>}

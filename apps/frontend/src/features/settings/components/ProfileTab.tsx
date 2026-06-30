@@ -399,8 +399,8 @@ export const ProfileTab = () => {
 
                     // Автофокус на наступний інпут
                     if (index < 5) {
-                      const next = e.target.nextElementSibling;
-                      if (next) next.focus();
+                      const next = e.currentTarget.nextElementSibling;
+                      if (next) (next as HTMLElement).focus();
                     }
                   }}
                   onKeyDown={(e) => {
@@ -412,8 +412,8 @@ export const ProfileTab = () => {
 
                       // Автофокус на попередній інпут при стиранні
                       if (index > 0) {
-                        const prev = e.target.previousElementSibling;
-                        if (prev) prev.focus();
+                        const prev = e.currentTarget.previousElementSibling;
+                        if (prev) (prev as HTMLElement).focus();
                       }
                     } else if (e.key === 'Enter' && emailVerifyCode.length === 6) {
                       handleConfirmEmailChange();

@@ -23,5 +23,9 @@ export const SETTINGS_LINKS = [
     title: 'Notifications',
     href: '/settings/notifications',
   },
+  {
+    title: 'Domains',
+    href: '/settings/domains',
+  },
 ];
 

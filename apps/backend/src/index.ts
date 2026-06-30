@@ -6,6 +6,7 @@ import v1Routes from './routes/v1';
 import { prisma } from './config/prisma';
 import { s3Client, BUCKET_NAME } from './config/s3';
 import { DeleteObjectCommand } from '@aws-sdk/client-s3';
+import { detectCustomDomain } from './middlewares/domain.middleware';
 
 const app = express();
 app.use(cors({
@@ -15,6 +16,7 @@ app.use(cors({
 }));
 
 app.use(express.json()); // Щоб Express розумів JSON з req.body
+app.use(detectCustomDomain);
 
 // Внутрішнє API для взаємодії з дашбордом
 app.use('/api/internal', internalRoutes);

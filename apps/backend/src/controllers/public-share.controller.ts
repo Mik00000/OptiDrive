@@ -28,6 +28,12 @@ export const getShareLinkInfo = async (req: Request, res: Response): Promise<voi
       return;
     }
 
+    // Перевірка кастомного домену: лінк має належати тому ж воркспейсу, що й домен
+    if ((req as any).customDomain && shareLink.workspaceId !== (req as any).customDomain.workspaceId) {
+      res.status(404).json({ error: 'Link not found' });
+      return;
+    }
+
     if (shareLink.expiresAt && shareLink.expiresAt < new Date()) {
       res.status(410).json({ error: 'Link has expired' });
       return;
@@ -95,6 +101,12 @@ export const downloadShareLink = async (req: Request, res: Response): Promise<vo
     });
 
     if (!shareLink) {
+      res.status(404).json({ error: 'Link not found' });
+      return;
+    }
+
+    // Перевірка кастомного домену: лінк має належати тому ж воркспейсу, що й домен
+    if ((req as any).customDomain && shareLink.workspaceId !== (req as any).customDomain.workspaceId) {
       res.status(404).json({ error: 'Link not found' });
       return;
     }

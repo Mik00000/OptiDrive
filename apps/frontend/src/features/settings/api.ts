@@ -163,3 +163,34 @@ export const changePasswordApi = async (currentPassword: string, newPassword: st
   return response;
 };
 
+export interface CustomDomain {
+  id: string;
+  workspaceId: string;
+  domain: string;
+  status: 'PENDING' | 'ACTIVE' | 'ERROR';
+  createdAt: string;
+  updatedAt: string;
+}
+
+export const getDomainsApi = async () => {
+  const response = await apiClient.get<{ success: boolean; data: CustomDomain[] }>('/api/internal/domains');
+  return response.data;
+};
+
+export const createDomainApi = async (domain: string) => {
+  const response = await apiClient.post<{ success: boolean; data: CustomDomain }>('/api/internal/domains', { domain });
+  return response.data;
+};
+
+export const deleteDomainApi = async (id: string) => {
+  const response = await apiClient.delete<{ success: boolean; message: string }>(`/api/internal/domains/${id}`);
+  return response;
+};
+
+export const verifyDomainApi = async (id: string, mock = false) => {
+  const url = mock ? `/api/internal/domains/${id}/verify?mock=true` : `/api/internal/domains/${id}/verify`;
+  const response = await apiClient.post<{ success: boolean; verified: boolean; data: CustomDomain; errorDetail?: string }>(url);
+  return response;
+};
+
+

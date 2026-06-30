@@ -154,6 +154,7 @@ model Workspace {
   roles          Role[]
   shareLinks     ShareLink[]
   webhooks       Webhook[]
+  customDomains  CustomDomain[]
 }
 
 model WorkspaceUser {
@@ -367,4 +368,23 @@ model WebhookDelivery {
   createdAt  DateTime @default(now())
 
   @@index([webhookId])
+}
+
+enum DomainStatus {
+  PENDING
+  ACTIVE
+  ERROR
+}
+
+model CustomDomain {
+  id          String       @id @default(cuid())
+  workspaceId String
+  domain      String       @unique
+  status      DomainStatus @default(PENDING)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  workspace   Workspace    @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId])
 }

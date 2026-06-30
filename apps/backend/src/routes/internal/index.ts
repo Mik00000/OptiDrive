@@ -12,6 +12,7 @@ import rolesRoutes from './roles.routes';
 import shareRoutes from './share.routes';
 import webhookRoutes from './webhook.routes';
 import userRoutes from './user.routes';
+import domainsRoutes from './domains.routes';
 
 const router: Router = Router();
 
@@ -36,5 +37,6 @@ router.use('/roles', rolesRoutes);
 router.use('/share', shareRoutes);
 router.use('/webhooks', webhookRoutes);
 router.use('/user', userRoutes);
+router.use('/domains', domainsRoutes);
 
 export default router;
