@@ -5,6 +5,9 @@ import Image from 'next/image';
 import { Button } from './Button';
 import { twMerge } from 'tailwind-merge';
 import { useSidebar } from '@/contexts/SidebarContext';
+import { useAuth } from '@/contexts/AuthContext';
+import { UserAvatar } from './UserAvatar';
+import Link from 'next/link';
 
 interface HeaderProps {
   className?: string;
@@ -12,6 +15,7 @@ interface HeaderProps {
 
 const Header = ({ className }: HeaderProps) => {
   const { toggle } = useSidebar();
+  const { user } = useAuth();
 
   return (
     <>
@@ -26,11 +30,9 @@ const Header = ({ className }: HeaderProps) => {
           <span className="text-text-light text-lg font-bold">OptiDrive</span>
         </div>
         <div className="flex items-center gap-3">
-          <div className="bg-accent text-text-light flex h-9 w-9 shrink-0 items-center justify-center rounded-full">
-            <Button variant="ghost" mobileBehavior="none">
-              <Icon icon="lucide:user" width={20} height={20} />
-            </Button>
-          </div>
+          <Link href="/settings" className="flex items-center justify-center rounded-full hover:opacity-80 transition-opacity">
+            <UserAvatar name={user?.name} avatarUrl={user?.avatarUrl} size={36} />
+          </Link>
           <div className="flex items-center justify-center">
             <Button variant="ghost" mobileBehavior="none" onClick={toggle}>
               <Icon icon="lucide:menu" width={22} height={22} />

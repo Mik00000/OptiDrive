@@ -4,7 +4,7 @@ export const SETTINGS_LINKS = [
     href: '/settings',
   },
   {
-    title: 'Project',
+    title: 'Workspace',
     href: '/settings/project',
   },
   {

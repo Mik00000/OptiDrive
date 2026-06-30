@@ -5,7 +5,8 @@ export const Permission = {
   UPLOAD_FILES: 'UPLOAD_FILES',
   DELETE_FILES: 'DELETE_FILES',
   MANAGE_API_KEYS: 'MANAGE_API_KEYS',
-  VIEW_ANALYTICS: 'VIEW_ANALYTICS'
+  VIEW_ANALYTICS: 'VIEW_ANALYTICS',
+  MANAGE_WORKSPACE: 'MANAGE_WORKSPACE'
 } as const;
 
 export type Permission = typeof Permission[keyof typeof Permission];

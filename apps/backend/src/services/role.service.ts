@@ -15,6 +15,7 @@ export const createDefaultRolesForWorkspace = async (workspaceId: string) => {
         Permission.DELETE_FILES,
         Permission.MANAGE_API_KEYS,
         Permission.VIEW_ANALYTICS,
+        Permission.MANAGE_WORKSPACE,
       ],
       workspaceId
     },
@@ -29,6 +30,7 @@ export const createDefaultRolesForWorkspace = async (workspaceId: string) => {
         Permission.DELETE_FILES,
         Permission.MANAGE_API_KEYS,
         Permission.VIEW_ANALYTICS,
+        Permission.MANAGE_WORKSPACE,
       ],
       workspaceId
     },

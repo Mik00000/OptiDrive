@@ -97,3 +97,69 @@ export const updateUserNotificationsApi = async (preferences: UserNotificationPr
   return response.data;
 };
 
+export interface UserProfileData {
+  id: string;
+  name: string | null;
+  email: string;
+  avatarUrl: string | null;
+}
+
+export interface UpdateProfileResponse {
+  success: boolean;
+  requiresEmailVerification?: boolean;
+  pendingEmail?: string;
+  message?: string;
+  data?: UserProfileData;
+}
+
+export const updateUserProfileApi = async (name: string, email: string): Promise<UpdateProfileResponse> => {
+  const response = await apiClient.put<UpdateProfileResponse>('/api/internal/user/profile', { name, email });
+  return response;
+};
+
+export const confirmEmailChangeApi = async (code: string): Promise<{ success: boolean; data: UserProfileData }> => {
+  const response = await apiClient.post<{ success: boolean; data: UserProfileData }>('/api/internal/user/confirm-email-change', { code });
+  return response;
+};
+
+export const uploadAvatarApi = async (file: File) => {
+  const formData = new FormData();
+  formData.append('avatar', file);
+  const response = await apiClient.post<{ success: boolean; data: UserProfileData }>('/api/internal/user/avatar', formData);
+  return response.data;
+};
+
+export const deleteAvatarApi = async () => {
+  const response = await apiClient.delete<{ data: UserProfileData }>('/api/internal/user/avatar');
+  return response.data;
+};
+
+export const deleteUserAccountApi = async () => {
+  const response = await apiClient.delete<{ success: boolean, message: string }>('/api/internal/user/account');
+  return response;
+};
+
+export interface WorkspaceUpdateData {
+  id: string;
+  name: string;
+  slug: string;
+}
+
+export const updateWorkspaceApi = async (name: string, slug?: string) => {
+  const response = await apiClient.put<{ data: WorkspaceUpdateData }>('/api/internal/workspace/update', { name, slug });
+  return response.data;
+};
+
+export const deleteWorkspaceApi = async () => {
+  const response = await apiClient.delete<{ success: boolean, message: string, token: string, switchWorkspaceId: string | null }>('/api/internal/workspace/delete');
+  return response;
+};
+
+export const changePasswordApi = async (currentPassword: string, newPassword: string) => {
+  const response = await apiClient.put<{ success: boolean, message: string }>('/api/internal/user/change-password', {
+    currentPassword,
+    newPassword
+  });
+  return response;
+};
+

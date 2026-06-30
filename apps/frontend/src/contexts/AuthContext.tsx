@@ -10,6 +10,7 @@ interface User {
   email: string;
   workspaceId?: string;
   hasPassword?: boolean;
+  avatarUrl?: string | null;
 }
 
 interface WorkspaceRole {

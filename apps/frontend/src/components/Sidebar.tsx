@@ -11,6 +11,7 @@ import { useSidebar } from '@/contexts/SidebarContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { Modal } from './Modal';
 import { Input } from './Inputs';
+import { UserAvatar } from './UserAvatar';
 
 interface MenuItem {
   text: string;
@@ -280,9 +281,7 @@ export const Sidebar = ({ className }: SidebarProps) => {
           onClick={() => setIsDropdownOpen(!isDropdownOpen)}
           className="flex cursor-pointer items-center gap-3 rounded-lg p-2 transition-colors hover:bg-slate-800/50"
         >
-          <div className="bg-accent flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-text-light font-semibold">
-            {user?.name ? user.name.charAt(0).toUpperCase() : <Icon icon="lucide:user" width={20} height={20} />}
-          </div>
+          <UserAvatar name={user?.name} avatarUrl={user?.avatarUrl} size={36} />
 
           <div className="flex flex-col overflow-hidden text-left flex-1">
             <span className="truncate text-sm font-medium text-text-light">

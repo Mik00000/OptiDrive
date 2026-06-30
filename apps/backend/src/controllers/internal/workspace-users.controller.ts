@@ -63,8 +63,12 @@ export const updateUserRole = async (req: AuthRequest, res: Response): Promise<v
       return;
     }
 
-    if (!currentUserRole?.permissions.includes(Permission.MANAGE_ROLES) && !currentUserRole?.isSystem) {
-      res.status(403).json({ success: false, error: 'Insufficient permissions' });
+    // Перевіряємо що поточний користувач має MANAGE_ROLES
+    const hasManageRoles = currentUserRole?.permissions.includes(Permission.MANAGE_ROLES);
+    const isOwner = currentUserRole?.isSystem && currentUserRole?.name === 'Owner';
+
+    if (!hasManageRoles && !isOwner) {
+      res.status(403).json({ success: false, error: 'You do not have permission to manage roles' });
       return;
     }
 
@@ -83,8 +87,9 @@ export const updateUserRole = async (req: AuthRequest, res: Response): Promise<v
       return;
     }
 
-    if (targetMember.role?.name === 'Owner' && currentUserRole?.name !== 'Owner') {
-      res.status(403).json({ success: false, error: 'Admins cannot change an Owner\'s role' });
+    // Owner не може бути змінений ніким крім самого Owner
+    if (targetMember.role?.name === 'Owner' && !isOwner) {
+      res.status(403).json({ success: false, error: 'Only an Owner can change another Owner\'s role' });
       return;
     }
 
@@ -97,6 +102,34 @@ export const updateUserRole = async (req: AuthRequest, res: Response): Promise<v
       return;
     }
 
+    // Ієрархічна перевірка: не-Owner може керувати лише ролями
+    // де кількість permissions НЕ БІЛЬША, ніж у самого актора
+    // (не можна надати роль з більшими правами, ніж маєш сам)
+    if (!isOwner) {
+      const myPermCount = currentUserRole?.permissions.length ?? 0;
+      const targetCurrentPermCount = targetMember.role?.permissions.length ?? 0;
+      const newRolePermCount = newRoleObj.permissions.length;
+
+      // Актор не може змінити роль юзера, у якого більше прав ніж у нього
+      if (targetCurrentPermCount > myPermCount) {
+        res.status(403).json({ success: false, error: 'You cannot manage a user with more permissions than yourself' });
+        return;
+      }
+
+      // Актор не може призначити роль, яка має більше прав ніж у нього
+      if (newRolePermCount > myPermCount) {
+        res.status(403).json({ success: false, error: 'You cannot assign a role with more permissions than you have' });
+        return;
+      }
+
+      // Не можна призначити роль Owner (тільки Owner може це робити)
+      if (newRoleObj.name === 'Owner') {
+        res.status(403).json({ success: false, error: 'Only an Owner can grant the Owner role' });
+        return;
+      }
+    }
+
+    // Якщо Owner призначає нового Owner
     if (newRoleObj?.name === 'Owner' && targetMember.role?.name !== 'Owner') {
       const workspace = await prisma.workspace.findUnique({ where: { id: workspaceId } });
       if (workspace?.plan === 'FREE') {
@@ -115,6 +148,7 @@ export const updateUserRole = async (req: AuthRequest, res: Response): Promise<v
       }
     }
 
+    // Власник не може знизити свою роль, якщо він єдиний Owner
     if (targetMember.userId === currentUserId && targetMember.role?.name === 'Owner') {
       if (newRoleObj.name !== 'Owner') {
         const ownerCount = await prisma.workspaceUser.count({

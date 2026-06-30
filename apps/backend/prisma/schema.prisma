@@ -23,6 +23,7 @@ enum Permission {
   DELETE_FILES
   MANAGE_API_KEYS
   VIEW_ANALYTICS
+  MANAGE_WORKSPACE
 }
 
 // Роль користувача
@@ -88,6 +89,11 @@ model User {
   verificationCodeExpiry DateTime?
   resetPasswordToken     String?
   resetPasswordExpiry    DateTime?
+
+  // Очікувана зміна email (потребує верифікації)
+  pendingEmail           String?
+  pendingEmailCode       String?
+  pendingEmailCodeExpiry DateTime?
 
   activeWorkspaceId      String?
   activeWorkspace        Workspace?      @relation("ActiveWorkspace", fields: [activeWorkspaceId], references: [id], onDelete: SetNull)

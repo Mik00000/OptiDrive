@@ -113,6 +113,40 @@ export const sendPasswordResetEmail = async (email: string, resetLink: string) =
   }
 };
 
+export const sendEmailChangeVerificationEmail = async (newEmail: string, code: string) => {
+  try {
+    const { data, error } = await sendEmail({
+      to: newEmail,
+      subject: 'Confirm your new email address – OptiDrive',
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+          <h1 style="color: #333;">Confirm Your New Email</h1>
+          <p style="font-size: 16px; color: #555;">
+            You requested to change your OptiDrive account email to <strong>${newEmail}</strong>.
+            Use the verification code below to confirm this change.
+          </p>
+          <div style="background-color: #f4f4f4; padding: 15px; border-radius: 8px; text-align: center; margin: 20px 0;">
+            <strong style="font-size: 28px; letter-spacing: 6px; color: #000;">${code}</strong>
+          </div>
+          <p style="font-size: 14px; color: #888;">
+            This code will expire in 15 minutes. If you did not request this change, you can safely ignore this email — your account email will remain unchanged.
+          </p>
+        </div>
+      `,
+    });
+
+    if (error) {
+      console.error('Email API Error:', error);
+      throw new Error('Failed to send email change verification');
+    }
+
+    return data;
+  } catch (error) {
+    console.error('Error sending email change verification:', error);
+    throw error;
+  }
+};
+
 export const sendInvitationEmail = async (email: string, workspaceName: string) => {
   const dashboardUrl = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/dashboard`;
 

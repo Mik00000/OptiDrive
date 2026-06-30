@@ -391,3 +391,139 @@ export const updateCompressionDefaults = async (req: Request & { user?: any }, r
   }
 };
 
+export const updateWorkspaceDetails = async (req: Request & { user?: any }, res: Response): Promise<void> => {
+  try {
+    const workspaceId = req.user?.workspaceId;
+    if (!workspaceId) {
+      res.status(401).json({ error: 'Unauthorized' });
+      return;
+    }
+
+    const { name, slug } = req.body;
+
+    if (!name) {
+      res.status(400).json({ error: 'Workspace name is required' });
+      return;
+    }
+
+    const updateData: any = { name };
+    if (slug) {
+      const cleanSlug = slug.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+      const existing = await prisma.workspace.findFirst({
+        where: { slug: cleanSlug, NOT: { id: workspaceId } }
+      });
+      if (existing) {
+        res.status(400).json({ error: 'Workspace slug is already in use' });
+        return;
+      }
+      updateData.slug = cleanSlug;
+    }
+
+    const updated = await prisma.workspace.update({
+      where: { id: workspaceId },
+      data: updateData,
+      select: {
+        id: true,
+        name: true,
+        slug: true
+      }
+    });
+
+    res.status(200).json({ success: true, data: updated });
+  } catch (error) {
+    console.error('updateWorkspaceDetails Error:', error);
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
+};
+
+export const deleteActiveWorkspace = async (req: Request & { user?: any }, res: Response): Promise<void> => {
+  try {
+    const { DeleteObjectCommand } = await import('@aws-sdk/client-s3');
+    const { s3Client, BUCKET_NAME } = await import('../config/s3');
+    
+    const userId = req.user?.userId;
+    const workspaceId = req.user?.workspaceId;
+
+    if (!userId || !workspaceId) {
+      res.status(401).json({ error: 'Unauthorized' });
+      return;
+    }
+
+    const membership = await prisma.workspaceUser.findFirst({
+      where: {
+        userId,
+        workspaceId,
+        role: { name: 'Owner', isSystem: true }
+      }
+    });
+
+    if (!membership) {
+      res.status(403).json({ error: 'Forbidden: Only the Owner can delete this workspace' });
+      return;
+    }
+
+    const files = await prisma.mediaFile.findMany({
+      where: { workspaceId }
+    });
+
+    for (const file of files) {
+      const key = `${workspaceId}/${file.cdnUrl.split('/').pop()}`;
+      try {
+        await s3Client.send(new DeleteObjectCommand({
+          Bucket: BUCKET_NAME,
+          Key: key
+        }));
+      } catch (e) {
+        console.error('[DeleteWorkspace] Failed to delete S3 file:', e);
+      }
+    }
+
+    const otherMembership = await prisma.workspaceUser.findFirst({
+      where: {
+        userId,
+        NOT: { workspaceId }
+      },
+      include: {
+        workspace: true
+      }
+    });
+
+    await prisma.workspace.delete({
+      where: { id: workspaceId }
+    });
+
+    if (otherMembership) {
+      await prisma.user.update({
+        where: { id: userId },
+        data: { activeWorkspaceId: otherMembership.workspaceId }
+      });
+
+      const token = generateToken(userId, otherMembership.workspaceId);
+      res.status(200).json({ 
+        success: true, 
+        message: 'Workspace deleted successfully. Switched workspace.',
+        token,
+        switchWorkspaceId: otherMembership.workspaceId
+      });
+    } else {
+      await prisma.user.update({
+        where: { id: userId },
+        data: { activeWorkspaceId: null }
+      });
+
+      const token = generateToken(userId, null as any);
+      res.status(200).json({ 
+        success: true, 
+        message: 'Workspace deleted successfully. No other workspaces available.',
+        token,
+        switchWorkspaceId: null
+      });
+    }
+
+  } catch (error) {
+    console.error('deleteActiveWorkspace Error:', error);
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
+};
+
+

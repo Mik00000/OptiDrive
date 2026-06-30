@@ -4,9 +4,9 @@
  */
 
 class ApiClient {
-  private getHeaders(customHeaders: Record<string, string> = {}): Record<string, string> {
+  private getHeaders(customHeaders: Record<string, string> = {}, skipContentType = false): Record<string, string> {
     const headers: Record<string, string> = {
-      'Content-Type': 'application/json',
+      ...(skipContentType ? {} : { 'Content-Type': 'application/json' }),
       ...customHeaders,
     };
 
@@ -63,11 +63,13 @@ class ApiClient {
   }
 
   public async post<T>(url: string, body?: unknown, options: RequestInit = {}): Promise<T> {
+    const isFormData = body instanceof FormData;
     const response = await fetch(url, {
       method: 'POST',
-      body: body ? JSON.stringify(body) : undefined,
+      body: isFormData ? body : (body ? JSON.stringify(body) : undefined),
       ...options,
-      headers: this.getHeaders((options.headers as Record<string, string>) || {}),
+      // Для FormData не виставляємо Content-Type — браузер сам додасть boundary
+      headers: this.getHeaders((options.headers as Record<string, string>) || {}, isFormData),
     });
     return this.handleResponse<T>(response);
   }
