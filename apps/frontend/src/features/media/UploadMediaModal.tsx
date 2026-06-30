@@ -7,6 +7,7 @@ import { Modal } from "@/components/Modal";
 import { Input } from "@/components/Inputs";
 import Switch from "@/components/Switch";
 import { uploadMediaFileApi } from "./api";
+import { getCompressionDefaultsApi } from "@/features/settings/api";
 
 interface UploadMediaModalProps {
   isOpen: boolean;
@@ -30,6 +31,27 @@ export function UploadMediaModal({ isOpen, onClose, onSuccess, folderId, initial
       setFile(initialFile);
     }
   }, [initialFile]);
+
+  // Load Compression Defaults when modal opens
+  useEffect(() => {
+    if (isOpen) {
+      getCompressionDefaultsApi()
+        .then((defaults) => {
+          setPreset(defaults.defaultPreset as OptimizationPreset);
+          if (defaults.defaultPreset === 'custom') {
+            setFormat(defaults.defaultFormat);
+            setQuality(String(defaults.defaultQuality));
+            setStripMetadata(defaults.defaultStripMetadata);
+            setWidth(defaults.defaultMaxWidth ? String(defaults.defaultMaxWidth) : '');
+            setHeight(defaults.defaultMaxHeight ? String(defaults.defaultMaxHeight) : '');
+            setFit(defaults.defaultFit);
+          }
+        })
+        .catch((err) => {
+          console.error('[UploadMediaModal] Failed to load compression defaults:', err);
+        });
+    }
+  }, [isOpen]);
 
   // Settings state
   const [preset, setPreset] = useState<OptimizationPreset>("web_balanced");
@@ -287,6 +309,7 @@ export function UploadMediaModal({ isOpen, onClose, onSuccess, folderId, initial
                           min="1" max="100"
                           value={quality}
                           onChange={(e) => setQuality(e.target.value)}
+                          className="appearance-none"
                         />
                       </div>
                     </div>

@@ -60,91 +60,89 @@ export default function QuotaAlerts({ stats: propStats }: QuotaAlertsProps) {
     }
   };
 
-  if (!stats) {
-    return null;
-  }
-
   // Розрахунок відсотків використання лімітів воркспейсу
-  const storagePercent = Math.round((Number(stats.storageUsed) / Number(stats.limits.storageBytes)) * 100);
-  const bandwidthPercent = Math.round((Number(stats.bandwidthUsed) / Number(stats.limits.bandwidthBytes)) * 100);
-  const optimizationPercent = Math.round((stats.monthlyOptimizations / stats.limits.monthlyOptimizations) * 100);
-  const apiKeysPercent = Math.round((stats.activeApiKeys / stats.limits.maxApiKeys) * 100);
+  const storagePercent = stats ? Math.round((Number(stats.storageUsed) / Number(stats.limits.storageBytes)) * 100) : 0;
+  const bandwidthPercent = stats ? Math.round((Number(stats.bandwidthUsed) / Number(stats.limits.bandwidthBytes)) * 100) : 0;
+  const optimizationPercent = stats ? Math.round((stats.monthlyOptimizations / stats.limits.monthlyOptimizations) * 100) : 0;
+  const apiKeysPercent = stats ? Math.round((stats.activeApiKeys / stats.limits.maxApiKeys) * 100) : 0;
 
   const rawAlerts: AlertItem[] = [];
 
-  // 1. Перевірка сховища (Storage)
-  if (storagePercent >= 100) {
-    rawAlerts.push({
-      id: 'storage_critical',
-      type: 'critical',
-      title: 'Storage Limit Exhausted (100% Used)',
-      description: 'You have used all available storage. Image compression and uploads are now blocked. Clean up files or upgrade your plan to restore access.',
-      icon: 'lucide:database-backup',
-      dismissible: false
-    });
-  } else if (storagePercent >= 80) {
-    rawAlerts.push({
-      id: 'storage_warning',
-      type: 'warning',
-      title: `Storage Running Low (${storagePercent}% Used)`,
-      description: `You are approaching your storage limit. Currently using ${(Number(stats.storageUsed) / (1024 * 1024 * 1024)).toFixed(2)} GB of ${(Number(stats.limits.storageBytes) / (1024 * 1024 * 1024)).toFixed(2)} GB.`,
-      icon: 'lucide:database',
-      dismissible: true
-    });
-  }
+  if (stats) {
+    // 1. Перевірка сховища (Storage)
+    if (storagePercent >= 100) {
+      rawAlerts.push({
+        id: 'storage_critical',
+        type: 'critical',
+        title: 'Storage Limit Exhausted (100% Used)',
+        description: 'You have used all available storage. Image compression and uploads are now blocked. Clean up files or upgrade your plan to restore access.',
+        icon: 'lucide:database-backup',
+        dismissible: false
+      });
+    } else if (storagePercent >= 80) {
+      rawAlerts.push({
+        id: 'storage_warning',
+        type: 'warning',
+        title: `Storage Running Low (${storagePercent}% Used)`,
+        description: `You are approaching your storage limit. Currently using ${(Number(stats.storageUsed) / (1024 * 1024 * 1024)).toFixed(2)} GB of ${(Number(stats.limits.storageBytes) / (1024 * 1024 * 1024)).toFixed(2)} GB.`,
+        icon: 'lucide:database',
+        dismissible: true
+      });
+    }
 
-  // 2. Перевірка пропускної здатності (Bandwidth)
-  if (bandwidthPercent >= 100) {
-    rawAlerts.push({
-      id: 'bandwidth_critical',
-      type: 'critical',
-      title: 'Bandwidth Limit Exhausted (100% Used)',
-      description: 'Monthly bandwidth is completely used. CDN assets download and proxying are locked. Service will be restored next month, or you can upgrade.',
-      icon: 'lucide:zap-off',
-      dismissible: false
-    });
-  } else if (bandwidthPercent >= 80) {
-    rawAlerts.push({
-      id: 'bandwidth_warning',
-      type: 'warning',
-      title: `Bandwidth Usage High (${bandwidthPercent}% Used)`,
-      description: `Your monthly bandwidth consumption is high: ${(Number(stats.bandwidthUsed) / (1024 * 1024 * 1024)).toFixed(2)} GB used. Upgrade your plan to prevent CDN delivery blocks.`,
-      icon: 'lucide:zap',
-      dismissible: true
-    });
-  }
+    // 2. Перевірка пропускної здатності (Bandwidth)
+    if (bandwidthPercent >= 100) {
+      rawAlerts.push({
+        id: 'bandwidth_critical',
+        type: 'critical',
+        title: 'Bandwidth Limit Exhausted (100% Used)',
+        description: 'Monthly bandwidth is completely used. CDN assets download and proxying are locked. Service will be restored next month, or you can upgrade.',
+        icon: 'lucide:zap-off',
+        dismissible: false
+      });
+    } else if (bandwidthPercent >= 80) {
+      rawAlerts.push({
+        id: 'bandwidth_warning',
+        type: 'warning',
+        title: `Bandwidth Usage High (${bandwidthPercent}% Used)`,
+        description: `Your monthly bandwidth consumption is high: ${(Number(stats.bandwidthUsed) / (1024 * 1024 * 1024)).toFixed(2)} GB used. Upgrade your plan to prevent CDN delivery blocks.`,
+        icon: 'lucide:zap',
+        dismissible: true
+      });
+    }
 
-  // 3. Перевірка ліміту оптимізацій (Optimizations)
-  if (optimizationPercent >= 100) {
-    rawAlerts.push({
-      id: 'optimizations_critical',
-      type: 'critical',
-      title: 'Optimizations Limit Exhausted (100% Used)',
-      description: 'You have reached the maximum number of monthly optimizations. Further compressions are disabled until next month or plan upgrade.',
-      icon: 'lucide:image-minus',
-      dismissible: false
-    });
-  } else if (optimizationPercent >= 80) {
-    rawAlerts.push({
-      id: 'optimizations_warning',
-      type: 'warning',
-      title: `Optimization Limit Nearing (${optimizationPercent}% Used)`,
-      description: `You have optimized ${stats.monthlyOptimizations} of ${stats.limits.monthlyOptimizations} images. You will not be able to compress new images once this limit is reached.`,
-      icon: 'lucide:image',
-      dismissible: true
-    });
-  }
+    // 3. Перевірка ліміту оптимізацій (Optimizations)
+    if (optimizationPercent >= 100) {
+      rawAlerts.push({
+        id: 'optimizations_critical',
+        type: 'critical',
+        title: 'Optimizations Limit Exhausted (100% Used)',
+        description: 'You have reached the maximum number of monthly optimizations. Further compressions are disabled until next month or plan upgrade.',
+        icon: 'lucide:image-minus',
+        dismissible: false
+      });
+    } else if (optimizationPercent >= 80) {
+      rawAlerts.push({
+        id: 'optimizations_warning',
+        type: 'warning',
+        title: `Optimization Limit Nearing (${optimizationPercent}% Used)`,
+        description: `You have optimized ${stats.monthlyOptimizations} of ${stats.limits.monthlyOptimizations} images. You will not be able to compress new images once this limit is reached.`,
+        icon: 'lucide:image',
+        dismissible: true
+      });
+    }
 
-  // 4. Перевірка ліміту API-ключів (API Keys)
-  if (apiKeysPercent >= 100) {
-    rawAlerts.push({
-      id: 'api_keys_limit',
-      type: 'warning',
-      title: 'API Keys Limit Reached',
-      description: `You are using ${stats.activeApiKeys} of ${stats.limits.maxApiKeys} API Keys allowed on your plan. Revoke an old key to create a new one.`,
-      icon: 'lucide:key-round',
-      dismissible: true
-    });
+    // 4. Перевірка ліміту API-ключів (API Keys)
+    if (apiKeysPercent >= 100) {
+      rawAlerts.push({
+        id: 'api_keys_limit',
+        type: 'warning',
+        title: 'API Keys Limit Reached',
+        description: `You are using ${stats.activeApiKeys} of ${stats.limits.maxApiKeys} API Keys allowed on your plan. Revoke an old key to create a new one.`,
+        icon: 'lucide:key-round',
+        dismissible: true
+      });
+    }
   }
 
   // Синхронізуємо та очищуємо приховані ліміти, якщо користувач вийшов з ліміту
@@ -166,7 +164,7 @@ export default function QuotaAlerts({ stats: propStats }: QuotaAlertsProps) {
   // Фільтруємо приховані сповіщення
   const visibleAlerts = rawAlerts.filter(a => !dismissed.includes(a.id));
 
-  if (visibleAlerts.length === 0) {
+  if (!stats || visibleAlerts.length === 0) {
     return null;
   }
 

@@ -3,6 +3,7 @@
 import { Button } from '@/components/Button';
 import { Input } from '@/components/Inputs';
 import PageHeading from '@/components/PageHeading';
+import Link from 'next/link';
 import { Icon } from '@iconify/react';
 import { useState, useEffect } from 'react';
 import { MediaTable } from '@/features/media/MediaTable';
@@ -86,6 +87,13 @@ const MediaLibraryPage = () => {
             >
               {isSelectionMode ? 'Cancel' : 'Select'}
             </Button>
+
+            <Link href="/settings/compression" title="Configure Compression Defaults" className="shrink-0">
+              <Button variant="bordered" className="p-2.5 h-10 w-10 flex items-center justify-center border-border bg-card text-text-muted hover:text-text-light">
+                <Icon icon="lucide:settings-2" width={18} height={18} />
+              </Button>
+            </Link>
+
             <Button 
               variant={isUploadBlocked ? 'bordered' : 'accent'} 
               mobileBehavior="icon-only" 

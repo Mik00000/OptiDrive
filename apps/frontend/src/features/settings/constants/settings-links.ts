@@ -16,7 +16,12 @@ export const SETTINGS_LINKS = [
     href: '/settings/roles',
   },
   {
+    title: 'Compression',
+    href: '/settings/compression',
+  },
+  {
     title: 'Notifications',
     href: '/settings/notifications',
   },
 ];
+

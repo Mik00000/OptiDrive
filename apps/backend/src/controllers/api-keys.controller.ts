@@ -3,6 +3,7 @@ import { ApiKeyService } from '../services/api-keys.service';
 import { AuthRequest } from '../middlewares/auth.middleware';
 import { KeyPermission } from '@prisma/client';
 import { PLANS, PlanType } from '@optidrive/shared';
+import { sendSecurityAlertEmail } from '../services/email.service';
 
 const apiKeyService = new ApiKeyService();
 
@@ -89,6 +90,43 @@ export const createApiKey = async (
       }).catch(console.error);
     });
 
+    // Send Security Emails in background
+    (async () => {
+      try {
+        const { prisma } = await import('../config/prisma');
+        const actor = req.user?.userId ? await prisma.user.findUnique({ where: { id: req.user.userId } }) : null;
+        const actorName = actor?.name || actor?.email || 'Невідомий користувач';
+        
+        const securityRecipients = await prisma.workspaceUser.findMany({
+          where: {
+            workspaceId,
+            role: { name: { in: ['Owner', 'Admin'] } }
+          },
+          include: {
+            user: {
+              select: {
+                email: true,
+                name: true,
+                emailSecurityAlerts: true
+              }
+            }
+          }
+        });
+
+        const recipients = securityRecipients.map(wu => wu.user).filter(u => u && u.emailSecurityAlerts);
+        for (const recipient of recipients) {
+          await sendSecurityAlertEmail(
+            recipient.email,
+            recipient.name || '',
+            'API Key Created',
+            `User ${actorName} created a new API key "${name}" with permissions "${permissions}"`
+          );
+        }
+      } catch (err) {
+        console.error('[Security Alert] Failed to send API key creation emails:', err);
+      }
+    })();
+
     res.status(201).json({ key: mappedKey, rawToken: result.rawToken });
   } catch (error: unknown) {
     res.status(500).json({ error: error instanceof Error ? error.message : 'Failed to generate API key' });
@@ -162,19 +200,58 @@ export const revokeApiKey = async (
       return;
     }
     
+    // Get the key details before revoking
+    const { prisma } = await import('../config/prisma');
+    const apiKey = await prisma.apiKey.findUnique({ where: { id } });
+    const keyName = apiKey?.name || 'невідомий';
+
     await apiKeyService.revokeKey(id, workspaceId);
 
     // Create Activity Log
-    import('../config/prisma').then(({ prisma }) => {
-      prisma.activityLog.create({
-        data: {
-          type: 'KEY_REVOKED',
-          description: `Revoked an API key`,
-          workspaceId,
-          userId: req.user?.userId || null,
+    prisma.activityLog.create({
+      data: {
+        type: 'KEY_REVOKED',
+        description: `Revoked an API key`,
+        workspaceId,
+        userId: req.user?.userId || null,
+      }
+    }).catch(console.error);
+
+    // Send Security Emails in background
+    (async () => {
+      try {
+        const actor = req.user?.userId ? await prisma.user.findUnique({ where: { id: req.user.userId } }) : null;
+        const actorName = actor?.name || actor?.email || 'Невідомий користувач';
+        
+        const securityRecipients = await prisma.workspaceUser.findMany({
+          where: {
+            workspaceId,
+            role: { name: { in: ['Owner', 'Admin'] } }
+          },
+          include: {
+            user: {
+              select: {
+                email: true,
+                name: true,
+                emailSecurityAlerts: true
+              }
+            }
+          }
+        });
+
+        const recipients = securityRecipients.map(wu => wu.user).filter(u => u && u.emailSecurityAlerts);
+        for (const recipient of recipients) {
+          await sendSecurityAlertEmail(
+            recipient.email,
+            recipient.name || '',
+            'API Key Revoked',
+            `User ${actorName} revoked API key "${keyName}"`
+          );
         }
-      }).catch(console.error);
-    });
+      } catch (err) {
+        console.error('[Security Alert] Failed to send API key revocation emails:', err);
+      }
+    })();
 
     res.status(200).json({ success: true });
   } catch (error: unknown) {

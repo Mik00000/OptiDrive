@@ -3,6 +3,7 @@ import { ApiRequest } from '../../middlewares/apiKey.middleware';
 import { compressImage } from '../../services/compression.service';
 import { prisma } from '../../config/prisma';
 import { triggerWebhooks } from '../../services/webhook.service';
+import { checkAndTriggerQuotaEmails } from '../../services/quota-alert.service';
 
 export const compressImageController = async (req: Request & { workspaceId?: string; user?: { workspaceId: string } }, res: Response): Promise<void> => {
   try {
@@ -44,9 +45,55 @@ export const compressImageController = async (req: Request & { workspaceId?: str
       pages, colors, folderId, folderPath, tags
     } = req.body;
 
+    // Check workspace plan and default compression settings
+    const workspace = await prisma.workspace.findUnique({
+      where: { id: workspaceId },
+      select: {
+        plan: true,
+        defaultPreset: true,
+        defaultFormat: true,
+        defaultQuality: true,
+        defaultStripMetadata: true,
+        defaultMaxWidth: true,
+        defaultMaxHeight: true,
+        defaultFit: true
+      }
+    });
+
+    const activePreset = req.body.preset || workspace?.defaultPreset || "web_balanced";
+
+    let finalFormat = format;
+    if (!finalFormat) {
+      finalFormat = workspace?.defaultFormat || "auto";
+    }
+
+    let finalQuality = quality;
+    if (!finalQuality) {
+      if (activePreset === 'web_balanced') finalQuality = '80';
+      else if (activePreset === 'ultra_light') finalQuality = '60';
+      else if (activePreset === 'lossless') finalQuality = '100';
+      else finalQuality = String(workspace?.defaultQuality || 80);
+    }
+
+    let finalStripMetadata = stripMetadata;
+    if (finalStripMetadata === undefined || finalStripMetadata === null) {
+      if (activePreset === 'lossless') finalStripMetadata = 'false';
+      else if (workspace) finalStripMetadata = String(workspace.defaultStripMetadata);
+      else finalStripMetadata = 'true';
+    }
+
+    let finalWidth = width;
+    if (!finalWidth) {
+      if (activePreset === 'ultra_light') finalWidth = '1080';
+      else if (workspace?.defaultMaxWidth) finalWidth = String(workspace.defaultMaxWidth);
+    }
+
+    let finalHeight = height || (workspace?.defaultMaxHeight ? String(workspace.defaultMaxHeight) : undefined);
+    let finalFit = fit || workspace?.defaultFit || "cover";
+
     // Handle "auto" format for raster
-    let resolvedFormat = format;
-    if (format === 'auto') {
+    let resolvedFormat = finalFormat;
+    if (finalFormat === 'auto') {
       const accepts = req.headers.accept || '';
       if (accepts.includes('image/avif')) {
         resolvedFormat = 'avif';
@@ -56,11 +103,6 @@ export const compressImageController = async (req: Request & { workspaceId?: str
         resolvedFormat = 'jpeg';
       }
     }
-    // Check plan limits
-    const workspace = await prisma.workspace.findUnique({
-      where: { id: workspaceId },
-      select: { plan: true }
-    });
 
     if (workspace?.plan === 'FREE') {
       if (resolvedFormat === 'avif' || mimetype === 'image/svg+xml') {
@@ -110,14 +152,14 @@ export const compressImageController = async (req: Request & { workspaceId?: str
     // Prepare options
     const options = {
       raster: {
-        ...(format ? { format } : {}),
+        ...(finalFormat ? { format: finalFormat } : {}),
         resolvedFormat: resolvedFormat as 'avif' | 'webp' | 'jpeg' | 'png',
-        ...(quality ? { quality: parseInt(quality, 10) } : {}),
-        lossless: lossless === 'true',
-        ...(width ? { width: parseInt(width, 10) } : {}),
-        ...(height ? { height: parseInt(height, 10) } : {}),
-        ...(fit ? { fit: fit as 'cover' | 'contain' | 'inside' } : {}),
-        stripMetadata: stripMetadata !== 'false', // default true
+        ...(finalQuality ? { quality: parseInt(finalQuality, 10) } : {}),
+        lossless: lossless === 'true' || activePreset === 'lossless',
+        ...(finalWidth ? { width: parseInt(finalWidth, 10) } : {}),
+        ...(finalHeight ? { height: parseInt(finalHeight, 10) } : {}),
+        ...(finalFit ? { fit: finalFit as 'cover' | 'contain' | 'inside' } : {}),
+        stripMetadata: finalStripMetadata !== 'false',
         ...(effort ? { effort: parseInt(effort, 10) } : {}),
       },
       vector: {
@@ -127,7 +169,7 @@ export const compressImageController = async (req: Request & { workspaceId?: str
         ...(floatPrecision ? { floatPrecision: parseInt(floatPrecision, 10) } : {}),
       },
       animation: {
-        ...(format ? { format: format as 'webp' | 'gif' } : {}),
+        ...(finalFormat ? { format: finalFormat as 'webp' | 'gif' } : {}),
         ...(pages ? { pages: parseInt(pages, 10) } : {}),
         ...(colors ? { colors: parseInt(colors, 10) } : {}),
       }
@@ -222,6 +264,11 @@ export const compressImageController = async (req: Request & { workspaceId?: str
         monthlyOptimizations: { increment: 1 }
       }
     });
+
+    // Check & trigger quota warning emails
+    checkAndTriggerQuotaEmails(workspaceId).catch((err) => 
+      console.error('[Quota Warning] Failed to check quota:', err)
+    );
 
     // Trigger Webhooks
     triggerWebhooks(workspaceId, 'file.optimized', {

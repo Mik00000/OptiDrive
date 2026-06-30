@@ -59,3 +59,41 @@ export const transferOwnershipApi = async (targetUserId: string) => {
   const response = await apiClient.post<{ success: boolean, message: string }>('/api/internal/workspace-users/transfer-ownership', { targetUserId });
   return response;
 };
+
+export interface CompressionDefaults {
+  defaultPreset: string;
+  defaultFormat: string;
+  defaultQuality: number;
+  defaultStripMetadata: boolean;
+  defaultMaxWidth: number | null;
+  defaultMaxHeight: number | null;
+  defaultFit: string;
+}
+
+export const getCompressionDefaultsApi = async () => {
+  const response = await apiClient.get<{ data: CompressionDefaults }>('/api/internal/workspace/compression-defaults');
+  return response.data;
+};
+
+export const updateCompressionDefaultsApi = async (defaults: Partial<CompressionDefaults>) => {
+  const response = await apiClient.put<{ data: CompressionDefaults }>('/api/internal/workspace/compression-defaults', defaults);
+  return response.data;
+};
+
+export interface UserNotificationPreferences {
+  emailWeeklySummary: boolean;
+  emailQuotaWarnings: boolean;
+  emailSecurityAlerts: boolean;
+  emailBillingAlerts: boolean;
+}
+
+export const getUserNotificationsApi = async () => {
+  const response = await apiClient.get<{ data: UserNotificationPreferences }>('/api/internal/user/notifications');
+  return response.data;
+};
+
+export const updateUserNotificationsApi = async (preferences: UserNotificationPreferences) => {
+  const response = await apiClient.put<{ data: UserNotificationPreferences }>('/api/internal/user/notifications', preferences);
+  return response.data;
+};
+

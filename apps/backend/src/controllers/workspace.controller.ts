@@ -303,3 +303,91 @@ export const createWorkspace = async (req: Request & { user?: any }, res: Respon
     res.status(500).json({ error: 'Internal Server Error' });
   }
 };
+
+export const getCompressionDefaults = async (req: Request & { user?: any }, res: Response): Promise<void> => {
+  try {
+    const workspaceId = req.user?.workspaceId;
+    if (!workspaceId) {
+      res.status(401).json({ error: 'Unauthorized' });
+      return;
+    }
+
+    const workspace = await prisma.workspace.findUnique({
+      where: { id: workspaceId },
+      select: {
+        defaultPreset: true,
+        defaultFormat: true,
+        defaultQuality: true,
+        defaultStripMetadata: true,
+        defaultMaxWidth: true,
+        defaultMaxHeight: true,
+        defaultFit: true
+      }
+    });
+
+    if (!workspace) {
+      res.status(404).json({ error: 'Workspace not found' });
+      return;
+    }
+
+    res.status(200).json({ success: true, data: workspace });
+  } catch (error) {
+    console.error('getCompressionDefaults Error:', error);
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
+};
+
+export const updateCompressionDefaults = async (req: Request & { user?: any }, res: Response): Promise<void> => {
+  try {
+    const workspaceId = req.user?.workspaceId;
+    if (!workspaceId) {
+      res.status(401).json({ error: 'Unauthorized' });
+      return;
+    }
+
+    const {
+      defaultPreset,
+      defaultFormat,
+      defaultQuality,
+      defaultStripMetadata,
+      defaultMaxWidth,
+      defaultMaxHeight,
+      defaultFit
+    } = req.body;
+
+    const updateData: any = {};
+    if (defaultPreset !== undefined) updateData.defaultPreset = String(defaultPreset);
+    if (defaultFormat !== undefined) updateData.defaultFormat = String(defaultFormat);
+    if (defaultQuality !== undefined) updateData.defaultQuality = Number(defaultQuality);
+    if (defaultStripMetadata !== undefined) updateData.defaultStripMetadata = Boolean(defaultStripMetadata);
+    if (defaultMaxWidth !== undefined) {
+      updateData.defaultMaxWidth = defaultMaxWidth === null || defaultMaxWidth === '' ? null : Number(defaultMaxWidth);
+    }
+    if (defaultMaxHeight !== undefined) {
+      updateData.defaultMaxHeight = defaultMaxHeight === null || defaultMaxHeight === '' ? null : Number(defaultMaxHeight);
+    }
+    if (defaultFit !== undefined) updateData.defaultFit = String(defaultFit);
+
+    const updated = await prisma.workspace.update({
+      where: { id: workspaceId },
+      data: updateData
+    });
+
+    res.status(200).json({
+      success: true,
+      data: {
+        defaultPreset: updated.defaultPreset,
+        defaultFormat: updated.defaultFormat,
+        defaultQuality: updated.defaultQuality,
+        defaultStripMetadata: updated.defaultStripMetadata,
+        defaultMaxWidth: updated.defaultMaxWidth,
+        defaultMaxHeight: updated.defaultMaxHeight,
+        defaultFit: updated.defaultFit
+      }
+    });
+  } catch (error) {
+    console.error('updateCompressionDefaults Error:', error);
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
+};
+

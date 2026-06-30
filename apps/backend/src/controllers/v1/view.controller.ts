@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import { GetObjectCommand } from '@aws-sdk/client-s3';
 import { s3Client, BUCKET_NAME } from '../../config/s3';
 import { prisma } from '../../config/prisma';
+import { checkAndTriggerQuotaEmails } from '../../services/quota-alert.service';
 
 export const viewMediaController = async (req: Request, res: Response): Promise<void> => {
   try {
@@ -56,12 +57,18 @@ export const viewMediaController = async (req: Request, res: Response): Promise<
     }
 
     // Increment bandwidthUsed in workspace
-    await prisma.workspace.update({
+    prisma.workspace.update({
       where: { id: workspaceId },
       data: {
         bandwidthUsed: { increment: mediaFile.optimizedSize }
       }
-    }).catch((err: any) => console.error('[Bandwidth] Failed to update bandwidthUsed:', err));
+    })
+      .then(() => {
+        checkAndTriggerQuotaEmails(workspaceId).catch((err) => 
+          console.error('[Quota Warning] Failed to check quota:', err)
+        );
+      })
+      .catch((err: any) => console.error('[Bandwidth] Failed to update bandwidthUsed:', err));
 
     if (response.ContentType) {
       res.setHeader('Content-Type', response.ContentType);

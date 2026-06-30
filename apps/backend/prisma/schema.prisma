@@ -93,6 +93,12 @@ model User {
   activeWorkspace        Workspace?      @relation("ActiveWorkspace", fields: [activeWorkspaceId], references: [id], onDelete: SetNull)
   workspaces             WorkspaceUser[]
 
+  // Notification Preferences
+  emailWeeklySummary  Boolean  @default(true)
+  emailQuotaWarnings  Boolean  @default(true)
+  emailSecurityAlerts Boolean  @default(true)
+  emailBillingAlerts  Boolean  @default(true)
+
   // Зв'язок із логами дій (якщо користувача видалять, логи залишаються, але поле userId стане null)
   activityLogs ActivityLog[]
 }
@@ -110,6 +116,23 @@ model Workspace {
   storageUsed          BigInt   @default(0)
   bandwidthUsed        BigInt   @default(0)
   monthlyOptimizations Int      @default(0)
+
+  // Налаштування стиснення за замовчуванням
+  defaultPreset        String   @default("web_balanced")
+  defaultFormat        String   @default("auto")
+  defaultQuality       Int      @default(80)
+  defaultStripMetadata Boolean  @default(true)
+  defaultMaxWidth      Int?
+  defaultMaxHeight     Int?
+  defaultFit           String   @default("cover")
+
+  // Попередження про ліміти (для запобігання дублювання листів)
+  warnedStorage80       Boolean  @default(false)
+  warnedStorage100      Boolean  @default(false)
+  warnedBandwidth80     Boolean  @default(false)
+  warnedBandwidth100    Boolean  @default(false)
+  warnedOptimizations80  Boolean  @default(false)
+  warnedOptimizations100 Boolean  @default(false)
 
   // Зв'язки
   members        WorkspaceUser[]

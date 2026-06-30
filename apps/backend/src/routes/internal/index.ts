@@ -11,6 +11,7 @@ import workspaceUsersRoutes from './workspace-users.routes';
 import rolesRoutes from './roles.routes';
 import shareRoutes from './share.routes';
 import webhookRoutes from './webhook.routes';
+import userRoutes from './user.routes';
 
 const router: Router = Router();
 
@@ -34,5 +35,6 @@ router.use('/workspace-users', workspaceUsersRoutes);
 router.use('/roles', rolesRoutes);
 router.use('/share', shareRoutes);
 router.use('/webhooks', webhookRoutes);
+router.use('/user', userRoutes);
 
 export default router;
