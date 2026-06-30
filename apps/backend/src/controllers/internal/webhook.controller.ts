@@ -45,10 +45,10 @@ export const createWebhook = async (req: AuthRequest, res: Response): Promise<vo
     }
 
     // Тільки дозволені івенти
-    const allowedEvents = ['file.optimized'];
+    const allowedEvents = ['file.optimized', 'file.deleted', 'file.restored', 'folder.created', 'folder.deleted'];
     const hasInvalidEvent = events.some((e: string) => !allowedEvents.includes(e));
     if (hasInvalidEvent) {
-      res.status(400).json({ success: false, error: 'Invalid events specified. Currently only "file.optimized" is supported.' });
+      res.status(400).json({ success: false, error: `Invalid events specified. Allowed events: ${allowedEvents.join(', ')}` });
       return;
     }
 
@@ -99,10 +99,10 @@ export const updateWebhook = async (req: AuthRequest, res: Response): Promise<vo
     }
 
     if (events) {
-      const allowedEvents = ['file.optimized'];
+      const allowedEvents = ['file.optimized', 'file.deleted', 'file.restored', 'folder.created', 'folder.deleted'];
       const hasInvalidEvent = events.some((e: string) => !allowedEvents.includes(e));
       if (hasInvalidEvent) {
-        res.status(400).json({ success: false, error: 'Invalid events. Currently only "file.optimized" is supported.' });
+        res.status(400).json({ success: false, error: `Invalid events. Allowed events: ${allowedEvents.join(', ')}` });
         return;
       }
     }

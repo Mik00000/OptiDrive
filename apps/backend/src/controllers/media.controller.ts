@@ -1,6 +1,7 @@
 import { Response } from 'express';
 import { prisma } from '../config/prisma';
 import { AuthRequest } from '../middlewares/auth.middleware';
+import { triggerWebhooks } from '../services/webhook.service';
 import { s3Client, BUCKET_NAME } from '../config/s3';
 import { DeleteObjectCommand } from '@aws-sdk/client-s3';
 
@@ -201,6 +202,13 @@ export const deleteMediaFile = async (req: AuthRequest, res: Response): Promise<
         workspaceId,
         userId: (req as any).user?.id || null,
       }
+    });
+
+    // Trigger Webhooks
+    triggerWebhooks(workspaceId, 'file.deleted', {
+      id: mediaFile.id,
+      name: mediaFile.name,
+      deletedAt: new Date()
     });
 
     res.status(200).json({ success: true, message: 'File moved to Trash' });

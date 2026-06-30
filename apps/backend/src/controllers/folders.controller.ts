@@ -1,6 +1,7 @@
 import { Response } from 'express';
 import { prisma } from '../config/prisma';
 import { AuthRequest } from '../middlewares/auth.middleware';
+import { triggerWebhooks } from '../services/webhook.service';
 import { s3Client, BUCKET_NAME } from '../config/s3';
 import { DeleteObjectCommand } from '@aws-sdk/client-s3';
 import { ZipArchive } from 'archiver';
@@ -67,6 +68,15 @@ export const createFolder = async (req: AuthRequest, res: Response): Promise<voi
         workspaceId,
         color: color || null,
       }
+    });
+
+    // Trigger Webhooks
+    triggerWebhooks(workspaceId, 'folder.created', {
+      id: folder.id,
+      name: folder.name,
+      parentId: folder.parentId,
+      color: folder.color,
+      createdAt: folder.createdAt
     });
 
     res.status(201).json({ success: true, data: folder });
@@ -223,6 +233,14 @@ export const deleteFolder = async (req: AuthRequest, res: Response): Promise<voi
         workspaceId,
         userId: (req as any).user?.id || null,
       }
+    });
+
+    // Trigger Webhooks
+    triggerWebhooks(workspaceId, 'folder.deleted', {
+      id: folderId,
+      name: folder.name,
+      subfolderIds: folderIds,
+      deletedAt: new Date()
     });
 
     res.status(200).json({ success: true, message: 'Folder and contents moved to Trash' });

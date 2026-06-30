@@ -70,6 +70,42 @@ export const WebhookFormModal = ({
     }
   };
 
+  const availableEvents = [
+    {
+      id: 'file.optimized',
+      label: 'Image optimized successfully',
+      description: 'Triggers when a file is successfully compressed and uploaded.'
+    },
+    {
+      id: 'file.deleted',
+      label: 'File moved to Trash',
+      description: 'Triggers when a file is soft-deleted.'
+    },
+    {
+      id: 'file.restored',
+      label: 'File restored from Trash',
+      description: 'Triggers when a file is recovered from the recycle bin.'
+    },
+    {
+      id: 'folder.created',
+      label: 'Folder created',
+      description: 'Triggers when a new directory is created.'
+    },
+    {
+      id: 'folder.deleted',
+      label: 'Folder moved to Trash',
+      description: 'Triggers when a directory is moved to the recycle bin.'
+    }
+  ];
+
+  const handleToggleEvent = (eventId: string) => {
+    if (events.includes(eventId)) {
+      setEvents(events.filter(e => e !== eventId));
+    } else {
+      setEvents([...events, eventId]);
+    }
+  };
+
   return (
     <Modal
       isOpen={isOpen}
@@ -107,21 +143,21 @@ export const WebhookFormModal = ({
 
         <div className="flex flex-col gap-2">
           <label className="text-sm font-semibold text-text-secondary">Events to Send</label>
-          <div className="rounded-xl border border-border bg-card-bg/50 p-4">
-            <label className="flex items-start gap-3 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={events.includes('file.optimized')}
-                disabled
-                className="mt-0.5 h-4.5 w-4.5 rounded border-border text-accent focus:ring-accent"
-              />
-              <div>
-                <span className="text-sm font-medium text-text">Image optimized successfully</span>
-                <p className="text-xs text-text-muted mt-0.5">
-                  Triggers every time a file is successfully compressed and uploaded to storage (`file.optimized`).
-                </p>
-              </div>
-            </label>
+          <div className="flex flex-col gap-3.5 rounded-xl border border-border bg-card-bg/50 p-4 max-h-[220px] overflow-y-auto">
+            {availableEvents.map((evt) => (
+              <label key={evt.id} className="flex items-start gap-3 cursor-pointer group">
+                <input
+                  type="checkbox"
+                  checked={events.includes(evt.id)}
+                  onChange={() => handleToggleEvent(evt.id)}
+                  className="mt-0.5 h-4.5 w-4.5 rounded border-border text-accent focus:ring-accent cursor-pointer"
+                />
+                <div>
+                  <span className="text-sm font-medium text-text group-hover:text-text-light transition-colors">{evt.label}</span>
+                  <p className="text-[11px] text-text-muted mt-0.5">{evt.description} (`{evt.id}`)</p>
+                </div>
+              </label>
+            ))}
           </div>
         </div>
 

@@ -3,6 +3,7 @@ import { prisma } from '../config/prisma';
 import { AuthRequest } from '../middlewares/auth.middleware';
 import { s3Client, BUCKET_NAME } from '../config/s3';
 import { DeleteObjectCommand } from '@aws-sdk/client-s3';
+import { triggerWebhooks } from '../services/webhook.service';
 
 // Helper to recursively get all subfolders (including deleted ones)
 async function getAllSubfolderIdsIncludingDeleted(folderId: string): Promise<string[]> {
@@ -171,6 +172,13 @@ export const restoreFile = async (req: AuthRequest, res: Response): Promise<void
       }
     });
 
+    // Trigger Webhooks
+    triggerWebhooks(workspaceId, 'file.restored', {
+      id: file.id,
+      name: file.name,
+      restoredAt: new Date()
+    });
+
     res.status(200).json({ success: true, message: 'File restored successfully' });
   } catch (error) {
     console.error('restoreFile Error:', error);
@@ -237,6 +245,23 @@ export const restoreFolder = async (req: AuthRequest, res: Response): Promise<vo
         userId: req.user?.userId || null
       }
     });
+
+    // Get list of restored files to trigger webhooks
+    const restoredFiles = await prisma.mediaFile.findMany({
+      where: {
+        folderId: { in: folderIds },
+        workspaceId
+      },
+      select: { id: true, name: true }
+    });
+
+    for (const rf of restoredFiles) {
+      triggerWebhooks(workspaceId, 'file.restored', {
+        id: rf.id,
+        name: rf.name,
+        restoredAt: new Date()
+      });
+    }
 
     res.status(200).json({ success: true, message: 'Folder restored successfully' });
   } catch (error) {
