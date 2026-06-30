@@ -468,6 +468,41 @@ func main() {
   "success": true,
   "message": "Folder moved to Trash"
 }`
+      },
+      {
+        method: 'POST',
+        path: '/api/v1/folders/:id/restore',
+        description: 'Restores a soft-deleted folder and all its nested contents (folders and files) back to active storage.',
+        params: [
+          { name: 'id', type: 'string', required: true, description: 'The unique ID of the folder to restore.' }
+        ],
+        codeSnippets: {
+          JavaScript: `fetch('https://api.optidrive.com/api/v1/folders/folder_xyz/restore', {
+  method: 'POST',
+  headers: { 'x-api-key': 'op_live_your_api_key_here' }
+})
+.then(res => res.json());`,
+          cURL: `curl -X POST -H "x-api-key: op_live_your_api_key_here" \\
+  https://api.optidrive.com/api/v1/folders/folder_xyz/restore`,
+          Python: `import requests
+requests.post(
+    "https://api.optidrive.com/api/v1/folders/folder_xyz/restore",
+    headers={"x-api-key": "op_live_your_api_key_here"}
+)`,
+          Go: `package main
+ 
+import "net/http"
+ 
+func main() {
+	req, _ := http.NewRequest("POST", "https://api.optidrive.com/api/v1/folders/folder_xyz/restore", nil)
+	req.Header.Set("x-api-key", "op_live_your_api_key_here")
+	(&http.Client{}).Do(req)
+}`
+        },
+        jsonResponse: `{
+  "success": true,
+  "message": "Folder restored successfully"
+}`
       }
     ]
   },
@@ -562,6 +597,92 @@ func main() {
     "createdAt": "2026-06-29T18:10:00.000Z"
   }
 }`
+      },
+      {
+        method: 'PATCH',
+        path: '/api/v1/tags/:id',
+        description: 'Updates the specified tag name or color.',
+        params: [
+          { name: 'id', type: 'string', required: true, description: 'The unique ID of the tag.' },
+          { name: 'name', type: 'string', required: false, description: 'New tag name.' },
+          { name: 'color', type: 'string', required: false, description: 'New Hex code color.' }
+        ],
+        codeSnippets: {
+          JavaScript: `fetch('https://api.optidrive.com/api/v1/tags/tag_2', {
+  method: 'PATCH',
+  headers: {
+    'x-api-key': 'op_live_your_api_key_here',
+    'Content-Type': 'application/json'
+  },
+  body: JSON.stringify({ name: 'updated-banner', color: '#3b82f6' })
+})
+.then(res => res.json());`,
+          cURL: `curl -X PATCH https://api.optidrive.com/api/v1/tags/tag_2 \\
+  -H "x-api-key: op_live_your_api_key_here" \\
+  -H "Content-Type: application/json" \\
+  -d '{"name": "updated-banner", "color": "#3b82f6"}'`,
+          Python: `import requests
+requests.patch(
+    "https://api.optidrive.com/api/v1/tags/tag_2",
+    headers={"x-api-key": "op_live_your_api_key_here", "Content-Type": "application/json"},
+    json={"name": "updated-banner"}
+)`,
+          Go: `package main
+
+import (
+	"bytes"
+	"net/http"
+)
+
+func main() {
+	payload := []byte(\`{"name": "updated-banner"}\`)
+	req, _ := http.NewRequest("PATCH", "https://api.optidrive.com/api/v1/tags/tag_2", bytes.NewBuffer(payload))
+	req.Header.Set("x-api-key", "op_live_your_api_key_here")
+	req.Header.Set("Content-Type", "application/json")
+	(&http.Client{}).Do(req)
+}`
+        },
+        jsonResponse: `{
+  "success": true,
+  "data": {
+    "id": "tag_2",
+    "name": "updated-banner",
+    "color": "#3b82f6",
+    "createdAt": "2026-06-29T18:10:00.000Z"
+  }
+}`
+      },
+      {
+        method: 'DELETE',
+        path: '/api/v1/tags/:id',
+        description: 'Permanently deletes the specified tag and disconnects it from all connected media files.',
+        params: [
+          { name: 'id', type: 'string', required: true, description: 'The unique ID of the tag.' }
+        ],
+        codeSnippets: {
+          JavaScript: `fetch('https://api.optidrive.com/api/v1/tags/tag_2', {
+  method: 'DELETE',
+  headers: { 'x-api-key': 'op_live_your_api_key_here' }
+})
+.then(res => res.json());`,
+          cURL: `curl -X DELETE -H "x-api-key: op_live_your_api_key_here" \\
+  https://api.optidrive.com/api/v1/tags/tag_2`,
+          Python: `import requests
+requests.delete("https://api.optidrive.com/api/v1/tags/tag_2", headers={"x-api-key": "op_live_your_api_key_here"})`,
+          Go: `package main
+
+import "net/http"
+
+func main() {
+	req, _ := http.NewRequest("DELETE", "https://api.optidrive.com/api/v1/tags/tag_2", nil)
+	req.Header.Set("x-api-key", "op_live_your_api_key_here")
+	(&http.Client{}).Do(req)
+}`
+        },
+        jsonResponse: `{
+  "success": true,
+  "message": "Tag deleted successfully"
+}`
       }
     ]
   },
@@ -640,6 +761,70 @@ func main() {
   "success": true,
   "message": "File restored successfully"
 }`
+      },
+      {
+        method: 'POST',
+        path: '/api/v1/folders/:id/restore',
+        description: 'Restores a soft-deleted folder and all its nested content (folders and files).',
+        params: [
+          { name: 'id', type: 'string', required: true, description: 'The unique ID of the folder to restore.' }
+        ],
+        codeSnippets: {
+          JavaScript: `fetch('https://api.optidrive.com/api/v1/folders/folder_xyz/restore', {
+  method: 'POST',
+  headers: { 'x-api-key': 'op_live_your_api_key_here' }
+})
+.then(res => res.json());`,
+          cURL: `curl -X POST -H "x-api-key: op_live_your_api_key_here" \\
+  https://api.optidrive.com/api/v1/folders/folder_xyz/restore`,
+          Python: `import requests
+requests.post(
+    "https://api.optidrive.com/api/v1/folders/folder_xyz/restore",
+    headers={"x-api-key": "op_live_your_api_key_here"}
+)`,
+          Go: `package main
+ 
+import "net/http"
+ 
+func main() {
+	req, _ := http.NewRequest("POST", "https://api.optidrive.com/api/v1/folders/folder_xyz/restore", nil)
+	req.Header.Set("x-api-key", "op_live_your_api_key_here")
+	(&http.Client{}).Do(req)
+}`
+        },
+        jsonResponse: `{
+  "success": true,
+  "message": "Folder restored successfully"
+}`
+      },
+      {
+        method: 'DELETE',
+        path: '/api/v1/trash/empty',
+        description: 'Permanently deletes all files and folders currently in the trash for your workspace.',
+        codeSnippets: {
+          JavaScript: `fetch('https://api.optidrive.com/api/v1/trash/empty', {
+  method: 'DELETE',
+  headers: { 'x-api-key': 'op_live_your_api_key_here' }
+})
+.then(res => res.json());`,
+          cURL: `curl -X DELETE -H "x-api-key: op_live_your_api_key_here" \\
+  https://api.optidrive.com/api/v1/trash/empty`,
+          Python: `import requests
+requests.delete("https://api.optidrive.com/api/v1/trash/empty", headers={"x-api-key": "op_live_your_api_key_here"})`,
+          Go: `package main
+ 
+import "net/http"
+ 
+func main() {
+	req, _ := http.NewRequest("DELETE", "https://api.optidrive.com/api/v1/trash/empty", nil)
+	req.Header.Set("x-api-key", "op_live_your_api_key_here")
+	(&http.Client{}).Do(req)
+}`
+        },
+        jsonResponse: `{
+  "success": true,
+  "message": "Trash emptied successfully"
+}`
       }
     ]
   },
@@ -647,7 +832,42 @@ func main() {
     id: 'webhooks',
     title: 'Webhooks Receiver',
     description: 'Listen to real-time image optimization events and notify your system instantly.',
-    generalGuide: `Webhooks allow OptiDrive to ping your server whenever certain actions happen in your workspace. Currently, we support the \`file.optimized\` event.
+    generalGuide: `Webhooks allow OptiDrive to ping your server whenever certain actions happen in your workspace.
+    
+    ### Supported Events
+    We trigger webhook payloads for the following events:
+    - \`file.optimized\` - Triggered when a new image file is uploaded, optimized, and saved.
+    - \`file.deleted\` - Triggered when a file is moved to the Trash.
+    - \`file.restored\` - Triggered when a file is restored from the Trash.
+    - \`folder.created\` - Triggered when a new folder is created in the workspace.
+    - \`folder.deleted\` - Triggered when a folder and its contents are moved to the Trash.
+    
+    ### Payload Examples
+    **For folder events (\`folder.created\`, \`folder.deleted\`):**
+    \`\`\`json
+    {
+      "event": "folder.created",
+      "createdAt": "2026-06-30T12:00:00.000Z",
+      "data": {
+        "id": "folder_xyz",
+        "name": "Marketing Assets",
+        "parentId": "folder_abc"
+      }
+    }
+    \`\`\`
+    
+    **For file state changes (\`file.deleted\`, \`file.restored\`):**
+    \`\`\`json
+    {
+      "event": "file.deleted",
+      "createdAt": "2026-06-30T12:00:00.000Z",
+      "data": {
+        "id": "file_cld8x9k2m",
+        "name": "logo.png",
+        "deletedAt": "2026-06-30T12:00:00.000Z"
+      }
+    }
+    \`\`\`
     
     ### HMAC-SHA256 Payload Signature
     For security reasons, every webhook request sent from OptiDrive includes an \`X-OptiDrive-Signature\` header. 
@@ -739,5 +959,132 @@ func verifyWebhook(w http.ResponseWriter, r *http.Request) {
     "createdAt": "2026-06-29T18:00:00.000Z"
   }
 }`
+  },
+  {
+    id: 'dynamic-transformations',
+    title: 'Transformations',
+    description: 'Transform, resize, crop, and convert image formats on-the-fly using URL parameters.',
+    generalGuide: `OptiDrive supports dynamic, on-the-fly image transformations via URL query parameters. You can resize, adjust quality, or change formats on the fly. 
+    
+    All transformed images are cached automatically at the edge (CDN) using Cache-Control headers to ensure lightning-fast subsequent loads.
+    
+    ### Dynamic URL Parameters
+    You can append the following query parameters to any media file view URL:
+    - \`w\` or \`width\` (number): Set target width in pixels (e.g. \`w=500\`).
+    - \`h\` or \`height\` (number): Set target height in pixels (e.g. \`h=300\`).
+    - \`q\` or \`quality\` (number, 1-100): Set compression quality (default is \`80\`).
+    - \`f\` or \`format\` (\`webp\`, \`avif\`, \`png\`, \`jpeg\`, \`gif\`): Convert image format on the fly (default is \`webp\`).
+    - \`fit\` (\`cover\`, \`contain\`, \`fill\`, \`inside\`, \`outside\`): Resize fit strategy (default is \`cover\`).
+    
+    ### How to Request
+    You can request optimized media through public view paths:
+    1. **Public View URL:** Global view URL:
+       \`https://api.optidrive.com/api/public/media/view/:fileId?w=300\`
+    2. **Developer API CDN URL:** Raw view path using workspace scope:
+       \`https://api.optidrive.com/api/v1/media/:workspaceId/:filename?w=300\``,
+    codeSnippets: {
+      JavaScript: `// Fetching a dynamically resized WebP image at 150px
+const imageUrl = 'https://api.optidrive.com/api/public/media/view/file_avatar_123?w=150&h=150&fit=cover&f=webp&q=85';
+
+const imgElement = document.createElement('img');
+imgElement.src = imageUrl;
+imgElement.alt = 'Optimized Image';
+document.body.appendChild(imgElement);`,
+      cURL: `# Get optimized image in AVIF format with width 400px
+curl -I "https://api.optidrive.com/api/public/media/view/file_cld8x9k2m?w=400&f=avif"`,
+      Python: `# Constructing and checking an optimized image URL
+import requests
+
+FILE_ID = "file_cld8x9k2m"
+API_URL = "api.optidrive.com"
+params = {
+    "width": 800,
+    "quality": 85,
+    "format": "webp"
+}
+
+url = f"https://{API_URL}/api/public/media/view/{FILE_ID}"
+response = requests.head(url, params=params)
+print(f"Content Type: {response.headers.get('Content-Type')}")
+print(f"Cache Status: {response.headers.get('Cache-Control')}")`,
+      Go: `package main
+
+import (
+	"fmt"
+	"net/http"
+)
+
+func main() {
+	// Construct optimized media URL
+	url := "https://api.optidrive.com/api/public/media/view/file_cld8x9k2m?w=600&h=400&fit=contain"
+	
+	resp, err := http.Head(url)
+	if err != nil {
+		fmt.Println("Error:", err)
+		return
+	}
+	defer resp.Body.Close()
+	fmt.Println("Status:", resp.Status)
+}`
+    }
+  },
+  {
+    id: 'custom-domains',
+    title: 'Custom Domains',
+    description: 'Deliver your assets and share links securely using your own branded custom domains.',
+    generalGuide: `You can brand your public share links and media delivery URLs by connecting your own custom domains.
+    
+    ### Configuring DNS Records
+    To configure a custom domain, you need to add a **CNAME** record at your DNS provider pointing to our edge server:
+    - **Type:** \`CNAME\`
+    - **Name:** \`media\` (or your desired subdomain like \`assets\`, \`cdn\`)
+    - **Target:** \`cname.optidrive.com\`
+    - **TTL:** \`Automatic\` or \`1 Hour\`
+    
+    ### Verifying Domain Setup
+    Once the DNS record is added, navigate to the **Workspace Settings > Domains** tab in the dashboard, add your domain, and click **Verify Setup**. Once verified, its status changes to \`ACTIVE\`.
+    
+    ### Deliver Media via Custom Domain
+    Use the domain name prefix directly for public view routes:
+    \`https://media.company.com/view/:fileId?w=300\`
+    
+    Or use it in share links:
+    \`https://media.company.com/s/:shareSlug\``,
+    codeSnippets: {
+      JavaScript: `// Accessing public share links via branded custom domain
+const shareUrl = 'https://media.mycompany.com/s/link_slug_123';
+console.log('Share Link:', shareUrl);`,
+      cURL: `# Test connection to your custom domain view endpoint
+curl -I "https://media.mycompany.com/view/file_cld8x9k2m?w=500"`,
+      Python: `# Fetching media content using custom domain prefix
+import requests
+
+DOMAIN = "media.mycompany.com"
+FILE_ID = "file_cld8x9k2m"
+
+url = f"https://{DOMAIN}/view/{FILE_ID}"
+response = requests.get(url, params={"w": 300})
+if response.status_code == 200:
+    print("Asset fetched successfully via custom domain")`,
+      Go: `package main
+
+import (
+	"fmt"
+	"net/http"
+)
+
+func main() {
+	// Access share links via custom domain
+	url := "https://media.mycompany.com/s/link_slug_123"
+	
+	resp, err := http.Get(url)
+	if err != nil {
+		fmt.Println("Error:", err)
+		return
+	}
+	defer resp.Body.Close()
+	fmt.Println("Branded Share Link Status:", resp.Status)
+}`
+    }
   }
 ];

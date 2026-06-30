@@ -26,7 +26,11 @@ app.use('/api/v1', v1Routes);
 
 // Публічні лінки для розшарювання
 import publicShareRoutes from './routes/public/share.routes';
+import { viewMediaFileOnTheFly } from './controllers/public-media.controller';
+
 app.use('/api/public/share', publicShareRoutes);
+app.get('/api/public/media/view/:id', viewMediaFileOnTheFly);
+app.get('/view/:id', viewMediaFileOnTheFly); // Для використання з кастомними доменами
 
 // Функція-костиль (keep-alive) для NeonDB, щоб він не засинав
 const keepNeonAwake = () => {
