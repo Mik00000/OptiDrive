@@ -132,6 +132,20 @@ export const downloadShareLink = async (req: Request, res: Response): Promise<vo
         where: { folderId: { in: folderIds }, workspaceId: shareLink.workspaceId, isDeleted: false }
       });
 
+      // Increment bandwidthUsed in workspace
+      let totalFolderSize = BigInt(0);
+      for (const file of files) {
+        totalFolderSize += file.optimizedSize;
+      }
+      if (totalFolderSize > BigInt(0)) {
+        await prisma.workspace.update({
+          where: { id: shareLink.workspaceId },
+          data: {
+            bandwidthUsed: { increment: totalFolderSize }
+          }
+        }).catch((err: any) => console.error('[Bandwidth] Failed to update downloadShareLink folder bandwidth:', err));
+      }
+
       res.setHeader('Content-Type', 'application/zip');
       res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(folder.name)}.zip"`);
 
@@ -185,6 +199,15 @@ export const downloadShareLink = async (req: Request, res: Response): Promise<vo
       });
 
       const presignedUrl = await getSignedUrl(s3Client, command, { expiresIn: 3600 });
+
+      // Increment bandwidthUsed in workspace
+      await prisma.workspace.update({
+        where: { id: shareLink.workspaceId },
+        data: {
+          bandwidthUsed: { increment: file.optimizedSize }
+        }
+      }).catch((err: any) => console.error('[Bandwidth] Failed to update downloadShareLink file bandwidth:', err));
+
       res.redirect(presignedUrl);
     } else {
       res.status(404).json({ error: 'Target not found' });

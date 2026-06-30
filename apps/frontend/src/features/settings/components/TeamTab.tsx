@@ -7,6 +7,7 @@ import { InviteMemberModal } from './InviteMemberModal';
 import { getWorkspaceUsersApi, removeWorkspaceUserApi, transferOwnershipApi, WorkspaceUser } from '../api';
 import { ConfirmModal } from './ConfirmModal';
 import { useAuth } from '@/contexts/AuthContext';
+import { PLANS, PlanType } from '@optidrive/shared';
 
 export const TeamTab = () => {
   const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
@@ -80,21 +81,35 @@ export const TeamTab = () => {
     }
   };
 
+  const plan = (activeWorkspace?.plan || 'FREE') as PlanType;
+  const maxMembers = PLANS[plan]?.maxMembers || 2;
+  const isLimitReached = members.length >= maxMembers;
+
   return (
     <div className="flex max-w-4xl flex-col gap-6 lg:gap-8 pb-8 relative">
       <div className="border-border bg-card flex flex-col overflow-hidden rounded-2xl border">
         <div className="border-border border-b flex flex-col sm:flex-row sm:items-center justify-between gap-4 px-4 py-4 sm:px-6">
           <div>
-            <span className="text-text-light text-lg font-semibold">
-              Team Members
-            </span>
+            <div className="flex items-center gap-2">
+              <span className="text-text-light text-lg font-semibold">
+                Team Members
+              </span>
+              <span className="text-xs text-text-muted">
+                ({members.length} / {maxMembers} Members)
+              </span>
+            </div>
             <p className="text-text-muted text-sm mt-1">
               Manage who has access to this project.
             </p>
           </div>
-          <Button variant="primary" className="w-full sm:w-auto shrink-0 justify-center" onClick={() => setIsInviteModalOpen(true)}>
+          <Button 
+            variant="primary" 
+            className="w-full sm:w-auto shrink-0 justify-center" 
+            onClick={() => setIsInviteModalOpen(true)}
+            disabled={isLimitReached}
+          >
             <Icon icon="lucide:user-plus" width="16" height="16" className="mr-2" />
-            Invite Member
+            {isLimitReached ? 'Limit Reached' : 'Invite Member'}
           </Button>
         </div>
         

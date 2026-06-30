@@ -4,9 +4,11 @@ import { Button } from '@/components/Button';
 import { Input } from '@/components/Inputs';
 import PageHeading from '@/components/PageHeading';
 import { Icon } from '@iconify/react';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { MediaTable } from '@/features/media/MediaTable';
 import { UploadMediaModal } from '@/features/media/UploadMediaModal';
+import { getWorkspaceStatsApi, WorkspaceStats } from '@/features/dashboard/api';
+import QuotaAlerts from '@/features/dashboard/QuotaAlerts';
 
 const MediaLibraryPage = () => {
   const [formatFilter, setFormatFilter] = useState<string>("all");
@@ -23,8 +25,21 @@ const MediaLibraryPage = () => {
     setRefreshKey(prev => prev + 1);
   };
 
+  const [stats, setStats] = useState<WorkspaceStats | null>(null);
+
+  useEffect(() => {
+    getWorkspaceStatsApi().then(setStats).catch(console.error);
+  }, [refreshKey]);
+
+  const isUploadBlocked = stats
+    ? Number(stats.storageUsed) >= Number(stats.limits.storageBytes) ||
+      Number(stats.bandwidthUsed) >= Number(stats.limits.bandwidthBytes) ||
+      stats.monthlyOptimizations >= stats.limits.monthlyOptimizations
+    : false;
+
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
+    if (isUploadBlocked) return;
     if (e.dataTransfer.types.includes('Files')) {
       setIsDraggingOverPage(true);
     }
@@ -38,6 +53,7 @@ const MediaLibraryPage = () => {
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
     setIsDraggingOverPage(false);
+    if (isUploadBlocked) return;
     if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
       setDroppedFile(e.dataTransfer.files[0]);
       setIsUploadModalOpen(true);
@@ -70,15 +86,22 @@ const MediaLibraryPage = () => {
             >
               {isSelectionMode ? 'Cancel' : 'Select'}
             </Button>
-            <Button variant="accent" mobileBehavior="icon-only" onClick={() => setIsUploadModalOpen(true)}>
+            <Button 
+              variant={isUploadBlocked ? 'bordered' : 'accent'} 
+              mobileBehavior="icon-only" 
+              onClick={() => setIsUploadModalOpen(true)}
+              disabled={isUploadBlocked}
+              className={isUploadBlocked ? 'opacity-50 border-dashed border-red-500/30 text-red-400 bg-red-950/10 cursor-not-allowed hover:scale-100 hover:brightness-100 active:scale-100' : ''}
+            >
               <div className="inline-flex h-5 w-5 items-center justify-center sm:h-4 sm:w-4">
-                <Icon icon="lucide:upload" width="100%" height="100%" />
+                <Icon icon={isUploadBlocked ? "lucide:lock" : "lucide:upload"} width="100%" height="100%" />
               </div>
-              <span>Upload Media</span>
+              <span>{isUploadBlocked ? 'Upload Blocked' : 'Upload Media'}</span>
             </Button>
           </div>
         </PageHeading>
         <div className="flex flex-col gap-6 p-8 pb-0">
+          <QuotaAlerts />
           <div className='flex flex-col w-full h-fit min-w-0 gap-4 xl:gap-0 xl:bg-card xl:border border-border rounded-2xl '>
             <MediaTable 
               searchQuery={searchQuery} 

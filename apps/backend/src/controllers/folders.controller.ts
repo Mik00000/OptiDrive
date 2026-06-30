@@ -399,9 +399,24 @@ export const downloadFolder = async (req: AuthRequest, res: Response): Promise<v
     const files = await prisma.mediaFile.findMany({
       where: {
         folderId: { in: folderIds },
-        workspaceId
+        workspaceId,
+        isDeleted: false
       }
     });
+
+    // Increment bandwidthUsed in workspace
+    let totalFolderSize = BigInt(0);
+    for (const file of files) {
+      totalFolderSize += file.optimizedSize;
+    }
+    if (totalFolderSize > BigInt(0)) {
+      await prisma.workspace.update({
+        where: { id: workspaceId },
+        data: {
+          bandwidthUsed: { increment: totalFolderSize }
+        }
+      }).catch((err: any) => console.error('[Bandwidth] Failed to update downloadFolder bandwidth:', err));
+    }
 
     // Set headers for download
     res.setHeader('Content-Type', 'application/zip');

@@ -236,45 +236,47 @@ export const updateMediaFile = async (req: AuthRequest, res: Response): Promise<
     }
 
     if (tags !== undefined && Array.isArray(tags)) {
-      // Disconnect all current tags first
-      await prisma.mediaFile.update({
-        where: { id: String(fileId) },
-        data: {
-          tags: { set: [] }
-        }
-      });
-      
-      // Connect/create the new ones
-      await prisma.mediaFile.update({
-        where: { id: String(fileId) },
-        data: {
-          name: name !== undefined ? name : undefined,
-          tags: {
-            connectOrCreate: tags.map((tagName: string) => {
-              const cleanTagName = tagName.trim();
-              return {
-                where: {
-                  name_workspaceId: {
+      await prisma.$transaction(async (tx) => {
+        // Disconnect all current tags first
+        await tx.mediaFile.update({
+          where: { id: String(fileId) },
+          data: {
+            tags: { set: [] }
+          }
+        });
+        
+        // Connect/create the new ones
+        await tx.mediaFile.update({
+          where: { id: String(fileId) },
+          data: {
+            name: name !== undefined ? name : undefined,
+            tags: {
+              connectOrCreate: tags.map((tagName: string) => {
+                const cleanTagName = tagName.trim();
+                return {
+                  where: {
+                    name_workspaceId: {
+                      name: cleanTagName,
+                      workspaceId: workspaceId
+                    }
+                  },
+                  create: {
                     name: cleanTagName,
                     workspaceId: workspaceId
                   }
-                },
-                create: {
-                  name: cleanTagName,
-                  workspaceId: workspaceId
-                }
-              };
-            })
+                };
+              })
+            }
           }
-        }
-      });
+        });
 
-      // Clean up orphaned tags in the workspace
-      await prisma.tag.deleteMany({
-        where: {
-          workspaceId,
-          files: { none: {} }
-        }
+        // Clean up orphaned tags in the workspace
+        await tx.tag.deleteMany({
+          where: {
+            workspaceId,
+            files: { none: {} }
+          }
+        });
       });
     } else if (name !== undefined) {
       await prisma.mediaFile.update({
@@ -344,6 +346,14 @@ export const downloadMediaFile = async (req: AuthRequest, res: Response): Promis
 
     // Generate a presigned URL valid for 1 hour
     const presignedUrl = await getSignedUrl(s3Client, command, { expiresIn: 3600 });
+
+    // Increment bandwidthUsed in workspace
+    await prisma.workspace.update({
+      where: { id: workspaceId },
+      data: {
+        bandwidthUsed: { increment: mediaFile.optimizedSize }
+      }
+    }).catch((err: any) => console.error('[Bandwidth] Failed to update downloadMediaFile bandwidth:', err));
 
     res.status(200).json({ url: presignedUrl });
   } catch (error) {

@@ -10,6 +10,7 @@ import StorageUsedBar from '@/features/dashboard/StorageUsedBar';
 import { Icon } from '@iconify/react';
 import { UploadMediaModal } from '@/features/media/UploadMediaModal';
 import { getWorkspaceStatsApi, WorkspaceStats } from '@/features/dashboard/api';
+import QuotaAlerts from '@/features/dashboard/QuotaAlerts';
 
 const DashboardPage = () => {
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
@@ -30,14 +31,26 @@ const DashboardPage = () => {
     fetchStats();
   }, []);
 
+  const isUploadBlocked = stats
+    ? Number(stats.storageUsed) >= Number(stats.limits.storageBytes) ||
+      Number(stats.bandwidthUsed) >= Number(stats.limits.bandwidthBytes) ||
+      stats.monthlyOptimizations >= stats.limits.monthlyOptimizations
+    : false;
+
   return (
     <section className="dashboard-page">
       <PageHeading title="Dashboard">
-        <Button variant="accent" mobileBehavior="icon-only" onClick={() => setIsUploadModalOpen(true)}>
+        <Button 
+          variant={isUploadBlocked ? 'bordered' : 'accent'} 
+          mobileBehavior="icon-only" 
+          onClick={() => setIsUploadModalOpen(true)}
+          disabled={isUploadBlocked}
+          className={isUploadBlocked ? 'opacity-50 border-dashed border-red-500/30 text-red-400 bg-red-950/10 cursor-not-allowed hover:scale-100 hover:brightness-100 active:scale-100' : ''}
+        >
           <div className="inline-flex h-5 w-5 items-center justify-center sm:h-4 sm:w-4">
-            <Icon icon="lucide:upload" width="100%" height="100%" />
+            <Icon icon={isUploadBlocked ? "lucide:lock" : "lucide:upload"} width="100%" height="100%" />
           </div>
-          <span>Quick Upload</span>
+          <span>{isUploadBlocked ? 'Upload Blocked' : 'Quick Upload'}</span>
         </Button>
       </PageHeading>
       <div className="flex flex-col gap-6 p-8">
@@ -47,6 +60,7 @@ const DashboardPage = () => {
           </div>
         ) : stats ? (
           <>
+            <QuotaAlerts stats={stats} />
             <InfoBlocks stats={stats} />
             <StorageUsedBar stats={stats} />
             <AnalyticsChart stats={stats} />

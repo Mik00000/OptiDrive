@@ -12,7 +12,7 @@ export const checkQuota = async (req: Request & { workspaceId?: string; user?: {
 
     const workspace = await prisma.workspace.findUnique({
       where: { id: workspaceId },
-      select: { plan: true, monthlyOptimizations: true, storageUsed: true }
+      select: { plan: true, monthlyOptimizations: true, storageUsed: true, bandwidthUsed: true }
     });
 
     if (!workspace) {
@@ -34,6 +34,12 @@ export const checkQuota = async (req: Request & { workspaceId?: string; user?: {
       return;
     }
 
+    // Check Bandwidth Limit
+    if (workspace.bandwidthUsed >= BigInt(limits.bandwidthBytes)) {
+      res.status(402).json({ error: 'Bandwidth limit reached. Please upgrade your plan.' });
+      return;
+    }
+
     // Attach limits to request if needed by controller (e.g. for maxFileSize check)
     (req as any).planLimits = limits;
 
@@ -43,3 +49,4 @@ export const checkQuota = async (req: Request & { workspaceId?: string; user?: {
     res.status(500).json({ error: 'Failed to verify quota limits' });
   }
 };
+

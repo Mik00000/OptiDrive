@@ -4,10 +4,11 @@ import { useState, useEffect } from 'react';
 import { Button } from '@/components/Button';
 import { Icon } from '@iconify/react';
 import { getRolesApi, deleteRoleApi } from '../api';
-import { Role, Permission } from '@optidrive/shared';
+import { Role, Permission, PLANS, PlanType } from '@optidrive/shared';
 import { ConfirmModal } from './ConfirmModal';
 import { CreateEditRoleModal } from './CreateEditRoleModal';
 import Link from 'next/link';
+import { useAuth } from '@/contexts/AuthContext';
 
 export const RolesTab = () => {
   const [roles, setRoles] = useState<(Role & { _count: { users: number } })[]>([]);
@@ -83,21 +84,38 @@ export const RolesTab = () => {
     }
   };
 
+  const { user, workspaces } = useAuth();
+  const activeWorkspace = workspaces.find((w) => w.id === user?.workspaceId);
+  const plan = (activeWorkspace?.plan || 'FREE') as PlanType;
+  const maxCustomRoles = PLANS[plan]?.maxCustomRoles || 0;
+  const customRolesCount = roles.filter(r => !r.isSystem).length;
+  const isLimitReached = customRolesCount >= maxCustomRoles;
+
   return (
     <div className="flex max-w-4xl flex-col gap-6 lg:gap-8 pb-8 relative">
       <div className="border-border bg-card flex flex-col overflow-hidden rounded-2xl border">
         <div className="border-border border-b flex flex-col sm:flex-row sm:items-center justify-between gap-4 px-4 py-4 sm:px-6">
           <div>
-            <span className="text-text-light text-lg font-semibold">
-              Roles & Permissions
-            </span>
+            <div className="flex items-center gap-2">
+              <span className="text-text-light text-lg font-semibold">
+                Roles & Permissions
+              </span>
+              <span className="text-xs text-text-muted">
+                ({customRolesCount} / {maxCustomRoles} Custom Roles)
+              </span>
+            </div>
             <p className="text-text-muted text-sm mt-1">
               Create custom roles and configure specific permissions.
             </p>
           </div>
-          <Button variant="primary" className="w-full sm:w-auto shrink-0 justify-center" onClick={handleCreateRole}>
+          <Button 
+            variant="primary" 
+            className="w-full sm:w-auto shrink-0 justify-center" 
+            onClick={handleCreateRole}
+            disabled={isLimitReached}
+          >
             <Icon icon="lucide:shield-plus" width="16" height="16" className="mr-2" />
-            Create Role
+            {isLimitReached ? 'Limit Reached' : 'Create Role'}
           </Button>
         </div>
         

@@ -19,6 +19,14 @@ export const compressImageController = async (req: Request & { workspaceId?: str
     }
 
     const { buffer, mimetype } = req.file;
+
+    const planLimits = (req as any).planLimits;
+    if (planLimits && buffer.length > planLimits.maxFileSize) {
+      const maxMb = planLimits.maxFileSize / (1024 * 1024);
+      res.status(413).json({ error: `File size exceeds the limit for your plan (${maxMb} MB). Please upgrade your plan.` });
+      return;
+    }
+
     // Multer often parses filenames in latin1. If it contains garbled utf-8 (like Ð), we decode it.
     let originalname = req.file.originalname;
     if (/[\x80-\xFF]/.test(originalname) && !/[\u0400-\u04FF]/.test(originalname)) {
