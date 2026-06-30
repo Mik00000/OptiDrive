@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Modal } from '@/components/Modal';
 import { Icon } from '@iconify/react';
 import { Webhook, WebhookDelivery } from './types';
@@ -21,6 +21,15 @@ export const WebhookDeliveriesModal = ({
   isLoading
 }: WebhookDeliveriesModalProps) => {
   const [selectedDelivery, setSelectedDelivery] = useState<WebhookDelivery | null>(null);
+
+  // Automatically select the latest delivery (first in the list) when list updates
+  useEffect(() => {
+    if (deliveries.length > 0) {
+      setSelectedDelivery(deliveries[0]);
+    } else {
+      setSelectedDelivery(null);
+    }
+  }, [deliveries]);
 
   const formatDate = (dateStr: string) => {
     return new Date(dateStr).toLocaleString('uk-UA', {

@@ -466,15 +466,21 @@ export const deleteActiveWorkspace = async (req: Request & { user?: any }, res: 
       where: { workspaceId }
     });
 
-    for (const file of files) {
-      const key = `${workspaceId}/${file.cdnUrl.split('/').pop()}`;
+    const { DeleteObjectsCommand } = await import('@aws-sdk/client-s3');
+    const chunkSize = 1000;
+    for (let i = 0; i < files.length; i += chunkSize) {
+      const chunk = files.slice(i, i + chunkSize);
+      const objects = chunk.map(file => ({
+        Key: `${workspaceId}/${file.cdnUrl.split('/').pop()}`
+      }));
+      
       try {
-        await s3Client.send(new DeleteObjectCommand({
+        await s3Client.send(new DeleteObjectsCommand({
           Bucket: BUCKET_NAME,
-          Key: key
+          Delete: { Objects: objects, Quiet: true }
         }));
       } catch (e) {
-        console.error('[DeleteWorkspace] Failed to delete S3 file:', e);
+        console.error('[DeleteWorkspace] Failed to delete S3 files chunk:', e);
       }
     }
 

@@ -5,6 +5,7 @@ import { PutObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
 import { s3Client, BUCKET_NAME } from '../config/s3';
 import { extname } from 'path';
 import bcrypt from 'bcryptjs';
+import fs from 'fs/promises';
 
 export const getUserNotifications = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
@@ -215,6 +216,7 @@ export const confirmEmailChange = async (req: AuthRequest, res: Response): Promi
 };
 
 export const uploadAvatar = async (req: AuthRequest, res: Response): Promise<void> => {
+  const tempPath = req.file?.path;
   try {
     const userId = req.user?.userId;
     if (!userId) {
@@ -227,9 +229,12 @@ export const uploadAvatar = async (req: AuthRequest, res: Response): Promise<voi
       return;
     }
 
-    const { buffer, originalname, mimetype } = req.file;
+    const { originalname, mimetype } = req.file;
     const fileExt = extname(originalname) || '.png';
     const fileKey = `avatars/${userId}-${Date.now()}${fileExt}`;
+
+    // Read buffer from disk
+    const buffer = await fs.readFile(tempPath!);
 
     // Upload to S3
     const uploadCommand = new PutObjectCommand({
@@ -287,6 +292,10 @@ export const uploadAvatar = async (req: AuthRequest, res: Response): Promise<voi
   } catch (error) {
     console.error('uploadAvatar Error:', error);
     res.status(500).json({ error: 'Internal Server Error' });
+  } finally {
+    if (tempPath) {
+      await fs.unlink(tempPath).catch(() => {});
+    }
   }
 };
 
@@ -351,20 +360,26 @@ export const deleteAccount = async (req: AuthRequest, res: Response): Promise<vo
       }
     });
 
+    const { DeleteObjectsCommand } = await import('@aws-sdk/client-s3');
+
     for (const ow of ownedWorkspaces) {
       const files = await prisma.mediaFile.findMany({
         where: { workspaceId: ow.workspaceId }
       });
 
-      for (const file of files) {
-        const key = `${ow.workspaceId}/${file.cdnUrl.split('/').pop()}`;
+      const chunkSize = 1000;
+      for (let i = 0; i < files.length; i += chunkSize) {
+        const chunk = files.slice(i, i + chunkSize);
+        const objects = chunk.map(file => ({
+          Key: `${ow.workspaceId}/${file.cdnUrl.split('/').pop()}`
+        }));
         try {
-          await s3Client.send(new DeleteObjectCommand({
+          await s3Client.send(new DeleteObjectsCommand({
             Bucket: BUCKET_NAME,
-            Key: key
+            Delete: { Objects: objects, Quiet: true }
           }));
         } catch (e) {
-          console.error('[DeleteAccount] S3 file delete error:', e);
+          console.error('[DeleteAccount] S3 files chunk delete error:', e);
         }
       }
 

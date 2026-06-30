@@ -4,8 +4,10 @@ import { compressImage } from '../../services/compression.service';
 import { prisma } from '../../config/prisma';
 import { triggerWebhooks } from '../../services/webhook.service';
 import { checkAndTriggerQuotaEmails } from '../../services/quota-alert.service';
+import fs from 'fs/promises';
 
 export const compressImageController = async (req: Request & { workspaceId?: string; user?: { workspaceId: string } }, res: Response): Promise<void> => {
+  const tempPath = req.file?.path;
   try {
     const workspaceId = req.workspaceId || req.user?.workspaceId;
     
@@ -19,14 +21,17 @@ export const compressImageController = async (req: Request & { workspaceId?: str
       return;
     }
 
-    const { buffer, mimetype } = req.file;
+    const { mimetype, size } = req.file;
 
     const planLimits = (req as any).planLimits;
-    if (planLimits && buffer.length > planLimits.maxFileSize) {
+    if (planLimits && size > planLimits.maxFileSize) {
       const maxMb = planLimits.maxFileSize / (1024 * 1024);
       res.status(413).json({ error: `File size exceeds the limit for your plan (${maxMb} MB). Please upgrade your plan.` });
       return;
     }
+
+    // Read file buffer from disk
+    const buffer = await fs.readFile(tempPath!);
 
     // Multer often parses filenames in latin1. If it contains garbled utf-8 (like Ð), we decode it.
     let originalname = req.file.originalname;
@@ -309,5 +314,9 @@ export const compressImageController = async (req: Request & { workspaceId?: str
     }
 
     res.status(500).json({ error: error instanceof Error ? error.message : 'Failed to compress image' });
+  } finally {
+    if (tempPath) {
+      await fs.unlink(tempPath).catch(() => {});
+    }
   }
 };

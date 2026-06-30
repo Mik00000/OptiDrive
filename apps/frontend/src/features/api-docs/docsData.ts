@@ -962,7 +962,7 @@ func verifyWebhook(w http.ResponseWriter, r *http.Request) {
   },
   {
     id: 'dynamic-transformations',
-    title: 'Transformations',
+    title: 'Dynamic Transformations',
     description: 'Transform, resize, crop, and convert image formats on-the-fly using URL parameters.',
     generalGuide: `OptiDrive supports dynamic, on-the-fly image transformations via URL query parameters. You can resize, adjust quality, or change formats on the fly. 
     

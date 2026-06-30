@@ -18,6 +18,15 @@ const resolveCnameWithTimeout = (domain: string, timeoutMs: number = 3000): Prom
   ]);
 };
 
+const resolveAWithTimeout = (domain: string, timeoutMs: number = 3000): Promise<string[]> => {
+  return Promise.race([
+    dnsPromises.resolve4(domain),
+    new Promise<string[]>((_, reject) =>
+      setTimeout(() => reject(new Error('DNS A lookup timed out')), timeoutMs)
+    )
+  ]);
+};
+
 export const getDomains = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const { workspaceId } = req.user!;
@@ -170,13 +179,43 @@ export const verifyDomain = async (req: AuthRequest, res: Response): Promise<voi
         errorDetail = `CNAME points to ${mainCname || 'nowhere'}, but expected ${cleanExpected}`;
       }
     } catch (dnsErr: any) {
-      console.warn(`DNS verification failed for ${domainObj.domain}:`, dnsErr.message);
-      errorDetail = `DNS record not found. Please make sure CNAME record is configured correctly. (Error: ${dnsErr.code || dnsErr.message})`;
+      console.warn(`DNS CNAME verification failed for ${domainObj.domain}:`, dnsErr.message);
+      errorDetail = `CNAME check failed. (Error: ${dnsErr.code || dnsErr.message})`;
+    }
 
-      // Для розробки: якщо в дев-режимі домен закінчується на .test або .local, або ми додали параметр імітації
+    // 2. Якщо CNAME не підтвердився, перевіримо A-записи (корисно, якщо домен проксіюється через Cloudflare)
+    if (!isVerified) {
+      try {
+        const [domainIps, targetIps] = await Promise.all([
+          resolveAWithTimeout(domainObj.domain, 3000).catch(() => []),
+          resolveAWithTimeout(EXPECTED_CNAME, 3000).catch(() => [])
+        ]);
+
+        if (domainIps.length > 0 && targetIps.length > 0) {
+          const hasCommonIp = domainIps.some(ip => targetIps.includes(ip));
+          if (hasCommonIp) {
+            isVerified = true;
+            errorDetail = '';
+          } else {
+            errorDetail = `IP mismatch. Your domain points to [${domainIps.join(', ')}], but expected IPs pointing to ${EXPECTED_CNAME} [${targetIps.join(', ')}]`;
+          }
+        } else if (domainIps.length === 0) {
+          errorDetail = `Could not resolve A records for ${domainObj.domain}. Make sure DNS configuration is correct.`;
+        }
+      } catch (aErr: any) {
+        console.warn(`DNS A verification failed for ${domainObj.domain}:`, aErr.message);
+        if (!errorDetail) {
+          errorDetail = `A record check failed. (Error: ${aErr.message})`;
+        }
+      }
+    }
+
+    // Для розробки: якщо в дев-режимі домен закінчується на .test або .local, або ми додали параметр імітації
+    if (!isVerified) {
       const isDev = process.env.NODE_ENV === 'development';
       if (isDev || domainObj.domain.endsWith('.test') || domainObj.domain.endsWith('.local') || req.query.mock === 'true') {
         isVerified = true;
+        errorDetail = '';
       }
     }
 

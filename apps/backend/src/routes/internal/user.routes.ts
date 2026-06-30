@@ -12,9 +12,11 @@ import {
   changePassword
 } from '../../controllers/user.controller';
 
+import os from 'os';
+
 const router: Router = Router();
 const upload = multer({
-  storage: multer.memoryStorage(),
+  dest: os.tmpdir(),
   limits: { fileSize: 2 * 1024 * 1024 } // 2MB limit
 });
 

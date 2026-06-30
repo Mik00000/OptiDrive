@@ -6,9 +6,11 @@ import multer from 'multer';
 
 const router: Router = Router();
 
-// Configure multer for memory storage
+import os from 'os';
+
+// Configure multer for temp disk storage
 const upload = multer({
-  storage: multer.memoryStorage(),
+  dest: os.tmpdir(),
   limits: {
     fileSize: 10 * 1024 * 1024, // 10 MB limit
   },

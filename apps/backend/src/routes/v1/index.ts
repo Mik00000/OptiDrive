@@ -9,10 +9,12 @@ import { listTagsController, createTagController, updateTagController, deleteTag
 
 const router: Router = Router();
 
-// Configure multer for memory storage (file buffer is kept in memory)
+import os from 'os';
+
+// Configure multer for temp disk storage (files are streamed to disk)
 // Limits: max 10MB file size
 const upload = multer({
-  storage: multer.memoryStorage(),
+  dest: os.tmpdir(),
   limits: {
     fileSize: 10 * 1024 * 1024, // 10 MB limit
   },

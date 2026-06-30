@@ -73,10 +73,14 @@ export default function WebhooksPage() {
   const handleTestWebhook = async (id: string) => {
     try {
       const response = await handleTest(id);
+      const webhook = webhooks.find(w => w.id === id);
       if (response.success) {
         toast.success(`Test successful! Response status: ${response.status} in ${response.duration}ms.`);
       } else {
         toast.error(`Test failed. Server returned status: ${response.status}`);
+      }
+      if (webhook) {
+        await openDeliveriesModal(webhook);
       }
     } catch (err: any) {
       toast.error(`Connection error: ${err?.message || 'Unknown error'}`);

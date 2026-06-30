@@ -5,7 +5,7 @@ import internalRoutes from './routes/internal';
 import v1Routes from './routes/v1';
 import { prisma } from './config/prisma';
 import { s3Client, BUCKET_NAME } from './config/s3';
-import { DeleteObjectCommand } from '@aws-sdk/client-s3';
+import { DeleteObjectCommand, DeleteObjectsCommand } from '@aws-sdk/client-s3';
 import { detectCustomDomain } from './middlewares/domain.middleware';
 
 const app = express();
@@ -61,21 +61,23 @@ const runTrashAutoPurge = async () => {
 
     if (filesToPurge.length > 0) {
       console.log(`[Auto-Purge] Found ${filesToPurge.length} files to delete permanently`);
-      for (const file of filesToPurge) {
-        const parts = file.cdnUrl.split('/');
-        const filename = parts.pop();
-        const folderName = parts.pop();
-        const key = `${folderName}/${filename}`;
-
-        const deleteCommand = new DeleteObjectCommand({
-          Bucket: BUCKET_NAME,
-          Key: key
+      const chunkSize = 1000;
+      for (let i = 0; i < filesToPurge.length; i += chunkSize) {
+        const chunk = filesToPurge.slice(i, i + chunkSize);
+        const objects = chunk.map(file => {
+          const parts = file.cdnUrl.split('/');
+          const filename = parts.pop();
+          const folderName = parts.pop();
+          return { Key: `${folderName}/${filename}` };
         });
 
         try {
-          await s3Client.send(deleteCommand);
+          await s3Client.send(new DeleteObjectsCommand({
+            Bucket: BUCKET_NAME,
+            Delete: { Objects: objects, Quiet: true }
+          }));
         } catch (s3Error) {
-          console.error(`[Auto-Purge] Failed to delete file ${file.id} from S3/R2:`, s3Error);
+          console.error('[Auto-Purge] Failed to delete files chunk from S3/R2:', s3Error);
         }
       }
 
