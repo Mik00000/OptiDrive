@@ -66,6 +66,16 @@ export const createWebhook = async (req: AuthRequest, res: Response): Promise<vo
       }
     });
 
+    // Log Activity
+    await prisma.activityLog.create({
+      data: {
+        type: 'SETTING_CHANGED',
+        description: `Created webhook endpoint "${webhook.name}" (${webhook.url})`,
+        workspaceId,
+        userId: req.user?.userId || null,
+      }
+    });
+
     res.status(201).json({ success: true, data: webhook });
   } catch (error) {
     console.error('createWebhook error:', error);
@@ -117,6 +127,16 @@ export const updateWebhook = async (req: AuthRequest, res: Response): Promise<vo
       }
     });
 
+    // Log Activity
+    await prisma.activityLog.create({
+      data: {
+        type: 'SETTING_CHANGED',
+        description: `Updated webhook endpoint "${updatedWebhook.name}" (Active: ${updatedWebhook.isActive})`,
+        workspaceId,
+        userId: req.user?.userId || null,
+      }
+    });
+
     res.json({ success: true, data: updatedWebhook });
   } catch (error) {
     console.error('updateWebhook error:', error);
@@ -140,6 +160,16 @@ export const deleteWebhook = async (req: AuthRequest, res: Response): Promise<vo
 
     await prisma.webhook.delete({
       where: { id: webhookId }
+    });
+
+    // Log Activity
+    await prisma.activityLog.create({
+      data: {
+        type: 'SETTING_CHANGED',
+        description: `Deleted webhook endpoint "${webhook.name}"`,
+        workspaceId,
+        userId: req.user?.userId || null,
+      }
     });
 
     res.json({ success: true, message: 'Webhook deleted successfully' });

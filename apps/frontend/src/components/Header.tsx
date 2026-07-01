@@ -21,7 +21,7 @@ const Header = ({ className }: HeaderProps) => {
     <>
       <header
         className={twMerge(
-          'border-border bg-sidebar flex w-full items-center justify-between gap-3 border-b px-4 py-3',
+          'border-border bg-sidebar flex w-full items-center justify-between gap-3 border-b px-4 py-3 print:hidden',
           className,
         )}
       >

@@ -12,7 +12,8 @@ import {
   updateWorkspaceDetails,
   deleteActiveWorkspace,
   testS3Connection,
-  startWorkspaceMigration
+  startWorkspaceMigration,
+  getWorkspaceAuditLogs
 } from '../../controllers/workspace.controller';
 
 const router: Router = Router();
@@ -29,5 +30,6 @@ router.put('/update', requirePermissions([Permission.MANAGE_WORKSPACE]), updateW
 router.delete('/delete', deleteActiveWorkspace);
 router.post('/test-s3', requirePermissions([Permission.MANAGE_WORKSPACE]), testS3Connection);
 router.post('/start-migration', requirePermissions([Permission.MANAGE_WORKSPACE]), startWorkspaceMigration);
+router.get('/audit-logs', getWorkspaceAuditLogs);
 
 export default router;

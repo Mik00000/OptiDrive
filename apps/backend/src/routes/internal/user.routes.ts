@@ -4,6 +4,7 @@ import { requireAuth } from '../../middlewares/auth.middleware';
 import { 
   getUserNotifications, 
   updateUserNotifications,
+  getUserProfile,
   updateUserProfile,
   confirmEmailChange,
   uploadAvatar,
@@ -22,6 +23,7 @@ const upload = multer({
 
 router.use(requireAuth);
 
+router.get('/profile', getUserProfile);
 router.get('/notifications', getUserNotifications);
 router.put('/notifications', updateUserNotifications);
 router.put('/profile', updateUserProfile);

@@ -257,7 +257,7 @@ export const compressImageController = async (req: Request & { workspaceId?: str
         type: 'FILE_UPLOADED',
         description: `Compressed ${originalname} (${savingsPercent.toFixed(1)}% saved)`,
         workspaceId,
-        userId: (req as any).user?.id || null,
+        userId: (req as any).user?.userId || null,
       }
     });
 

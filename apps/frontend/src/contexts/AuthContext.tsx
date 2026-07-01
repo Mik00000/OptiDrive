@@ -89,6 +89,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           } catch (e) {
             console.error('Не вдалося завантажити воркспейси при старті:', e);
           }
+
+          // Dynamic profile refresh to ensure name/avatar/etc is fresh
+          try {
+            const profileResponse = await apiClient.get<{ success: boolean; data: User }>('/api/internal/user/profile');
+            if (profileResponse.success) {
+              const updatedUser = { ...parsedUser, ...profileResponse.data };
+              setUser(updatedUser);
+              localStorage.setItem('optidrive_user', JSON.stringify(updatedUser));
+            }
+          } catch (profileErr) {
+            console.error('Failed to refresh user profile upon startup:', profileErr);
+          }
         }
       } catch (error) {
         console.error('Помилка відновлення сесії:', error);

@@ -53,42 +53,74 @@ export const getWorkspaceStats = async (req: Request & { user?: any }, res: Resp
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 29);
     thirtyDaysAgo.setHours(0, 0, 0, 0);
 
-    const mediaFilesLast30Days = await prisma.mediaFile.findMany({
+    const logsLast30Days = await prisma.analyticsLog.findMany({
       where: {
         workspaceId,
-        createdAt: { gte: thirtyDaysAgo }
+        timestamp: { gte: thirtyDaysAgo }
       },
-      select: { createdAt: true, originalSize: true, optimizedSize: true }
+      select: { statusCode: true, timestamp: true, bytesSaved: true }
     });
 
-    const analyticsMap = new Map<string, { bytesSaved: number, count: number }>();
+    const analyticsMap = new Map<string, { bytesSaved: number, success: number, error: number }>();
     // Initialize last 30 days
     for (let i = 0; i < 30; i++) {
       const d = new Date(thirtyDaysAgo);
       d.setDate(d.getDate() + i);
       const dateStr = d.toISOString().split('T')[0]!;
-      analyticsMap.set(dateStr, { bytesSaved: 0, count: 0 });
+      analyticsMap.set(dateStr, { bytesSaved: 0, success: 0, error: 0 });
     }
 
-    for (const file of mediaFilesLast30Days) {
-      const dateStr = file.createdAt.toISOString().split('T')[0]!;
-      const saved = Number(file.originalSize) - Number(file.optimizedSize);
+    let totalSuccessCount = 0;
+    let totalErrorCount = 0;
+
+    for (const log of logsLast30Days) {
+      const dateStr = log.timestamp.toISOString().split('T')[0]!;
+      const isSuccess = log.statusCode >= 200 && log.statusCode < 300;
+      
+      if (isSuccess) totalSuccessCount++;
+      else if (log.statusCode >= 400) totalErrorCount++;
+
       if (analyticsMap.has(dateStr)) {
         const current = analyticsMap.get(dateStr)!;
-        current.bytesSaved += saved;
-        current.count += 1;
+        current.bytesSaved += Number(log.bytesSaved);
+        if (isSuccess) current.success++;
+        else current.error++;
       }
     }
 
     const analytics = Array.from(analyticsMap.entries()).map(([date, data]) => ({
       date,
       bytesSaved: data.bytesSaved,
-      requests: data.count
+      requests: data.success + data.error,
+      successRequests: data.success,
+      errorRequests: data.error
     }));
+
+    const totalRequests = totalSuccessCount + totalErrorCount;
+    const successRate = totalRequests > 0 ? (totalSuccessCount / totalRequests) * 100 : 100;
 
     const activeApiKeys = await prisma.apiKey.count({
       where: { workspaceId }
     });
+
+    const formatStats = await prisma.mediaFile.groupBy({
+      by: ['format'],
+      where: { workspaceId, isDeleted: false },
+      _count: {
+        id: true
+      },
+      _sum: {
+        originalSize: true,
+        optimizedSize: true
+      }
+    });
+
+    const formatDistribution = formatStats.map((f) => ({
+      format: f.format,
+      count: f._count.id,
+      originalSize: f._sum.originalSize?.toString() || '0',
+      optimizedSize: f._sum.optimizedSize?.toString() || '0'
+    }));
 
     res.status(200).json({
       success: true,
@@ -115,7 +147,11 @@ export const getWorkspaceStats = async (req: Request & { user?: any }, res: Resp
           maxCustomRoles: limits.maxCustomRoles,
         },
         recentActivity,
-        analytics
+        analytics,
+        formatDistribution,
+        successRate,
+        totalSuccessCount,
+        totalErrorCount
       }
     });
   } catch (error) {
@@ -389,6 +425,16 @@ export const updateCompressionDefaults = async (req: Request & { user?: any }, r
       data: updateData
     });
 
+    // Log Activity
+    await prisma.activityLog.create({
+      data: {
+        type: 'SETTING_CHANGED',
+        description: `Updated compression settings (Preset: ${updated.defaultPreset}, Format: ${updated.defaultFormat}, Quality: ${updated.defaultQuality}%)`,
+        workspaceId,
+        userId: req.user?.userId || null,
+      }
+    });
+
     res.status(200).json({
       success: true,
       data: {
@@ -528,6 +574,17 @@ export const updateWorkspaceDetails = async (req: Request & { user?: any }, res:
         console.error(`[Reversion] Background reversion failed for workspace ${workspaceId}:`, err);
       });
     }
+
+    // Log Activity
+    const s3Desc = updated.customS3Enabled ? `Enabled Custom S3 Storage (Bucket: ${updated.s3BucketName || 'N/A'})` : 'Disabled Custom S3 Storage (BYOS)';
+    await prisma.activityLog.create({
+      data: {
+        type: 'SETTING_CHANGED',
+        description: `Updated workspace details (Name: ${updated.name}, Slug: ${updated.slug}, Storage: ${s3Desc})`,
+        workspaceId,
+        userId: req.user?.userId || null,
+      }
+    });
 
     res.status(200).json({ success: true, data: updated });
   } catch (error) {
@@ -1089,6 +1146,115 @@ export const startWorkspaceMigration = async (req: Request & { user?: any }, res
     res.status(200).json({ success: true, message: 'Migration started in the background.' });
   } catch (error) {
     console.error('startWorkspaceMigration Error:', error);
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
+};
+
+export const getWorkspaceAuditLogs = async (req: Request & { user?: any }, res: Response): Promise<void> => {
+  try {
+    const workspaceId = req.user?.workspaceId;
+    if (!workspaceId) {
+      res.status(401).json({ error: 'Unauthorized' });
+      return;
+    }
+
+    const workspace = await prisma.workspace.findUnique({
+      where: { id: workspaceId },
+      select: { plan: true }
+    });
+
+    if (!workspace) {
+      res.status(404).json({ error: 'Workspace not found' });
+      return;
+    }
+
+    // 1. Block access for non-Enterprise plan
+    if (workspace.plan !== 'ENTERPRISE') {
+      res.status(403).json({
+        code: 'REQUIRES_ENTERPRISE',
+        error: 'Audit logs are only available on the Enterprise plan. Please upgrade to unlock security auditing.'
+      });
+      return;
+    }
+
+    // 2. Read query filters
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = parseInt(req.query.limit as string) || 20;
+    const type = req.query.type as string;
+    const userId = req.query.userId as string;
+    const search = req.query.search as string;
+    const startDate = req.query.startDate as string;
+    const endDate = req.query.endDate as string;
+
+    const skip = (page - 1) * limit;
+
+    const whereCondition: any = {
+      workspaceId
+    };
+
+    if (type) {
+      whereCondition.type = type;
+    }
+
+    if (userId) {
+      whereCondition.userId = userId;
+    }
+
+    if (search) {
+      whereCondition.description = {
+        contains: search,
+        mode: 'insensitive'
+      };
+    }
+
+    if (startDate || endDate) {
+      whereCondition.createdAt = {};
+      if (startDate) {
+        whereCondition.createdAt.gte = new Date(startDate);
+      }
+      if (endDate) {
+        const end = new Date(endDate);
+        end.setHours(23, 59, 59, 999);
+        whereCondition.createdAt.lte = end;
+      }
+    }
+
+    const [logs, totalCount] = await prisma.$transaction([
+      prisma.activityLog.findMany({
+        where: whereCondition,
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: limit,
+        include: {
+          user: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+              avatarUrl: true
+            }
+          }
+        }
+      }),
+      prisma.activityLog.count({
+        where: whereCondition
+      })
+    ]);
+
+    res.status(200).json({
+      success: true,
+      data: {
+        logs,
+        pagination: {
+          total: totalCount,
+          pages: Math.ceil(totalCount / limit),
+          page,
+          limit
+        }
+      }
+    });
+  } catch (error) {
+    console.error('getWorkspaceAuditLogs Error:', error);
     res.status(500).json({ error: 'Internal Server Error' });
   }
 };

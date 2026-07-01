@@ -131,6 +131,7 @@ export const googleCallback = async (req: Request, res: Response): Promise<void>
       name: user.name,
       email: user.email,
       workspaceId: activeWorkspaceId,
+      avatarUrl: user.avatarUrl,
     };
     const userBase64 = Buffer.from(JSON.stringify(safeUser)).toString('base64');
     res.redirect(`${FRONTEND_URL}/login?token=${token}&user=${encodeURIComponent(userBase64)}`);
@@ -215,6 +216,7 @@ export const githubCallback = async (req: Request, res: Response): Promise<void>
       name: user.name,
       email: user.email,
       workspaceId: activeWorkspaceId,
+      avatarUrl: user.avatarUrl,
     };
     const userBase64 = Buffer.from(JSON.stringify(safeUser)).toString('base64');
     res.redirect(`${FRONTEND_URL}/login?token=${token}&user=${encodeURIComponent(userBase64)}`);

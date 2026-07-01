@@ -89,6 +89,16 @@ export const createRole = async (req: AuthRequest, res: Response): Promise<void>
       }
     });
 
+    // Log Activity
+    await prisma.activityLog.create({
+      data: {
+        type: 'ROLE_UPDATED',
+        description: `Created custom role "${role.name}"`,
+        workspaceId,
+        userId: req.user?.userId || null,
+      }
+    });
+
     res.status(201).json({ success: true, data: role });
   } catch (error) {
     console.error('createRole error:', error);
@@ -122,6 +132,16 @@ export const updateRole = async (req: AuthRequest, res: Response): Promise<void>
         name: name !== undefined ? name : role.name,
         description: description !== undefined ? description : role.description,
         permissions: permissions !== undefined ? permissions : role.permissions,
+      }
+    });
+
+    // Log Activity
+    await prisma.activityLog.create({
+      data: {
+        type: 'ROLE_UPDATED',
+        description: `Updated custom role "${updatedRole.name}"`,
+        workspaceId,
+        userId: req.user?.userId || null,
       }
     });
 
@@ -159,6 +179,16 @@ export const deleteRole = async (req: AuthRequest, res: Response): Promise<void>
 
     await prisma.role.delete({
       where: { id: roleId as string }
+    });
+
+    // Log Activity
+    await prisma.activityLog.create({
+      data: {
+        type: 'ROLE_UPDATED',
+        description: `Deleted custom role "${role.name}"`,
+        workspaceId,
+        userId: req.user?.userId || null,
+      }
     });
 
     res.json({ success: true, message: 'Role deleted successfully' });

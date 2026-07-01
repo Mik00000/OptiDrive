@@ -21,9 +21,11 @@ interface MenuItem {
 
 const menu: MenuItem[] = [
   { text: 'Dashboard', link: '/dashboard', icon: 'lucide:layout-dashboard' },
+  { text: 'Analytics', link: '/analytics', icon: 'lucide:bar-chart-2' },
   { text: 'Media Library', link: '/media', icon: 'lucide:image' },
   { text: 'API Keys', link: '/api-keys', icon: 'lucide:key' },
   { text: 'Webhooks', link: '/webhooks', icon: 'lucide:webhook' },
+  { text: 'Audit Logs', link: '/audit-logs', icon: 'lucide:file-text' },
   { text: 'Billing', link: '/billing', icon: 'lucide:credit-card' },
   { text: 'Documentation', link: '/api-docs', icon: 'lucide:book' },
   { text: 'Recycle Bin', link: '/trash', icon: 'lucide:trash-2' },
@@ -95,7 +97,7 @@ export const Sidebar = ({ className }: SidebarProps) => {
       
       <aside
         className={twMerge(
-          'bg-sidebar flex h-screen w-65 shrink-0 flex-col border-r border-border p-4 pt-6.5',
+          'bg-sidebar flex h-screen w-65 shrink-0 flex-col border-r border-border p-4 pt-6.5 print:hidden',
           'fixed inset-y-0 left-0 z-50 transform transition-transform duration-300 ease-in-out',
           'md:sticky md:top-0 md:translate-x-0',
           isOpen ? 'translate-x-0' : '-translate-x-full',

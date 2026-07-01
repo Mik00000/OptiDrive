@@ -200,7 +200,7 @@ export const deleteMediaFile = async (req: AuthRequest, res: Response): Promise<
         type: 'FILE_DELETED',
         description: `Moved file ${mediaFile.name} to Trash`,
         workspaceId,
-        userId: (req as any).user?.id || null,
+        userId: (req as any).user?.userId || null,
       }
     });
 
@@ -286,10 +286,30 @@ export const updateMediaFile = async (req: AuthRequest, res: Response): Promise<
           }
         });
       });
+
+      await prisma.activityLog.create({
+        data: {
+          type: 'SETTING_CHANGED',
+          description: name !== undefined && name !== mediaFile.name 
+            ? `Renamed file ${mediaFile.name} to ${name} and updated tags to [${tags.join(', ')}]`
+            : `Updated tags for file ${mediaFile.name} to [${tags.join(', ')}]`,
+          workspaceId,
+          userId: req.user?.userId || null,
+        }
+      });
     } else if (name !== undefined) {
       await prisma.mediaFile.update({
         where: { id: String(fileId) },
         data: { name }
+      });
+
+      await prisma.activityLog.create({
+        data: {
+          type: 'SETTING_CHANGED',
+          description: `Renamed file ${mediaFile.name} to ${name}`,
+          workspaceId,
+          userId: req.user?.userId || null,
+        }
       });
     }
 

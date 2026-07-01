@@ -1148,13 +1148,14 @@ export const MediaTable = ({
                         <Icon icon="lucide:copy" width={16} />
                       </button>
                       <button
-                        onClick={() =>
+                        onClick={() => {
                           setDeleteTarget({
                             id: file.id,
                             type: 'file',
                             name: file.name,
-                          })
-                        }
+                          });
+                          setIsDeleteModalOpen(true);
+                        }}
                         className="text-text-muted hover:text-error cursor-pointer p-1.5 align-middle opacity-70 transition-colors group-hover:opacity-100 hover:scale-110 focus:opacity-100"
                         title="Delete File"
                       >

@@ -69,6 +69,19 @@ export const updateUserNotifications = async (req: AuthRequest, res: Response): 
       }
     });
 
+    // Log Activity
+    const workspaceId = req.user?.workspaceId;
+    if (workspaceId) {
+      await prisma.activityLog.create({
+        data: {
+          type: 'SETTING_CHANGED',
+          description: 'Updated email notification preferences',
+          workspaceId,
+          userId,
+        }
+      });
+    }
+
     res.status(200).json({ success: true, data: updatedUser });
   } catch (error) {
     console.error('updateUserNotifications Error:', error);
@@ -78,6 +91,40 @@ export const updateUserNotifications = async (req: AuthRequest, res: Response): 
 
 import { sendEmailChangeVerificationEmail } from '../services/email.service';
 import crypto from 'crypto';
+
+export const getUserProfile = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const userId = req.user?.userId;
+    if (!userId) {
+      res.status(401).json({ error: 'Unauthorized' });
+      return;
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true, name: true, email: true, avatarUrl: true, passwordHash: true }
+    });
+
+    if (!user) {
+      res.status(404).json({ error: 'User not found' });
+      return;
+    }
+
+    res.status(200).json({
+      success: true,
+      data: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        avatarUrl: user.avatarUrl,
+        hasPassword: !!user.passwordHash
+      }
+    });
+  } catch (error) {
+    console.error('getUserProfile Error:', error);
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
+};
 
 export const updateUserProfile = async (req: AuthRequest, res: Response): Promise<void> => {
   try {

@@ -163,13 +163,13 @@ export const CompressionTab = () => {
                     onChange={(e) => setQuality(Number(e.target.value))}
                     className="flex-1 accent-accent h-1.5 bg-border rounded-lg appearance-none cursor-pointer"
                   />
-                  <input
-                    type="number"
-                    min="1"
-                    max="100"
+                  <Input
+                    variant="number"
+                    min={1}
+                    max={100}
                     value={quality}
                     onChange={(e) => setQuality(Math.min(100, Math.max(1, Number(e.target.value))))}
-                    className="w-16 text-center border border-border bg-sidebar text-text-light py-1.5 rounded-xl text-sm"
+                    className="w-16 text-center"
                   />
                 </div>
               </div>

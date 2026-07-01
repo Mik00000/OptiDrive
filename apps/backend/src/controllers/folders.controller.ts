@@ -79,6 +79,16 @@ export const createFolder = async (req: AuthRequest, res: Response): Promise<voi
       createdAt: folder.createdAt
     });
 
+    // Log Activity
+    await prisma.activityLog.create({
+      data: {
+        type: 'FILE_UPLOADED',
+        description: `Created folder ${folder.name}`,
+        workspaceId,
+        userId: req.user?.userId || null,
+      }
+    });
+
     res.status(201).json({ success: true, data: folder });
   } catch (error) {
     console.error('createFolder Error:', error);
@@ -172,6 +182,16 @@ export const renameFolder = async (req: AuthRequest, res: Response): Promise<voi
       }
     });
 
+    // Log Activity
+    await prisma.activityLog.create({
+      data: {
+        type: 'SETTING_CHANGED',
+        description: `Renamed folder ${folder.name} to ${updated.name}`,
+        workspaceId,
+        userId: req.user?.userId || null,
+      }
+    });
+
     res.status(200).json({ success: true, data: updated });
   } catch (error) {
     console.error('renameFolder Error:', error);
@@ -231,7 +251,7 @@ export const deleteFolder = async (req: AuthRequest, res: Response): Promise<voi
         type: 'FILE_DELETED',
         description: `Moved folder ${folder.name} and all its contents to Trash`,
         workspaceId,
-        userId: (req as any).user?.id || null,
+        userId: req.user?.userId || null,
       }
     });
 
@@ -353,6 +373,17 @@ export const moveItems = async (req: AuthRequest, res: Response): Promise<void> 
         }
       }
     }
+
+    // Log Activity
+    const desc = `Moved ${folderIds.length} folder(s) and ${fileIds.length} file(s) to a new directory`;
+    await prisma.activityLog.create({
+      data: {
+        type: 'SETTING_CHANGED',
+        description: desc,
+        workspaceId,
+        userId: req.user?.userId || null,
+      }
+    });
 
     res.status(200).json({ success: true, message: 'Items moved successfully' });
   } catch (error) {

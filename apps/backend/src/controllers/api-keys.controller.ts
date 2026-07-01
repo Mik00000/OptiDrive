@@ -211,7 +211,7 @@ export const revokeApiKey = async (
     prisma.activityLog.create({
       data: {
         type: 'KEY_REVOKED',
-        description: `Revoked an API key`,
+        description: `Revoked API key: ${keyName}`,
         workspaceId,
         userId: req.user?.userId || null,
       }

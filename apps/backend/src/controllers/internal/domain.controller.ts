@@ -100,6 +100,16 @@ export const createDomain = async (req: AuthRequest, res: Response): Promise<voi
       }
     });
 
+    // Log Activity
+    await prisma.activityLog.create({
+      data: {
+        type: 'SETTING_CHANGED',
+        description: `Added custom domain ${cleanDomain}`,
+        workspaceId,
+        userId: req.user?.userId || null,
+      }
+    });
+
     res.status(201).json({ success: true, data: newDomain });
   } catch (error) {
     console.error('createDomain error:', error);
@@ -128,6 +138,16 @@ export const deleteDomain = async (req: AuthRequest, res: Response): Promise<voi
 
     await prisma.customDomain.delete({
       where: { id }
+    });
+
+    // Log Activity
+    await prisma.activityLog.create({
+      data: {
+        type: 'SETTING_CHANGED',
+        description: `Deleted custom domain ${domain.domain}`,
+        workspaceId,
+        userId: req.user?.userId || null,
+      }
     });
 
     res.json({ success: true, message: 'Domain deleted successfully' });
@@ -166,6 +186,16 @@ export const verifyDomain = async (req: AuthRequest, res: Response): Promise<voi
       const updated = await prisma.customDomain.update({
         where: { id },
         data: { status: 'ACTIVE' }
+      });
+
+      // Log Activity
+      await prisma.activityLog.create({
+        data: {
+          type: 'SETTING_CHANGED',
+          description: `Successfully verified custom domain ${domainObj.domain} (local mock)`,
+          workspaceId,
+          userId: req.user?.userId || null,
+        }
       });
 
       res.json({
@@ -250,6 +280,18 @@ export const verifyDomain = async (req: AuthRequest, res: Response): Promise<voi
       where: { id },
       data: { status: newStatus }
     });
+
+    if (isVerified && domainObj.status !== 'ACTIVE') {
+      // Log Activity
+      await prisma.activityLog.create({
+        data: {
+          type: 'SETTING_CHANGED',
+          description: `Successfully verified custom domain ${domainObj.domain}`,
+          workspaceId,
+          userId: req.user?.userId || null,
+        }
+      });
+    }
 
     res.json({
       success: true,

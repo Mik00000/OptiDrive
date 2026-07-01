@@ -12,7 +12,7 @@ interface BaseInputProps {
 
 interface TextInputProps
   extends BaseInputProps, React.InputHTMLAttributes<HTMLInputElement> {
-  variant?: 'text' | 'search' | 'password';
+  variant?: 'text' | 'search' | 'password' | 'date' | 'number';
 }
 
 export interface SelectOption {
@@ -161,6 +161,8 @@ export function Input({
     text: '',
     search: 'gap-2.25 text-text-muted',
     password: '',
+    date: '',
+    number: '',
   };
 
   const combinedClassName = twMerge(baseStyles, variants[variant as keyof typeof variants], className);

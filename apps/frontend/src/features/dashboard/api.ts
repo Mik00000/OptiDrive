@@ -21,7 +21,11 @@ export interface WorkspaceStats {
     maxApiKeys: number;
   };
   recentActivity: any[];
-  analytics: { date: string, bytesSaved: number, requests: number }[];
+  analytics: { date: string, bytesSaved: number, requests: number, successRequests?: number, errorRequests?: number }[];
+  formatDistribution?: { format: string, count: number, originalSize: string, optimizedSize: string }[];
+  successRate?: number;
+  totalSuccessCount?: number;
+  totalErrorCount?: number;
 }
 
 export const getWorkspaceStatsApi = async (): Promise<WorkspaceStats> => {

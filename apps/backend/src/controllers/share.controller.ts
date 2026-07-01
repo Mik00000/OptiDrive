@@ -63,6 +63,25 @@ export const createShareLink = async (req: AuthRequest, res: Response): Promise<
       }
     });
 
+    // Log Activity
+    let targetName = 'Item';
+    if (fileId) {
+      const file = await prisma.mediaFile.findUnique({ where: { id: fileId }, select: { name: true } });
+      if (file) targetName = `file "${file.name}"`;
+    } else if (folderId) {
+      const folder = await prisma.folder.findUnique({ where: { id: folderId }, select: { name: true } });
+      if (folder) targetName = `folder "${folder.name}"`;
+    }
+
+    await prisma.activityLog.create({
+      data: {
+        type: 'SETTING_CHANGED',
+        description: `Created public share link for ${targetName} (slug: ${slug})`,
+        workspaceId,
+        userId: req.user?.userId || null,
+      }
+    });
+
     res.status(201).json({ data: shareLink });
   } catch (error) {
     console.error('createShareLink Error:', error);
@@ -117,6 +136,25 @@ export const deleteShareLink = async (req: AuthRequest, res: Response): Promise<
 
     await prisma.shareLink.delete({
       where: { id }
+    });
+
+    // Log Activity
+    let targetName = 'Item';
+    if (shareLink.fileId) {
+      const file = await prisma.mediaFile.findUnique({ where: { id: shareLink.fileId }, select: { name: true } });
+      if (file) targetName = `file "${file.name}"`;
+    } else if (shareLink.folderId) {
+      const folder = await prisma.folder.findUnique({ where: { id: shareLink.folderId }, select: { name: true } });
+      if (folder) targetName = `folder "${folder.name}"`;
+    }
+
+    await prisma.activityLog.create({
+      data: {
+        type: 'SETTING_CHANGED',
+        description: `Deleted public share link for ${targetName} (slug: ${shareLink.slug})`,
+        workspaceId,
+        userId: req.user?.userId || null,
+      }
     });
 
     res.status(200).json({ success: true, message: 'Share link deleted' });
