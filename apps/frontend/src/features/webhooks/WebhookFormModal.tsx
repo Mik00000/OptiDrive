@@ -74,27 +74,42 @@ export const WebhookFormModal = ({
     {
       id: 'file.optimized',
       label: 'Image optimized successfully',
-      description: 'Triggers when a file is successfully compressed and uploaded.'
+      description: 'Triggers when a file is successfully compressed and uploaded.',
+      icon: 'lucide:zap',
+      activeColor: 'text-accent',
+      activeBg: 'bg-accent/15'
     },
     {
       id: 'file.deleted',
       label: 'File moved to Trash',
-      description: 'Triggers when a file is soft-deleted.'
+      description: 'Triggers when a file is soft-deleted.',
+      icon: 'lucide:trash-2',
+      activeColor: 'text-error',
+      activeBg: 'bg-error/15'
     },
     {
       id: 'file.restored',
       label: 'File restored from Trash',
-      description: 'Triggers when a file is recovered from the recycle bin.'
+      description: 'Triggers when a file is recovered from the recycle bin.',
+      icon: 'lucide:rotate-ccw',
+      activeColor: 'text-success',
+      activeBg: 'bg-success/15'
     },
     {
       id: 'folder.created',
       label: 'Folder created',
-      description: 'Triggers when a new directory is created.'
+      description: 'Triggers when a new directory is created.',
+      icon: 'lucide:folder-plus',
+      activeColor: 'text-purple',
+      activeBg: 'bg-purple/15'
     },
     {
       id: 'folder.deleted',
       label: 'Folder moved to Trash',
-      description: 'Triggers when a directory is moved to the recycle bin.'
+      description: 'Triggers when a directory is moved to the recycle bin.',
+      icon: 'lucide:folder-x',
+      activeColor: 'text-error',
+      activeBg: 'bg-error/15'
     }
   ];
 
@@ -142,22 +157,67 @@ export const WebhookFormModal = ({
         </div>
 
         <div className="flex flex-col gap-2">
-          <label className="text-sm font-semibold text-text-secondary">Events to Send</label>
-          <div className="flex flex-col gap-3.5 rounded-xl border border-border bg-card-bg/50 p-4 max-h-[220px] overflow-y-auto">
-            {availableEvents.map((evt) => (
-              <label key={evt.id} className="flex items-start gap-3 cursor-pointer group">
-                <input
-                  type="checkbox"
-                  checked={events.includes(evt.id)}
-                  onChange={() => handleToggleEvent(evt.id)}
-                  className="mt-0.5 h-4.5 w-4.5 rounded border-border text-accent focus:ring-accent cursor-pointer"
-                />
-                <div>
-                  <span className="text-sm font-medium text-text group-hover:text-text-light transition-colors">{evt.label}</span>
-                  <p className="text-[11px] text-text-muted mt-0.5">{evt.description} (`{evt.id}`)</p>
+          <div className="flex items-center justify-between">
+            <label className="text-sm font-semibold text-text-secondary">Events to Send</label>
+            <span className="text-xs text-text-muted/80 bg-border/40 px-2 py-0.5 rounded-md font-mono">
+              {events.length} selected
+            </span>
+          </div>
+          <div className="flex flex-col gap-2 rounded-xl border border-border bg-sidebar/30 p-2 max-h-[250px] overflow-y-auto custom-scrollbar">
+            {availableEvents.map((evt) => {
+              const isSelected = events.includes(evt.id);
+              return (
+                <div
+                  key={evt.id}
+                  onClick={() => handleToggleEvent(evt.id)}
+                  className={`
+                    flex items-center justify-between gap-3 p-3 rounded-lg border cursor-pointer select-none
+                    transition-all duration-200
+                    ${isSelected 
+                      ? 'border-accent bg-accent/[0.04] shadow-sm shadow-accent/5' 
+                      : 'border-transparent bg-transparent hover:bg-white/[0.02] hover:border-border/50'
+                    }
+                  `}
+                >
+                  <div className="flex items-start gap-3 min-w-0">
+                    <div className={`
+                      flex items-center justify-center h-9 w-9 rounded-lg shrink-0 transition-all duration-200
+                      ${isSelected 
+                        ? `${evt.activeBg} ${evt.activeColor} scale-105` 
+                        : 'bg-border/30 text-text-muted/70'
+                      }
+                    `}>
+                      <Icon icon={evt.icon} width={18} />
+                    </div>
+                    <div className="flex flex-col min-w-0">
+                      <span className={`
+                        text-xs font-semibold transition-colors duration-200
+                        ${isSelected ? 'text-text-light' : 'text-text-muted'}
+                      `}>
+                        {evt.label}
+                      </span>
+                      <p className="text-[11px] text-text-muted/65 mt-0.5 leading-relaxed truncate max-w-[280px] md:max-w-[320px]">
+                        {evt.description}
+                      </p>
+                      <span className="text-[9px] font-mono text-text-muted/40 mt-0.5">
+                        {evt.id}
+                      </span>
+                    </div>
+                  </div>
+                  
+                  {/* Custom Checkbox */}
+                  <div className={`
+                    flex items-center justify-center h-5 w-5 rounded-md border transition-all duration-200 shrink-0
+                    ${isSelected 
+                      ? 'border-accent bg-accent text-white scale-105 shadow-md shadow-accent/15' 
+                      : 'border-border bg-transparent text-transparent'
+                    }
+                  `}>
+                    <Icon icon="lucide:check" width={12} className="stroke-[3]" />
+                  </div>
                 </div>
-              </label>
-            ))}
+              );
+            })}
           </div>
         </div>
 

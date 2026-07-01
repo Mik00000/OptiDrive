@@ -97,7 +97,7 @@ export function MediaPreviewModal({ isOpen, onClose, file, onDelete }: MediaPrev
         </div>
 
         <div className="flex items-center justify-between gap-3 pt-2">
-          <Button variant="danger" onClick={() => { onDelete(file.id); onClose(); }}>
+          <Button variant="bordered" className="text-red-400 border-red-500/30 hover:bg-red-500/10 hover:border-red-500/50" onClick={() => { onDelete(file.id); onClose(); }}>
             <Icon icon="lucide:trash-2" width={16} className="mr-2" />
             Delete
           </Button>

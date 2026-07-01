@@ -56,8 +56,8 @@ const RecentActivity = ({ activities = [] }: RecentActivityProps) => {
                   } />
                 </div>
                 <div className="flex flex-col gap-0.5">
-                  <span className="text-text-light text-sm">{item.description}</span>
-                  <p className="text-text-muted font-mono text-xs">
+                  <span className="text-text-light text-sm hidden sm:block">{item.description}</span>
+                  <p className="text-text-muted font-mono text-xs sm:text-text-muted sm:font-mono">
                     {item.type.split("_").map((word: string) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()).join(" ")}
                   </p>
                 </div>

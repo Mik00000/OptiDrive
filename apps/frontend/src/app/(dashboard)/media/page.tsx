@@ -104,15 +104,6 @@ const MediaLibraryPage = () => {
       <section className="dashboard-page relative">
         <PageHeading title="Media Library">
           <div className="flex items-center gap-2">
-            <Button 
-              variant="ghost" 
-              className="xl:hidden border border-border bg-card"
-              onClick={() => setIsSelectionMode(!isSelectionMode)}
-              disabled={isMigrating}
-            >
-              {isSelectionMode ? 'Cancel' : 'Select'}
-            </Button>
-
             <Link href="/settings/compression" title="Configure Compression Defaults" className="shrink-0">
               <Button variant="bordered" className="p-2.5 h-10 w-10 flex items-center justify-center border-border bg-card text-text-muted hover:text-text-light">
                 <Icon icon="lucide:settings-2" width={18} height={18} />
@@ -121,10 +112,9 @@ const MediaLibraryPage = () => {
 
             <Button 
               variant={isUploadBlocked ? 'bordered' : 'accent'} 
-              mobileBehavior="icon-only" 
               onClick={() => setIsUploadModalOpen(true)}
               disabled={isUploadBlocked}
-              className={isUploadBlocked ? 'opacity-50 border-dashed border-red-500/30 text-red-400 bg-red-950/10 cursor-not-allowed hover:scale-100 hover:brightness-100 active:scale-100' : ''}
+              className={`hidden md:flex ${isUploadBlocked ? 'opacity-50 border-dashed border-red-500/30 text-red-400 bg-red-950/10 cursor-not-allowed hover:scale-100 hover:brightness-100 active:scale-100' : ''}`}
             >
               <div className="inline-flex h-5 w-5 items-center justify-center sm:h-4 sm:w-4">
                 <Icon icon={isUploadBlocked ? "lucide:lock" : "lucide:upload"} width="100%" height="100%" />
@@ -133,6 +123,15 @@ const MediaLibraryPage = () => {
             </Button>
           </div>
         </PageHeading>
+
+        {/* Mobile FAB */}
+        <button
+          onClick={() => setIsUploadModalOpen(true)}
+          disabled={isUploadBlocked}
+          className={`md:hidden fixed bottom-6 right-6 z-40 h-14 w-14 rounded-full shadow-2xl flex items-center justify-center transition-transform hover:scale-105 active:scale-95 ${isUploadBlocked ? 'bg-red-950/80 text-red-400 border border-red-500/30' : 'bg-accent text-white'}`}
+        >
+          <Icon icon={isUploadBlocked ? "lucide:lock" : "lucide:upload"} width={24} />
+        </button>
         <div className="flex flex-col gap-6 p-8 pb-0">
           <QuotaAlerts />
 
@@ -182,8 +181,6 @@ const MediaLibraryPage = () => {
                 setSearchQuery={setSearchQuery}
                 formatFilter={formatFilter} 
                 setFormatFilter={setFormatFilter}
-                isSelectionMode={isSelectionMode}
-                onSelectionModeChange={setIsSelectionMode}
                 refreshKey={refreshKey}
                 currentFolderId={currentFolderId}
                 onFolderChange={setCurrentFolderId}

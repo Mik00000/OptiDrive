@@ -256,8 +256,8 @@ export default function AuditLogsPage() {
         </form>
 
         {/* Audit Table */}
-        <div className="bg-card border border-border rounded-2xl overflow-hidden shadow-lg">
-          <div className="overflow-x-auto">
+        <div className="bg-card border border-border rounded-2xl overflow-hidden shadow-lg p-4 md:p-0">
+          <div className="hidden md:block overflow-x-auto">
             <table className="w-full border-collapse text-left text-xs">
               <thead>
                 <tr className="border-b border-border/60 text-text-muted font-bold">
@@ -334,10 +334,71 @@ export default function AuditLogsPage() {
             </table>
           </div>
 
+          {/* Mobile List View */}
+          <div className="md:hidden flex flex-col gap-4">
+            {isLoading ? (
+              <div className="py-16 text-center text-text-muted flex justify-center items-center gap-2">
+                <Icon icon="lucide:loader-2" className="animate-spin text-accent" width={18} />
+                <span>Loading audit logs...</span>
+              </div>
+            ) : errorMsg ? (
+              <div className="py-16 text-center text-rose-400 font-semibold">{errorMsg}</div>
+            ) : logs.length === 0 ? (
+              <div className="py-16 text-center text-text-muted">No activity logs recorded.</div>
+            ) : (
+              logs.map((log) => {
+                const badge = ACTION_BADGES[log.type] || {
+                  bg: 'bg-slate-500/10 border-slate-500/20 text-slate-400',
+                  text: log.type,
+                  icon: 'lucide:info'
+                };
+                return (
+                  <div key={log.id} className="bg-card border border-border p-4 rounded-xl flex flex-col gap-3 shadow-sm hover:bg-slate-900/10 transition-colors">
+                    <div className="flex justify-between items-start gap-2">
+                      <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded border text-[10px] font-bold shrink-0 ${badge.bg}`}>
+                        <Icon icon={badge.icon} width={11} />
+                        {badge.text}
+                      </span>
+                      <span className="text-[10px] text-text-muted font-mono whitespace-nowrap">
+                        {format(new Date(log.createdAt), 'yyyy-MM-dd HH:mm:ss')}
+                      </span>
+                    </div>
+                    
+                    <p className="text-sm text-text-light font-medium leading-relaxed break-words">
+                      {log.description}
+                    </p>
+                    
+                    <div className="border-t border-border/50 pt-2.5 flex items-center justify-between">
+                      <span className="text-[10px] text-text-muted font-bold uppercase tracking-wider">Actor</span>
+                      {log.user ? (
+                        <div className="flex items-center gap-2 min-w-0">
+                          <UserAvatar name={log.user.name} avatarUrl={log.user.avatarUrl} size={22} />
+                          <div className="flex flex-col min-w-0">
+                            <span className="text-xs text-text-light truncate font-semibold">
+                              {log.user.name || 'User'}
+                            </span>
+                            <span className="text-[9px] text-text-muted truncate">
+                              {log.user.email}
+                            </span>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-1.5 text-text-muted text-xs">
+                          <Icon icon="lucide:monitor-play" width={14} />
+                          <span>System (API Key)</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })
+            )}
+          </div>
+
           {/* Pagination */}
           {pagination && pagination.pages > 1 && (
-            <div className="border-t border-border/40 p-4.5 flex justify-between items-center text-xs">
-              <span className="text-text-muted">
+            <div className="border-t border-border/40 p-4.5 flex flex-col sm:flex-row justify-between items-center gap-4 text-xs mt-4 md:mt-0">
+              <span className="text-text-muted text-center sm:text-left">
                 Showing page <strong>{pagination.page}</strong> of {pagination.pages} ({pagination.total} total logs)
               </span>
               <div className="flex items-center gap-1.5">
@@ -349,20 +410,25 @@ export default function AuditLogsPage() {
                 >
                   Previous
                 </Button>
-                {[...Array(pagination.pages)].map((_, i) => (
-                  <button
-                    key={i}
-                    onClick={() => setPage(i + 1)}
-                    disabled={isLoading}
-                    className={`h-7 w-7 rounded-lg text-[11px] font-bold border transition-all cursor-pointer ${
-                      page === i + 1
-                        ? 'bg-accent border-accent text-white'
-                        : 'border-border bg-slate-900/20 text-text-muted hover:text-text-light'
-                    }`}
-                  >
-                    {i + 1}
-                  </button>
-                ))}
+                <div className="hidden sm:flex items-center gap-1.5">
+                  {[...Array(pagination.pages)].map((_, i) => (
+                    <button
+                      key={i}
+                      onClick={() => setPage(i + 1)}
+                      disabled={isLoading}
+                      className={`h-7 w-7 rounded-lg text-[11px] font-bold border transition-all cursor-pointer ${
+                        page === i + 1
+                          ? 'bg-accent border-accent text-white'
+                          : 'border-border bg-slate-900/20 text-text-muted hover:text-text-light'
+                      }`}
+                    >
+                      {i + 1}
+                    </button>
+                  ))}
+                </div>
+                <span className="sm:hidden text-text-muted text-xs font-semibold px-2">
+                  {page} / {pagination.pages}
+                </span>
                 <Button
                   variant="bordered"
                   onClick={() => setPage(page + 1)}

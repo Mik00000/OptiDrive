@@ -52,7 +52,7 @@ export const WebhookDeliveriesModal = ({
       title={`Delivery History: ${webhook?.name || ''}`}
       maxWidth="max-w-4xl"
     >
-      <div className="flex flex-col gap-6 pt-2 h-[550px]">
+      <div className="flex flex-col gap-6 pt-2 h-[calc(100vh-10rem)] md:h-[550px]">
         {isLoading ? (
           <div className="flex flex-1 items-center justify-center">
             <Icon icon="lucide:loader-2" className="animate-spin text-accent" width={40} />
@@ -66,9 +66,9 @@ export const WebhookDeliveriesModal = ({
             </p>
           </div>
         ) : (
-          <div className="flex flex-1 gap-4 overflow-hidden">
+          <div className="flex flex-1 flex-col md:flex-row gap-4 md:gap-6 overflow-hidden">
             {/* Ліва панель: Список доставок */}
-            <div className="w-1/2 overflow-y-auto border-r border-border pr-2 flex flex-col gap-2">
+            <div className="w-full md:w-2/5 overflow-y-auto border-b md:border-b-0 md:border-r border-border pb-4 md:pb-0 md:pr-4 flex flex-col gap-2 shrink-0 max-h-[40vh] md:max-h-full">
               {deliveries.map((delivery) => {
                 const isSelected = selectedDelivery?.id === delivery.id;
                 return (
@@ -76,7 +76,7 @@ export const WebhookDeliveriesModal = ({
                     key={delivery.id}
                     onClick={() => setSelectedDelivery(delivery)}
                     className={`
-                      w-full flex items-center justify-between p-3.5 rounded-xl border text-left transition-all
+                      w-full flex items-center justify-between p-3.5 rounded-xl border text-left transition-all shrink-0
                       ${isSelected 
                         ? 'border-accent bg-accent/5 ring-1 ring-accent' 
                         : 'border-border bg-card-bg hover:bg-hover-bg'}
@@ -85,7 +85,7 @@ export const WebhookDeliveriesModal = ({
                     <div className="flex flex-col gap-1 min-w-0">
                       <div className="flex items-center gap-2">
                         <span className={`
-                          text-xs font-semibold px-2 py-0.5 rounded-full inline-flex items-center gap-1
+                          text-xs font-semibold px-2 py-0.5 rounded-full inline-flex items-center gap-1 shrink-0
                           ${delivery.success 
                             ? 'bg-success/15 text-success' 
                             : 'bg-error/15 text-error'}
@@ -110,7 +110,7 @@ export const WebhookDeliveriesModal = ({
             </div>
 
             {/* Права панель: Деталі обраної доставки */}
-            <div className="w-1/2 overflow-y-auto pl-2 flex flex-col">
+            <div className="w-full md:w-3/5 overflow-y-auto md:pl-2 flex flex-col pb-4 md:pb-0">
               {selectedDelivery ? (
                 <div className="flex flex-col gap-4">
                   <div className="rounded-xl border border-border bg-card-bg/30 p-4">

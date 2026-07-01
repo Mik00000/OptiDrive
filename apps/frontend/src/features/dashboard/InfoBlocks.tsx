@@ -6,11 +6,11 @@ interface InfoBlocksProps {
 }
 
 const InfoBlocks = ({ stats }: InfoBlocksProps) => {
-  const bytesToGB = (bytes: string | number) => (Number(bytes) / (1024 * 1024 * 1024)).toFixed(2);
-  const bytesToMB = (bytes: string | number) => (Number(bytes) / (1024 * 1024)).toFixed(2);
+  const bytesToGB = (bytes: string | number) => Math.max(0, Number(bytes) / (1024 * 1024 * 1024)).toFixed(2);
+  const bytesToMB = (bytes: string | number) => Math.max(0, Number(bytes) / (1024 * 1024)).toFixed(2);
   
-  const savedBytes = Number(stats.totalBytesSaved);
-  const savedText = savedBytes > 1024 * 1024 * 1024 ? `${bytesToGB(savedBytes)} GB` : `${bytesToMB(savedBytes)} MB`;
+  const savedBytes = Math.max(0, Number(stats.totalBytesSaved) || 0);
+  const savedText = savedBytes <= 0 ? "0.00 MB" : savedBytes > 1024 * 1024 * 1024 ? `${bytesToGB(savedBytes)} GB` : `${bytesToMB(savedBytes)} MB`;
 
   const originalBytes = Number(stats.totalOriginalBytes) || 1;
   const optimizedBytes = Number(stats.totalOptimizedBytes) || 0;

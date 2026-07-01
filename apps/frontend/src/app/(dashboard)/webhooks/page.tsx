@@ -91,21 +91,22 @@ export default function WebhooksPage() {
     <>
       <section className="dashboard-page">
         <PageHeading title="Webhooks">
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2 sm:gap-4">
             <Button
               variant="bordered"
               onClick={() => setShowDocs(!showDocs)}
               className="gap-2"
+              mobileBehavior="icon-only"
             >
               <Icon icon="lucide:book-open" width={16} />
               <span>{showDocs ? 'Hide Instructions' : 'Documentation'}</span>
             </Button>
             <Button
               variant="accent"
-              mobileBehavior="full-width"
+              mobileBehavior="icon-only"
               onClick={openCreateModal}
             >
-              <div className="inline-flex h-4 w-4 items-center justify-center">
+              <div className="inline-flex h-4 w-4 items-center justify-center shrink-0">
                 <Icon icon="lucide:plus" width="100%" height="100%" />
               </div>
               <span>Create Webhook</span>
@@ -159,6 +160,23 @@ app.post('/webhook', (req, res) => {
             <div className="flex h-48 items-center justify-center">
               <Icon icon="lucide:loader-2" className="animate-spin text-accent" width={32} />
             </div>
+          ) : webhooks.length === 0 ? (
+            <div className="flex flex-col items-center justify-center rounded-2xl border border-border bg-card p-8 md:p-12 text-center max-w-md mx-auto w-full">
+              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-accent/10 text-accent mb-4">
+                <Icon icon="lucide:webhook" width={24} />
+              </div>
+              <h3 className="text-base font-semibold text-text-light">No webhooks created</h3>
+              <p className="text-xs text-text-muted mt-2 max-w-xs leading-relaxed">
+                Create your first webhook to receive instant notifications when your files are compressed and optimized.
+              </p>
+              <Button
+                variant="accent"
+                className="mt-6 px-5"
+                onClick={openCreateModal}
+              >
+                Create Webhook
+              </Button>
+            </div>
           ) : (
             <>
               {/* Desktop view */}
@@ -170,50 +188,23 @@ app.post('/webhook', (req, res) => {
                 isTesting={isTesting}
                 onViewDeliveries={openDeliveriesModal}
                 onToggleActive={handleToggleActive}
-                emptySlot={
-                  <div className="flex flex-col items-center justify-center rounded-2xl border border-border bg-card p-12 text-center">
-                    <div className="flex h-12 w-12 items-center justify-center rounded-full bg-accent/10 text-accent mb-4">
-                      <Icon icon="lucide:webhook" width={24} />
-                    </div>
-                    <h3 className="text-lg font-semibold text-text">No webhooks created</h3>
-                    <p className="text-sm text-text-muted mt-1 max-w-sm">
-                      Create your first webhook to receive instant notifications when your files are compressed and optimized.
-                    </p>
-                    <Button
-                      variant="bordered"
-                      className="mt-6"
-                      onClick={openCreateModal}
-                    >
-                      Create Webhook
-                    </Button>
-                  </div>
-                }
+                emptySlot={null}
               />
 
               {/* Mobile cards view */}
               <div className="flex flex-col gap-3 lg:hidden">
-                {webhooks.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center rounded-2xl border border-border bg-card p-8 text-center">
-                    <Icon icon="lucide:webhook" className="text-accent mb-2" width={32} />
-                    <span className="text-sm font-semibold text-text">No webhooks found</span>
-                    <Button variant="bordered" className="mt-4" onClick={openCreateModal}>
-                      Add Webhook
-                    </Button>
-                  </div>
-                ) : (
-                  webhooks.map((webhook) => (
-                    <WebhookCard
-                      key={webhook.id}
-                      webhook={webhook}
-                      onEdit={openEditModal}
-                      onDelete={handleDelete}
-                      onTest={handleTestWebhook}
-                      isTesting={isTesting}
-                      onViewDeliveries={openDeliveriesModal}
-                      onToggleActive={handleToggleActive}
-                    />
-                  ))
-                )}
+                {webhooks.map((webhook) => (
+                  <WebhookCard
+                    key={webhook.id}
+                    webhook={webhook}
+                    onEdit={openEditModal}
+                    onDelete={handleDelete}
+                    onTest={handleTestWebhook}
+                    isTesting={isTesting}
+                    onViewDeliveries={openDeliveriesModal}
+                    onToggleActive={handleToggleActive}
+                  />
+                ))}
               </div>
             </>
           )}

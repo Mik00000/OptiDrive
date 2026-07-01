@@ -52,8 +52,9 @@ export default function AnalyticsPage() {
     const dm = decimals < 0 ? 0 : decimals;
     const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
     const i = Math.floor(Math.log(absBytes) / Math.log(k));
-    const formatted = parseFloat((absBytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
-    return isNegative ? `-${formatted}` : formatted;
+    const formattedValue = parseFloat((absBytes / Math.pow(k, i)).toFixed(dm));
+    const formatted = formattedValue + ' ' + sizes[i];
+    return (isNegative && formattedValue !== 0) ? `-${formatted}` : formatted;
   };
 
   // 1. Process Raw Data from the backend
@@ -103,7 +104,7 @@ export default function AnalyticsPage() {
       requests,
       success,
       error,
-      savedBytes,
+      savedBytes: Math.max(0, savedBytes),
       successRate: rate
     };
   })();
@@ -248,7 +249,7 @@ export default function AnalyticsPage() {
 
       <div className="print:hidden">
         <PageHeading title="Analytics & Insights">
-          <div className="flex flex-wrap items-center gap-3">
+          <div className="flex flex-nowrap sm:flex-wrap items-center gap-3 w-max sm:w-auto pb-1 sm:pb-0">
             {/* Preset Ranges */}
             <div className="inline-flex rounded-lg border border-border bg-slate-900/50 p-1">
               <button

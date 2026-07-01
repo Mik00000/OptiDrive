@@ -91,13 +91,19 @@ const FOLDER_COLORS = [
   { name: 'Gray', value: '#64748b' },
 ];
 
+const truncateMiddle = (text: string, maxLength = 24) => {
+  if (text.length <= maxLength) return text;
+  const charsToShow = maxLength - 3;
+  const frontChars = Math.ceil(charsToShow / 2);
+  const backChars = Math.floor(charsToShow / 2);
+  return text.substr(0, frontChars) + '...' + text.substr(text.length - backChars);
+};
+
 interface MediaTableProps {
   searchQuery: string;
   setSearchQuery: (val: string) => void;
   formatFilter: string;
   setFormatFilter: (val: string) => void;
-  isSelectionMode?: boolean;
-  onSelectionModeChange?: (mode: boolean) => void;
   refreshKey?: number;
   currentFolderId: string | null;
   onFolderChange: (id: string | null) => void;
@@ -108,14 +114,15 @@ export const MediaTable = ({
   setSearchQuery,
   formatFilter,
   setFormatFilter,
-  isSelectionMode,
-  onSelectionModeChange,
   refreshKey = 0,
   currentFolderId,
   onFolderChange,
 }: MediaTableProps) => {
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [forceSelectionMode, setForceSelectionMode] = useState(false);
+  const isSelectionMode = forceSelectionMode || selectedIds.size > 0;
+  const [viewMode, setViewMode] = useState<'list' | 'grid'>('list');
   const [files, setFiles] = useState<MediaFile[]>([]);
   const [folders, setFolders] = useState<Folder[]>([]);
   const [path, setPath] = useState<{ id: string; name: string }[]>([]);
@@ -129,6 +136,7 @@ export const MediaTable = ({
   const [isCreatingFolder, setIsCreatingFolder] = useState(false);
 
   const [isRenameFolderModalOpen, setIsRenameFolderModalOpen] = useState(false);
+  const [activeDropdownId, setActiveDropdownId] = useState<string | null>(null);
   const [renameFolderTarget, setRenameFolderTarget] = useState<Folder | null>(
     null,
   );
@@ -268,7 +276,8 @@ export const MediaTable = ({
       await moveItemsApi(folderIds, fileIds, targetFolderId || null);
       showFeedback('Items moved successfully');
       setSelectedIds(new Set());
-      if (onSelectionModeChange) onSelectionModeChange(false);
+      setForceSelectionMode(false);
+
       fetchLibrary();
     } catch (err: any) {
       showFeedback(
@@ -380,7 +389,8 @@ export const MediaTable = ({
       );
       showFeedback('Items moved successfully');
       setSelectedIds(new Set());
-      if (onSelectionModeChange) onSelectionModeChange(false);
+      setForceSelectionMode(false);
+
       setIsMoveModalOpen(false);
       fetchLibrary();
     } catch (error: any) {
@@ -463,7 +473,8 @@ export const MediaTable = ({
           }
         }
         setSelectedIds(new Set());
-        if (onSelectionModeChange) onSelectionModeChange(false);
+        setForceSelectionMode(false);
+
         showFeedback(
           `Successfully deleted ${foldersCount} folder(s) and ${filesCount} file(s)`,
         );
@@ -544,28 +555,15 @@ export const MediaTable = ({
   }, [searchQuery, formatFilter, selectedTagFilter, files]);
 
   // Pagination for files
-  const totalPages = Math.ceil(filteredFiles.length / itemsPerPage);
-
-  if (currentPage > totalPages && totalPages > 0) {
-    setCurrentPage(1);
-  }
-
   const paginatedFiles = useMemo(() => {
-    const startIndex = (currentPage - 1) * itemsPerPage;
-    return filteredFiles.slice(startIndex, startIndex + itemsPerPage);
+    return filteredFiles.slice(0, currentPage * itemsPerPage);
   }, [filteredFiles, currentPage]);
 
-  const handleNext = () => {
-    if (currentPage < totalPages) setCurrentPage((prev) => prev + 1);
-  };
+  const hasMore = currentPage * itemsPerPage < filteredFiles.length;
 
-  const handlePrev = () => {
-    if (currentPage > 1) setCurrentPage((prev) => prev - 1);
+  const handleLoadMore = () => {
+    setCurrentPage((prev) => prev + 1);
   };
-
-  const showingStart =
-    filteredFiles.length === 0 ? 0 : (currentPage - 1) * itemsPerPage + 1;
-  const showingEnd = Math.min(currentPage * itemsPerPage, filteredFiles.length);
 
   const pageIds = useMemo(
     () => [...folders.map((f) => f.id), ...paginatedFiles.map((f) => f.id)],
@@ -618,9 +616,9 @@ export const MediaTable = ({
 
   return (
     <div className="flex min-h-[400px] w-full flex-col">
-      {/* 1. Breadcrumbs Row (above) */}
-      <div className="border-border flex items-center justify-between border-b px-6 py-3 bg-card/30">
-        <div className="text-text-muted flex items-center gap-1 text-xs font-normal">
+      {/* 1. Breadcrumbs Row (Text chain without borders) */}
+      <div className="flex items-center px-4 md:px-6 py-4">
+        <div className="text-text-muted flex items-center gap-1.5 text-base md:text-lg font-medium">
           <button
             onClick={() => onFolderChange(null)}
             onDragOver={(e) => {
@@ -629,17 +627,13 @@ export const MediaTable = ({
             }}
             onDragLeave={handleDragLeaveFolder}
             onDrop={(e) => handleDropOnFolder(e, '')}
-            className={`hover:text-text-light flex cursor-pointer items-center gap-1 rounded px-1 py-0.5 transition-colors ${dragOverFolderId === 'root' ? 'border border-dashed border-blue-500/50 bg-blue-900/35 text-blue-400' : ''}`}
+            className={`hover:text-text-light flex cursor-pointer items-center gap-1 px-2 py-1 transition-colors ${dragOverFolderId === 'root' ? 'text-blue-400' : ''}`}
           >
-            <Icon icon="lucide:home" width={14} /> Home
+            Home
           </button>
           {path.map((folder, index) => (
             <React.Fragment key={folder.id}>
-              <Icon
-                icon="lucide:chevron-right"
-                width={12}
-                className="text-text-muted/40"
-              />
+              <span className="text-text-muted/40 mx-1">/</span>
               <button
                 onClick={() => onFolderChange(folder.id)}
                 onDragOver={(e) => {
@@ -648,7 +642,7 @@ export const MediaTable = ({
                 }}
                 onDragLeave={handleDragLeaveFolder}
                 onDrop={(e) => handleDropOnFolder(e, folder.id)}
-                className={`cursor-pointer rounded px-1 py-0.5 transition-colors ${index === path.length - 1 ? 'text-accent font-medium' : 'hover:text-text-light'} ${dragOverFolderId === folder.id ? 'border border-dashed border-blue-500/50 bg-blue-900/35 text-blue-400' : ''}`}
+                className={`cursor-pointer px-2 py-1 transition-colors ${index === path.length - 1 ? 'text-accent font-semibold' : 'hover:text-text-light'} ${dragOverFolderId === folder.id ? 'text-blue-400' : ''}`}
               >
                 {folder.name}
               </button>
@@ -658,16 +652,16 @@ export const MediaTable = ({
       </div>
 
       {/* 2. Compact Toolbar Row (Search, Filter, New Folder) */}
-      <div className="border-border flex flex-col md:flex-row md:items-center justify-between gap-4 border-b p-4 bg-card/10">
+      <div className="border-border flex flex-col xl:flex-row xl:items-center gap-4 px-4 md:px-6 pb-4">
         <Input 
           variant='search' 
           placeholder='Search files by name...' 
-          wrapperClassName='md:max-w-md w-full h-10'
+          wrapperClassName='md:max-w-md w-full h-10 shrink-0'
           className='bg-bg h-full border-border/80 focus:border-accent'
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
         />
-        <div className="flex items-center gap-3 w-full md:w-auto">
+        <div className="flex items-center gap-3 w-full md:w-auto overflow-x-auto scrollbar-hide pb-2 md:pb-0">
           <Input
             variant="select"
             icon="lucide:filter"
@@ -689,7 +683,7 @@ export const MediaTable = ({
             ]}
             value={formatFilter}
             onChange={setFormatFilter}
-            className="text-text-light text-sm w-full md:w-fit bg-bg rounded-xl h-10 border-border/80"
+            className="text-text-light text-sm w-max md:w-fit bg-bg rounded-xl h-10 border-border/80 shrink-0 min-w-[140px]"
           />
           <Input
             variant="select"
@@ -701,28 +695,66 @@ export const MediaTable = ({
             ]}
             value={selectedTagFilter}
             onChange={setSelectedTagFilter}
-            className="text-text-light text-sm w-full md:w-fit bg-bg rounded-xl h-10 border-border/80"
+            className="text-text-light text-sm w-max md:w-fit bg-bg rounded-xl h-10 border-border/80 shrink-0 min-w-[120px]"
           />
           <Button
             variant="bordered"
-            className="border-border flex h-10 items-center gap-1.5 text-sm whitespace-nowrap bg-bg hover:bg-card/50"
+            className="border-border flex h-10 items-center gap-1.5 text-sm whitespace-nowrap bg-bg hover:bg-card/50 shrink-0"
             onClick={() => setIsCreateFolderModalOpen(true)}
           >
             <Icon icon="lucide:folder-plus" width={16} className="text-accent" />
             New Folder
           </Button>
+
+          {isSelectionMode ? (
+            <Button
+              variant="bordered"
+              onClick={() => {
+                setSelectedIds(new Set());
+                setForceSelectionMode(false);
+              }}
+              className="md:hidden h-10 px-4 shrink-0 border-blue-500/30 text-blue-400 hover:bg-blue-950/20"
+            >
+              Cancel
+            </Button>
+          ) : (
+            <Button
+              variant="bordered"
+              onClick={() => setForceSelectionMode(true)}
+              className="md:hidden h-10 px-4 shrink-0 text-text-muted hover:text-text-light"
+            >
+              Select
+            </Button>
+          )}
+
+          <div className="flex bg-card/50 border border-border rounded-xl p-1 shrink-0 h-10 ml-auto">
+            <button 
+              onClick={() => setViewMode('list')} 
+              className={`flex items-center justify-center px-2.5 rounded-lg transition-colors ${viewMode === 'list' ? 'bg-bg shadow text-accent' : 'text-text-muted hover:text-text-light'}`}
+              title="List View"
+            >
+              <Icon icon="lucide:list" width={16} />
+            </button>
+            <button 
+              onClick={() => setViewMode('grid')} 
+              className={`flex items-center justify-center px-2.5 rounded-lg transition-colors ${viewMode === 'grid' ? 'bg-bg shadow text-accent' : 'text-text-muted hover:text-text-light'}`}
+              title="Grid View"
+            >
+              <Icon icon="lucide:grid" width={16} />
+            </button>
+          </div>
         </div>
       </div>
 
-      <div className="hidden overflow-x-auto xl:block">
-        <table className="w-full border-collapse text-left">
+      <div className={viewMode === 'list' ? 'hidden md:block overflow-x-auto w-full' : 'hidden'}>
+        <table className="w-full border-collapse text-left min-w-[800px]">
           <thead>
             {selectedIds.size > 0 ? (
               <tr className="border-y border-blue-500/30 bg-blue-950/20 text-xs font-medium text-blue-400">
                 <th className="w-14 px-4 py-3 text-center align-middle">
                   <div
                     onClick={handleSelectAllPage}
-                    className={`inline-flex h-4.5 w-4.5 cursor-pointer items-center justify-center rounded-[4px] border align-middle transition-colors ${allPageSelected ? 'border-blue-600 bg-blue-600 text-white' : 'bg-bg border-border hover:border-text-muted'}`}
+                    className={`inline-flex h-5 w-5 cursor-pointer items-center justify-center rounded-[4px] border align-middle transition-colors ${allPageSelected ? 'border-blue-600 bg-blue-600 text-white' : 'bg-bg border-border hover:border-text-muted'}`}
                   >
                     {allPageSelected && <Icon icon="lucide:check" width={14} />}
                     {!allPageSelected && somePageSelected && (
@@ -803,7 +835,7 @@ export const MediaTable = ({
                 <th className="w-14 px-4 py-4 text-center">
                   <div
                     onClick={handleSelectAllPage}
-                    className={`inline-flex h-4.5 w-4.5 cursor-pointer items-center justify-center rounded-[4px] border align-middle transition-colors ${allPageSelected ? 'border-blue-600 bg-blue-600 text-white' : 'bg-bg border-border hover:border-text-muted'}`}
+                    className={`inline-flex h-5 w-5 cursor-pointer items-center justify-center rounded-[4px] border align-middle transition-colors ${allPageSelected ? 'border-blue-600 bg-blue-600 text-white' : 'bg-bg border-border hover:border-text-muted'}`}
                   >
                     {allPageSelected && <Icon icon="lucide:check" width={14} />}
                     {!allPageSelected && somePageSelected && (
@@ -857,7 +889,7 @@ export const MediaTable = ({
                     >
                       <div
                         onClick={() => toggleSelection(folder.id)}
-                        className={`inline-flex h-4.5 w-4.5 cursor-pointer items-center justify-center rounded-full border align-middle transition-colors ${selectedIds.has(folder.id) ? 'border-blue-600 bg-blue-600 text-white' : 'bg-bg border-border hover:border-text-muted'}`}
+                        className={`inline-flex h-5 w-5 cursor-pointer items-center justify-center rounded-[4px] border align-middle transition-colors ${selectedIds.has(folder.id) ? 'border-blue-600 bg-blue-600 text-white opacity-100' : `bg-bg border-border hover:border-text-muted ${isSelectionMode ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}`}
                       >
                         {selectedIds.has(folder.id) && (
                           <Icon icon="lucide:check" width={14} />
@@ -883,9 +915,9 @@ export const MediaTable = ({
                             width={22}
                           />
                         </div>
-                        <div className="flex min-w-0 flex-col">
-                          <span className="truncate text-sm font-medium">
-                            {folder.name}
+                        <div className="flex flex-col min-w-0">
+                          <span className="text-sm font-medium truncate" title={folder.name}>
+                            {truncateMiddle(folder.name, 35)}
                           </span>
                           <div className="mt-0.5 flex flex-wrap items-center gap-x-1.5 gap-y-0.5">
                             {folder._count && (
@@ -941,67 +973,34 @@ export const MediaTable = ({
                     >
                       <div className="flex items-center justify-end gap-1.5">
                         <button
-                          onClick={async () => {
-                            try {
-                              showFeedback(
-                                'Preparing zip download...',
-                                'success',
-                              );
-                              await downloadFolderClientApi(
-                                folder.id,
-                                folder.name,
-                              );
-                              showFeedback(
-                                `Folder "${folder.name}" downloaded successfully`,
-                              );
-                            } catch (err: any) {
-                              showFeedback(
-                                `Failed to download folder: ${err.message}`,
-                                'error',
-                              );
-                            }
-                          }}
-                          className="text-text-muted hover:text-accent cursor-pointer p-1.5 align-middle opacity-70 transition-colors group-hover:opacity-100 hover:scale-110 focus:opacity-100"
-                          title="Download Folder"
-                        >
-                          <Icon icon="lucide:download" width={16} />
-                        </button>
-                        <button
                           onClick={() => {
-                            setShareTarget({ id: folder.id, type: 'folder', name: folder.name });
-                            setIsShareModalOpen(true);
+                            setActiveDropdownId(activeDropdownId === folder.id ? null : folder.id);
                           }}
-                          className="text-text-muted hover:text-blue-400 cursor-pointer p-1.5 align-middle opacity-70 transition-colors group-hover:opacity-100 hover:scale-110 focus:opacity-100"
-                          title="Share Folder"
+                          className="text-text-muted hover:text-text-light p-2 transition-colors"
+                          title="More Actions"
                         >
-                          <Icon icon="lucide:share-2" width={16} />
+                          <Icon icon="lucide:more-vertical" width={16} />
                         </button>
-                        <button
-                          onClick={() => {
-                            setRenameFolderTarget(folder);
-                            setRenameFolderName(folder.name);
-                            setRenameFolderColor(folder.color || null);
-                            setIsRenameFolderModalOpen(true);
-                          }}
-                          className="text-text-muted hover:text-text-light cursor-pointer p-1.5 align-middle opacity-70 transition-colors group-hover:opacity-100 hover:scale-110 focus:opacity-100"
-                          title="Rename"
-                        >
-                          <Icon icon="lucide:edit-2" width={16} />
-                        </button>
-                        <button
-                          onClick={() => {
-                            setDeleteTarget({
-                              id: folder.id,
-                              type: 'folder',
-                              name: folder.name,
-                            });
-                            setIsDeleteModalOpen(true);
-                          }}
-                          className="text-text-muted hover:text-error cursor-pointer p-1.5 align-middle opacity-70 transition-colors group-hover:opacity-100 hover:scale-110 focus:opacity-100"
-                          title="Delete Folder"
-                        >
-                          <Icon icon="lucide:trash-2" width={16} />
-                        </button>
+                        {activeDropdownId === folder.id && (
+                          <>
+                            <div className="fixed inset-0 z-40" onClick={() => setActiveDropdownId(null)} />
+                            <div className="absolute right-8 top-8 w-40 bg-card border border-border rounded-lg shadow-xl py-1 z-50 flex flex-col">
+                              <button onClick={async () => {
+                                setActiveDropdownId(null);
+                                try {
+                                  showFeedback('Preparing zip download...', 'success');
+                                  await downloadFolderClientApi(folder.id, folder.name);
+                                  showFeedback(`Folder "${folder.name}" downloaded successfully`);
+                                } catch (err: any) {
+                                  showFeedback(`Failed to download folder: ${err.message}`, 'error');
+                                }
+                              }} className="w-full text-left px-3 py-2 text-xs hover:bg-bg/50 flex items-center gap-2"><Icon icon="lucide:download" width={14} /> Download</button>
+                              <button onClick={() => { setActiveDropdownId(null); setShareTarget({ id: folder.id, type: 'folder', name: folder.name }); setIsShareModalOpen(true); }} className="w-full text-left px-3 py-2 text-xs hover:bg-bg/50 flex items-center gap-2 text-blue-400"><Icon icon="lucide:share-2" width={14} /> Share</button>
+                              <button onClick={() => { setActiveDropdownId(null); setRenameFolderTarget(folder); setRenameFolderName(folder.name); setIsRenameFolderModalOpen(true); }} className="w-full text-left px-3 py-2 text-xs hover:bg-bg/50 flex items-center gap-2"><Icon icon="lucide:edit-2" width={14} /> Rename</button>
+                              <button onClick={() => { setActiveDropdownId(null); setDeleteTarget({ id: folder.id, type: 'folder', name: folder.name }); setIsDeleteModalOpen(true); }} className="w-full text-left px-3 py-2 text-xs hover:bg-bg/50 flex items-center gap-2 text-red-400"><Icon icon="lucide:trash-2" width={14} /> Delete</button>
+                            </div>
+                          </>
+                        )}
                       </div>
                     </td>
                   </tr>
@@ -1025,7 +1024,7 @@ export const MediaTable = ({
                   >
                     <div
                       onClick={() => toggleSelection(file.id)}
-                      className={`inline-flex h-4.5 w-4.5 cursor-pointer items-center justify-center rounded-full border align-middle transition-colors ${selectedIds.has(file.id) ? 'border-blue-600 bg-blue-600 text-white' : 'bg-bg border-border hover:border-text-muted'}`}
+                      className={`inline-flex h-5 w-5 cursor-pointer items-center justify-center rounded-[4px] border align-middle transition-colors ${selectedIds.has(file.id) ? 'border-blue-600 bg-blue-600 text-white opacity-100' : `bg-bg border-border hover:border-text-muted ${isSelectionMode ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}`}
                     >
                       {selectedIds.has(file.id) && (
                         <Icon icon="lucide:check" width={14} />
@@ -1056,15 +1055,9 @@ export const MediaTable = ({
                         )}
                       </div>
                       <div className="flex min-w-0 flex-col">
-                        <button
-                          className="hover:text-accent truncate text-left text-sm font-medium transition-colors"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setPreviewFile(file);
-                          }}
-                        >
-                          {file.name}
-                        </button>
+                        <span className="truncate font-medium" title={file.name}>
+                          {truncateMiddle(file.name, 35)}
+                        </span>
                         {file.tags && file.tags.length > 0 && (
                           <div className="mt-1 flex flex-wrap gap-1">
                             {file.tags.map((tag: any) => (
@@ -1123,44 +1116,35 @@ export const MediaTable = ({
                     onClick={(e) => e.stopPropagation()}
                   >
                     <div className="flex items-center justify-end gap-1.5">
-                      <button
-                        onClick={() => handleOpenEditTags(file)}
-                        className="text-text-muted hover:text-accent cursor-pointer p-1.5 align-middle opacity-70 transition-colors group-hover:opacity-100 hover:scale-110 focus:opacity-100"
-                        title="Manage Tags"
-                      >
-                        <Icon icon="lucide:tag" width={16} />
-                      </button>
-                      <button
-                        onClick={() => {
-                          setShareTarget({ id: file.id, type: 'file', name: file.name });
-                          setIsShareModalOpen(true);
-                        }}
-                        className="text-text-muted hover:text-blue-400 cursor-pointer p-1.5 align-middle opacity-70 transition-colors group-hover:opacity-100 hover:scale-110 focus:opacity-100"
-                        title="Share File"
-                      >
-                        <Icon icon="lucide:share-2" width={16} />
-                      </button>
-                      <button
-                        onClick={() => copyToClipboard(file.cdnUrl)}
-                        className="text-text-muted hover:text-text-light cursor-pointer p-1.5 align-middle opacity-70 transition-colors group-hover:opacity-100 hover:scale-110 focus:opacity-100"
-                        title="Copy URL"
-                      >
-                        <Icon icon="lucide:copy" width={16} />
-                      </button>
-                      <button
-                        onClick={() => {
-                          setDeleteTarget({
-                            id: file.id,
-                            type: 'file',
-                            name: file.name,
-                          });
-                          setIsDeleteModalOpen(true);
-                        }}
-                        className="text-text-muted hover:text-error cursor-pointer p-1.5 align-middle opacity-70 transition-colors group-hover:opacity-100 hover:scale-110 focus:opacity-100"
-                        title="Delete File"
-                      >
-                        <Icon icon="lucide:trash-2" width={16} />
-                      </button>
+                      <div className="relative" onClick={(e) => e.stopPropagation()}>
+                        <button
+                          onClick={() => {
+                            setActiveDropdownId(activeDropdownId === file.id ? null : file.id);
+                          }}
+                          className="text-text-muted hover:text-text-light p-2 transition-colors"
+                          title="More Actions"
+                        >
+                          <Icon icon="lucide:more-vertical" width={16} />
+                        </button>
+                        {activeDropdownId === file.id && (
+                          <>
+                            <div className="fixed inset-0 z-40" onClick={() => setActiveDropdownId(null)} />
+                            <div className="absolute right-8 top-8 w-40 bg-card border border-border rounded-lg shadow-xl py-1 z-50 flex flex-col">
+                              <button onClick={async () => {
+                                setActiveDropdownId(null);
+                                try {
+                                  await downloadMediaFileClientApi(file.id, file.name);
+                                } catch (e) {
+                                  showFeedback(`Failed to download ${file.name}`, 'error');
+                                }
+                              }} className="w-full text-left px-3 py-2 text-xs hover:bg-bg/50 flex items-center gap-2"><Icon icon="lucide:download" width={14} /> Download</button>
+                              <button onClick={() => { setActiveDropdownId(null); setShareTarget({ id: file.id, type: 'file', name: file.name }); setIsShareModalOpen(true); }} className="w-full text-left px-3 py-2 text-xs hover:bg-bg/50 flex items-center gap-2 text-blue-400"><Icon icon="lucide:share-2" width={14} /> Share</button>
+                              <button onClick={() => { setActiveDropdownId(null); setEditTagsTargetFile(file); setEditTagsList(file.tags ? file.tags.map(t => t.name) : []); setTagInputVal(''); setIsEditTagsModalOpen(true); }} className="w-full text-left px-3 py-2 text-xs hover:bg-bg/50 flex items-center gap-2"><Icon icon="lucide:tag" width={14} /> Edit Tags</button>
+                              <button onClick={() => { setActiveDropdownId(null); setDeleteTarget({ id: file.id, type: 'file', name: file.name }); setIsDeleteModalOpen(true); }} className="w-full text-left px-3 py-2 text-xs hover:bg-bg/50 flex items-center gap-2 text-red-400"><Icon icon="lucide:trash-2" width={14} /> Delete</button>
+                            </div>
+                          </>
+                        )}
+                      </div>
                     </div>
                   </td>
                 </tr>
@@ -1179,289 +1163,416 @@ export const MediaTable = ({
         </table>
       </div>
 
-      {/* Mobile View */}
-      <div className="bg-bg mt-4 grid grid-cols-1 gap-4 rounded-b-2xl px-4 md:grid-cols-2 xl:hidden">
-        {/* Mobile Folders */}
-        {!isLoading &&
-          folders.map((folder) => {
-            const isNonEmpty =
-              folder._count &&
-              (folder._count.files > 0 || folder._count.children > 0);
-            return (
-              <div
-                key={folder.id}
-                onClick={() =>
-                  isSelectionMode
-                    ? toggleSelection(folder.id)
-                    : onFolderChange(folder.id)
-                }
-                draggable
-                onDragStart={(e) => handleDragStart(e, folder.id, 'folder')}
-                onDragEnd={handleDragEnd}
-                onDragOver={(e) => handleDragOverFolder(e, folder.id)}
-                onDragLeave={handleDragLeaveFolder}
-                onDrop={(e) => handleDropOnFolder(e, folder.id)}
-                className={`flex flex-col gap-4 rounded-xl border p-4 shadow-sm transition-colors ${selectedIds.has(folder.id) ? 'border-blue-500/50 bg-blue-900/20' : 'bg-card border-border'} ${dragOverFolderId === folder.id ? 'border-blue-500 bg-blue-800/40' : ''} cursor-pointer`}
-              >
-                <div className="flex items-center justify-between gap-3">
-                  <div className="flex min-w-0 items-center gap-3">
-                    {isSelectionMode && (
-                      <div
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          toggleSelection(folder.id);
-                        }}
-                        className={`inline-flex h-5 w-5 shrink-0 cursor-pointer items-center justify-center rounded-full border transition-colors ${selectedIds.has(folder.id) ? 'border-blue-600 bg-blue-600 text-white' : 'bg-bg border-border'}`}
-                      >
-                        {selectedIds.has(folder.id) && (
-                          <Icon icon="lucide:check" width={14} />
-                        )}
-                      </div>
-                    )}
-                    <div className="bg-bg border-border text-accent flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border">
-                      <Icon
-                        icon={
-                          isNonEmpty ? 'lucide:folder-open' : 'lucide:folder'
-                        }
-                        width={22}
-                      />
-                    </div>
-                    <div className="flex min-w-0 flex-col">
-                      <span className="text-text-light truncate text-sm font-medium">
-                        {folder.name}
-                      </span>
-                      <div className="mt-0.5 flex flex-wrap items-center gap-x-1.5 gap-y-0.5">
-                        {folder._count && (
-                          <span className="text-text-muted text-[10px] font-semibold uppercase">
-                            {folder._count.files} file
-                            {folder._count.files !== 1 ? 's' : ''}
-                            {folder._count.children > 0
-                              ? `, ${folder._count.children} folder${folder._count.children !== 1 ? 's' : ''}`
-                              : ''}
-                            {folder.originalSize !== undefined && folder.optimizedSize !== undefined
-                              ? ` • Orig: ${formatBytes(folder.originalSize)} / Opt: ${formatBytes(folder.optimizedSize)}`
-                              : folder.size !== undefined ? ` • ${formatBytes(folder.size)}` : ''}
-                          </span>
-                        )}
-                        {searchQuery && folder.path && (
-                          <span className="text-text-muted text-[10px] font-medium">
-                            • In: {folder.path}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  </div>
+      {/* Mobile List View */}
+      <div className={viewMode === 'list' ? 'md:hidden bg-bg mt-4 flex flex-col gap-6 px-4 pb-6' : 'hidden'}>
+        {!isLoading && folders.length > 0 && (
+          <div className="flex flex-col gap-3">
+            <h3 className="text-xs font-bold text-text-muted uppercase tracking-wider pl-1">Folders</h3>
+            <div className="flex flex-col gap-3">
+              {folders.map((folder) => {
+                const isNonEmpty = folder._count && (folder._count.files > 0 || folder._count.children > 0);
+                return (
                   <div
-                    className="flex gap-2"
-                    onClick={(e) => e.stopPropagation()}
+                    key={folder.id}
+                    onClick={() => isSelectionMode ? toggleSelection(folder.id) : onFolderChange(folder.id)}
+                    draggable
+                    onDragStart={(e) => handleDragStart(e, folder.id, 'folder')}
+                    onDragEnd={handleDragEnd}
+                    onDragOver={(e) => handleDragOverFolder(e, folder.id)}
+                    onDragLeave={handleDragLeaveFolder}
+                    onDrop={(e) => handleDropOnFolder(e, folder.id)}
+                    className={`flex items-center justify-between p-3 rounded-xl border transition-colors cursor-pointer shadow-sm ${selectedIds.has(folder.id) ? 'border-blue-500/50 bg-blue-900/20' : 'bg-card border-border hover:bg-card/80'} ${dragOverFolderId === folder.id ? 'border-blue-500 bg-blue-800/40' : ''}`}
                   >
-                    <button
-                      onClick={async () => {
-                        try {
-                          showFeedback('Preparing zip download...', 'success');
-                          await downloadFolderClientApi(folder.id, folder.name);
-                          showFeedback(
-                            `Folder "${folder.name}" downloaded successfully`,
-                          );
-                        } catch (err: any) {
-                          showFeedback(
-                            `Failed to download folder: ${err.message}`,
-                            'error',
-                          );
-                        }
-                      }}
-                      className="text-text-muted hover:text-accent p-1.5 transition-colors"
-                      title="Download Folder"
-                    >
-                      <Icon icon="lucide:download" width={16} />
-                    </button>
-                    <button
-                      onClick={() => {
-                        setShareTarget({ id: folder.id, type: 'folder', name: folder.name });
-                        setIsShareModalOpen(true);
-                      }}
-                      className="text-text-muted hover:text-blue-400 p-1.5 transition-colors"
-                      title="Share Folder"
-                    >
-                      <Icon icon="lucide:share-2" width={16} />
-                    </button>
-                    <button
-                      onClick={() => {
-                        setRenameFolderTarget(folder);
-                        setRenameFolderName(folder.name);
-                        setIsRenameFolderModalOpen(true);
-                      }}
-                      className="text-text-muted hover:text-text-light p-1.5 transition-colors"
-                      title="Rename"
-                    >
-                      <Icon icon="lucide:edit-2" width={16} />
-                    </button>
-                    <button
-                      onClick={() => {
-                        setDeleteTarget({
-                          id: folder.id,
-                          type: 'folder',
-                          name: folder.name,
-                        });
-                        setIsDeleteModalOpen(true);
-                      }}
-                      className="text-text-muted hover:text-error p-1.5 transition-colors"
-                      title="Delete Folder"
-                    >
-                      <Icon icon="lucide:trash-2" width={16} />
-                    </button>
-                  </div>
-                </div>
-              </div>
-            );
-          })}
-
-        {/* Mobile Files */}
-        {!isLoading &&
-          paginatedFiles.map((file) => (
-            <div
-              key={file.id}
-              onClick={() =>
-                isSelectionMode
-                  ? toggleSelection(file.id)
-                  : setPreviewFile(file)
-              }
-              draggable
-              onDragStart={(e) => handleDragStart(e, file.id, 'file')}
-              onDragEnd={handleDragEnd}
-              className={`flex flex-col gap-4 rounded-xl border p-4 shadow-sm transition-colors ${selectedIds.has(file.id) ? 'border-blue-500/50 bg-blue-900/20' : 'bg-card border-border'} ${isSelectionMode ? 'cursor-pointer' : ''}`}
-            >
-              <div className="flex items-center justify-between gap-3">
-                <div className="flex min-w-0 items-center gap-3">
-                  {isSelectionMode && (
-                    <div
-                      className={`inline-flex h-5 w-5 shrink-0 cursor-pointer items-center justify-center rounded-full border transition-colors ${selectedIds.has(file.id) ? 'border-blue-600 bg-blue-600 text-white' : 'bg-bg border-border'}`}
-                    >
-                      {selectedIds.has(file.id) && (
-                        <Icon icon="lucide:check" width={14} />
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="relative">
+                        <div
+                          style={{
+                            borderColor: folder.color ? `${folder.color}35` : undefined,
+                            backgroundColor: folder.color ? `${folder.color}15` : undefined,
+                            color: folder.color || undefined
+                          }}
+                          className="bg-sidebar border-border text-accent flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border"
+                        >
+                          <Icon icon={isNonEmpty ? 'lucide:folder-open' : 'lucide:folder'} width={22} />
+                        </div>
+                        <div
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            toggleSelection(folder.id);
+                          }}
+                          className={`absolute -top-1.5 -left-1.5 inline-flex h-6 w-6 shrink-0 cursor-pointer items-center justify-center rounded-[4px] border transition-colors shadow-md ${selectedIds.has(folder.id) ? 'border-blue-600 bg-blue-600 text-white opacity-100' : `bg-bg/80 border-border ${isSelectionMode ? 'opacity-100' : 'opacity-0'}`}`}
+                        >
+                          {selectedIds.has(folder.id) && <Icon icon="lucide:check" width={16} />}
+                        </div>
+                      </div>
+                      <div className="flex flex-col min-w-0">
+                        <span className="text-text-light truncate text-sm font-medium" title={folder.name}>
+                          {truncateMiddle(folder.name, 28)}
+                        </span>
+                        <div className="flex flex-wrap items-center gap-x-1 gap-y-0.5">
+                          {folder._count && (
+                            <span className="text-text-muted text-[10px] font-semibold">
+                              {folder._count.files} {folder._count.files !== 1 ? 'files' : 'file'}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1 shrink-0 ml-2 relative" onClick={(e) => e.stopPropagation()}>
+                      <button onClick={() => {
+                        onFolderChange(folder.id);
+                      }} className="text-text-muted hover:text-accent p-2 transition-colors"><Icon icon="lucide:arrow-right" width={18} /></button>
+                      <button onClick={() => {
+                        setActiveDropdownId(activeDropdownId === folder.id ? null : folder.id);
+                      }} className="text-text-muted hover:text-text-light p-2 transition-colors"><Icon icon="lucide:more-vertical" width={18} /></button>
+                      
+                      {activeDropdownId === folder.id && (
+                        <>
+                          <div className="fixed inset-0 z-40" onClick={() => setActiveDropdownId(null)} />
+                          <div className="absolute right-0 top-12 w-40 bg-card border border-border rounded-lg shadow-xl py-1 z-50 flex flex-col">
+                            <button onClick={async () => {
+                              setActiveDropdownId(null);
+                              try {
+                                showFeedback('Preparing zip download...', 'success');
+                                await downloadFolderClientApi(folder.id, folder.name);
+                                showFeedback(`Folder "${folder.name}" downloaded successfully`);
+                              } catch (err: any) {
+                                showFeedback(`Failed to download folder: ${err.message}`, 'error');
+                              }
+                            }} className="flex items-center gap-2 px-4 py-2 text-sm text-text-light hover:bg-slate-700/50 text-left transition-colors">
+                              <Icon icon="lucide:download" width={16} /> Download
+                            </button>
+                            <button onClick={() => {
+                              setActiveDropdownId(null);
+                              setRenameFolderTarget(folder);
+                              setRenameFolderName(folder.name);
+                              setRenameFolderColor(folder.color || null);
+                              setIsRenameFolderModalOpen(true);
+                            }} className="flex items-center gap-2 px-4 py-2 text-sm text-text-light hover:bg-slate-700/50 text-left transition-colors">
+                              <Icon icon="lucide:edit-2" width={16} /> Rename
+                            </button>
+                            <div className="h-px bg-border/50 my-1 mx-2" />
+                            <button onClick={() => {
+                              setActiveDropdownId(null);
+                              setDeleteTarget({ id: folder.id, type: 'folder', name: folder.name });
+                              setIsDeleteModalOpen(true);
+                            }} className="flex items-center gap-2 px-4 py-2 text-sm text-red-400 hover:bg-red-500/10 text-left transition-colors">
+                              <Icon icon="lucide:trash-2" width={16} /> Delete
+                            </button>
+                          </div>
+                        </>
                       )}
                     </div>
-                  )}
-                  <div className="bg-bg border-border flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-lg border">
-                    {file.cdnUrl ? (
-                      <img
-                        src={file.cdnUrl}
-                        alt={file.name}
-                        className="h-full w-full object-cover"
-                      />
-                    ) : (
-                      <Icon
-                        icon="lucide:image"
-                        className="text-text-muted"
-                        width={20}
-                      />
-                    )}
                   </div>
-                  <div className="flex min-w-0 flex-col">
-                    <span className="text-text-light truncate text-sm font-medium">
-                      {file.name}
-                    </span>
-                    {searchQuery && file.path && (
-                      <span className="text-text-muted mt-0.5 text-[10px] font-medium">
-                        In: {file.path}
-                      </span>
-                    )}
-                  </div>
-                </div>
-                <span className="text-text-light shrink-0 font-mono text-[11px] font-bold tracking-wider uppercase">
-                  {file.format}
-                </span>
-              </div>
-
-              <div className="border-border/50 flex items-center justify-between border-t pt-2 text-xs">
-                <div className="flex flex-col gap-1.5">
-                  <span className="text-text-muted">Original</span>
-                  <span className="text-text-light font-mono">
-                    {formatBytes(file.originalSize)}
-                  </span>
-                </div>
-                <div className="flex flex-col gap-1.5">
-                  <span className="text-text-muted">Optimized</span>
-                  <span className="text-text-light font-mono">
-                    {formatBytes(file.optimizedSize)}
-                  </span>
-                </div>
-                <div className="flex flex-col items-end gap-1.5">
-                  <span className="text-text-muted">Savings</span>
-                  {file.savings < 0 ? (
-                    <SavingsTooltip>
-                      <span className="inline-flex items-center justify-center rounded-full border border-red-500/20 bg-red-500/10 px-2 py-0.5 text-xs font-medium text-red-400">
-                        +{Math.abs(file.savings).toFixed(0)}%
-                      </span>
-                    </SavingsTooltip>
-                  ) : (
-                    <span
-                      className={`inline-flex items-center justify-center rounded-full border px-2 py-0.5 text-xs font-medium ${file.savings > 0 ? 'border-emerald-500/20 bg-emerald-500/10 text-emerald-400' : 'border-slate-500/20 bg-slate-500/10 text-slate-400'}`}
-                    >
-                      {file.savings > 0 ? `-${file.savings.toFixed(0)}%` : '0%'}
-                    </span>
-                  )}
-                </div>
-              </div>
-
-              <div className="flex gap-2 w-full mt-1">
-                <Button
-                  variant="bordered"
-                  mobileBehavior="full-width"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    copyToClipboard(file.cdnUrl);
-                  }}
-                  className="bg-bg/50 border-border flex-1 justify-center py-2 text-sm"
-                >
-                  <Icon icon="lucide:copy" width={16} />
-                  Copy CDN URL
-                </Button>
-                <Button
-                  variant="bordered"
-                  mobileBehavior="icon-only"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setShareTarget({ id: file.id, type: 'file', name: file.name });
-                    setIsShareModalOpen(true);
-                  }}
-                  className="bg-bg/50 border-border justify-center py-2 text-sm"
-                >
-                  <Icon icon="lucide:share-2" width={16} />
-                </Button>
-              </div>
+                );
+              })}
             </div>
-          ))}
+          </div>
+        )}
 
-        {!isLoading && folders.length === 0 && paginatedFiles.length === 0 && (
-          <div className="text-text-muted py-8 text-center md:col-span-2">
-            This directory is empty.
+        {!isLoading && paginatedFiles.length > 0 && (
+          <div className="flex flex-col gap-3">
+            <h3 className="text-xs font-bold text-text-muted uppercase tracking-wider pl-1">Files</h3>
+            <div className="flex flex-col gap-3">
+              {paginatedFiles.map((file) => (
+                <div
+                  key={file.id}
+                  onClick={() => isSelectionMode ? toggleSelection(file.id) : setPreviewFile(file)}
+                  draggable
+                  onDragStart={(e) => handleDragStart(e, file.id, 'file')}
+                  onDragEnd={handleDragEnd}
+                  className={`flex items-center gap-3 p-3 rounded-xl border bg-card shadow-sm cursor-pointer relative transition-colors ${selectedIds.has(file.id) ? 'border-blue-500/50 ring-2 ring-blue-500/50' : 'border-border'}`}
+                >
+                  <div className="h-12 w-12 shrink-0 rounded-lg overflow-hidden bg-slate-900/50 relative border border-border/50">
+                    {file.cdnUrl ? (
+                      <img src={file.cdnUrl} alt={file.name} className="h-full w-full object-cover" />
+                    ) : (
+                      <div className="flex items-center justify-center w-full h-full">
+                        <Icon icon="lucide:image" className="text-text-muted" width={24} />
+                      </div>
+                    )}
+                    <div className="absolute -top-1.5 -left-1.5 z-10">
+                      <div 
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          toggleSelection(file.id);
+                        }}
+                        className={`inline-flex h-6 w-6 shrink-0 cursor-pointer items-center justify-center rounded-[4px] border transition-colors shadow-md ${selectedIds.has(file.id) ? 'border-blue-600 bg-blue-600 text-white opacity-100' : `bg-bg/80 border-border ${isSelectionMode ? 'opacity-100' : 'opacity-0'}`}`}
+                      >
+                        {selectedIds.has(file.id) && <Icon icon="lucide:check" width={16} />}
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div className="flex flex-col flex-1 min-w-0 pr-2">
+                    <span className="text-sm font-medium line-clamp-2 text-text-light break-all leading-tight mb-1" title={file.name}>{file.name}</span>
+                    <div className="flex flex-wrap items-center gap-1.5 text-[10px] text-text-muted font-mono">
+                      <span className="font-bold text-white bg-black/60 px-1 rounded uppercase tracking-wider">{file.format}</span>
+                      <span>•</span>
+                      <span title={`Original: ${formatBytes(file.originalSize)}`}>{formatBytes(file.originalSize)} <Icon icon="lucide:arrow-right" className="inline w-3 h-3 mx-0.5 opacity-50" /> <span className="text-accent font-semibold">{formatBytes(file.optimizedSize)}</span></span>
+                      
+                      {file.savings < 0 ? (
+                        <span className="inline-flex items-center justify-center rounded border border-red-500/20 bg-red-500/10 px-1 py-0.5 font-bold text-red-400 leading-none">
+                          +{Math.abs(file.savings).toFixed(0)}%
+                        </span>
+                      ) : file.savings > 0 && (
+                        <span className="inline-flex items-center justify-center rounded border border-emerald-500/20 bg-emerald-500/10 px-1 py-0.5 font-bold text-emerald-400 leading-none">
+                          -{file.savings.toFixed(0)}%
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  
+                  <div className="flex flex-col gap-2 shrink-0 relative" onClick={(e) => e.stopPropagation()}>
+                    <button onClick={() => { setActiveDropdownId(activeDropdownId === file.id ? null : file.id); }} className="text-text-muted hover:text-text-light p-2" title="More options">
+                      <Icon icon="lucide:more-vertical" width={20} />
+                    </button>
+                    {activeDropdownId === file.id && (
+                      <>
+                        <div className="fixed inset-0 z-40" onClick={() => setActiveDropdownId(null)} />
+                        <div className="absolute right-0 top-10 w-40 bg-card border border-border rounded-lg shadow-xl py-1 z-50 flex flex-col">
+                          <button onClick={async () => {
+                            setActiveDropdownId(null);
+                            try {
+                              showFeedback('Starting download...', 'success');
+                              await downloadMediaFileClientApi(file.id, file.name);
+                              showFeedback(`File "${file.name}" downloaded successfully`);
+                            } catch (err: any) {
+                              showFeedback(`Failed to download file: ${err.message}`, 'error');
+                            }
+                          }} className="flex items-center gap-2 px-4 py-2 text-sm text-text-light hover:bg-slate-700/50 text-left transition-colors">
+                            <Icon icon="lucide:download" width={16} /> Download
+                          </button>
+                          <button onClick={() => { setActiveDropdownId(null); setShareTarget({ id: file.id, type: 'file', name: file.name }); setIsShareModalOpen(true); }} className="flex items-center gap-2 px-4 py-2 text-sm text-blue-400 hover:bg-slate-700/50 text-left transition-colors">
+                            <Icon icon="lucide:share-2" width={16} /> Share
+                          </button>
+                          <button onClick={() => {
+                            setActiveDropdownId(null);
+                            setEditTagsTargetFile(file);
+                            setEditTagsList(file.tags ? file.tags.map((t: any) => t.name) : []);
+                            setTagInputVal('');
+                            setIsEditTagsModalOpen(true);
+                          }} className="flex items-center gap-2 px-4 py-2 text-sm text-text-light hover:bg-slate-700/50 text-left transition-colors">
+                            <Icon icon="lucide:tag" width={16} /> Edit Tags
+                          </button>
+                          <div className="h-px bg-border/50 my-1 mx-2" />
+                          <button onClick={() => {
+                            setActiveDropdownId(null);
+                            setDeleteTarget({ id: file.id, type: 'file', name: file.name });
+                            setIsDeleteModalOpen(true);
+                          }} className="flex items-center gap-2 px-4 py-2 text-sm text-red-400 hover:bg-red-500/10 text-left transition-colors">
+                            <Icon icon="lucide:trash-2" width={16} /> Delete
+                          </button>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
         )}
       </div>
 
-      <div className="border-border mt-auto flex items-center justify-between border-t px-6 py-4 max-md:px-4">
-        <span className="text-text-muted text-sm">
-          Showing {showingStart} to {showingEnd} of {filteredFiles.length} files
-        </span>
-        <div className="flex items-center gap-2">
-          <Button
-            variant="ghost"
-            onClick={handlePrev}
-            disabled={currentPage === 1}
-            className="text-text-muted hover:text-text-light h-9 px-4 text-sm disabled:pointer-events-none disabled:opacity-50"
-          >
-            Previous
-          </Button>
+
+      {/* Mobile / Grid View */}
+      <div className={viewMode === 'grid' ? 'bg-bg mt-4 flex flex-col gap-6 rounded-b-2xl px-4 pb-6' : 'hidden'}>
+        {/* Mobile Folders */}
+        {!isLoading && folders.length > 0 && (
+          <div className="flex flex-col gap-3">
+            <h3 className="text-xs font-bold text-text-muted uppercase tracking-wider pl-1">Folders</h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {folders.map((folder) => {
+                const isNonEmpty = folder._count && (folder._count.files > 0 || folder._count.children > 0);
+                return (
+                  <div
+                    key={folder.id}
+                    onClick={() => isSelectionMode ? toggleSelection(folder.id) : onFolderChange(folder.id)}
+                    draggable
+                    onDragStart={(e) => handleDragStart(e, folder.id, 'folder')}
+                    onDragEnd={handleDragEnd}
+                    onDragOver={(e) => handleDragOverFolder(e, folder.id)}
+                    onDragLeave={handleDragLeaveFolder}
+                    onDrop={(e) => handleDropOnFolder(e, folder.id)}
+                    className={`flex items-center justify-between p-3 rounded-xl border transition-colors cursor-pointer shadow-sm ${selectedIds.has(folder.id) ? 'border-blue-500/50 bg-blue-900/20' : 'bg-card border-border hover:bg-card/80'} ${dragOverFolderId === folder.id ? 'border-blue-500 bg-blue-800/40' : ''}`}
+                  >
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="relative">
+                        <div
+                          style={{
+                            borderColor: folder.color ? `${folder.color}35` : undefined,
+                            backgroundColor: folder.color ? `${folder.color}15` : undefined,
+                            color: folder.color || undefined
+                          }}
+                          className="bg-sidebar border-border text-accent flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border"
+                        >
+                          <Icon icon={isNonEmpty ? 'lucide:folder-open' : 'lucide:folder'} width={22} />
+                        </div>
+                        <div
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            toggleSelection(folder.id);
+                          }}
+                          className={`absolute -top-1.5 -left-1.5 inline-flex h-6 w-6 shrink-0 cursor-pointer items-center justify-center rounded-[4px] border transition-colors shadow-md ${selectedIds.has(folder.id) ? 'border-blue-600 bg-blue-600 text-white opacity-100' : `bg-bg/80 border-border ${isSelectionMode ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}`}
+                        >
+                          {selectedIds.has(folder.id) && <Icon icon="lucide:check" width={14} />}
+                        </div>
+                      </div>
+                      <div className="flex flex-col min-w-0">
+                        <span className="text-text-light truncate text-sm font-medium" title={folder.name}>
+                          {truncateMiddle(folder.name, 28)}
+                        </span>
+                        <div className="flex flex-wrap items-center gap-x-1 gap-y-0.5">
+                          {folder._count && (
+                            <span className="text-text-muted text-[10px] font-semibold">
+                              {folder._count.files} {folder._count.files !== 1 ? 'files' : 'file'}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1 shrink-0 ml-2 relative" onClick={(e) => e.stopPropagation()}>
+                      <button onClick={() => {
+                        onFolderChange(folder.id);
+                      }} className="text-text-muted hover:text-accent p-1.5 transition-colors"><Icon icon="lucide:arrow-right" width={16} /></button>
+                      <button onClick={() => {
+                        setActiveDropdownId(activeDropdownId === folder.id ? null : folder.id);
+                      }} className="text-text-muted hover:text-text-light p-1.5 transition-colors"><Icon icon="lucide:more-vertical" width={16} /></button>
+                      
+                      {activeDropdownId === folder.id && (
+                        <>
+                          <div className="fixed inset-0 z-40" onClick={() => setActiveDropdownId(null)} />
+                          <div className="absolute right-0 top-10 w-40 bg-card border border-border rounded-lg shadow-xl py-1 z-50 flex flex-col">
+                            <button onClick={async () => {
+                              setActiveDropdownId(null);
+                              try {
+                                showFeedback('Preparing zip download...', 'success');
+                                await downloadFolderClientApi(folder.id, folder.name);
+                                showFeedback(`Folder "${folder.name}" downloaded successfully`);
+                              } catch (err: any) {
+                                showFeedback(`Failed to download folder: ${err.message}`, 'error');
+                              }
+                            }} className="w-full text-left px-3 py-2 text-xs hover:bg-bg/50 flex items-center gap-2"><Icon icon="lucide:download" width={14} /> Download</button>
+                            <button onClick={() => { setActiveDropdownId(null); setShareTarget({ id: folder.id, type: 'folder', name: folder.name }); setIsShareModalOpen(true); }} className="w-full text-left px-3 py-2 text-xs hover:bg-bg/50 flex items-center gap-2 text-blue-400"><Icon icon="lucide:share-2" width={14} /> Share</button>
+                            <button onClick={() => { setActiveDropdownId(null); setRenameFolderTarget(folder); setRenameFolderName(folder.name); setIsRenameFolderModalOpen(true); }} className="w-full text-left px-3 py-2 text-xs hover:bg-bg/50 flex items-center gap-2"><Icon icon="lucide:edit-2" width={14} /> Rename</button>
+                            <button onClick={() => { setActiveDropdownId(null); setDeleteTarget({ id: folder.id, type: 'folder', name: folder.name }); setIsDeleteModalOpen(true); }} className="w-full text-left px-3 py-2 text-xs hover:bg-bg/50 flex items-center gap-2 text-red-400"><Icon icon="lucide:trash-2" width={14} /> Delete</button>
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* Mobile Files */}
+        {!isLoading && paginatedFiles.length > 0 && (
+          <div className="flex flex-col gap-3">
+            <h3 className="text-xs font-bold text-text-muted uppercase tracking-wider pl-1">Files</h3>
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+              {paginatedFiles.map((file) => (
+                <div
+                  key={file.id}
+                  onClick={() => isSelectionMode ? toggleSelection(file.id) : setPreviewFile(file)}
+                  draggable
+                  onDragStart={(e) => handleDragStart(e, file.id, 'file')}
+                  onDragEnd={handleDragEnd}
+                  className={`flex flex-col rounded-xl border bg-card shadow-sm overflow-hidden transition-colors cursor-pointer ${selectedIds.has(file.id) ? 'border-blue-500/50 ring-2 ring-blue-500/50' : 'border-border'}`}
+                >
+                  <div className="aspect-square bg-slate-900/50 relative border-b border-border/50">
+                    {file.cdnUrl ? (
+                      <img src={file.cdnUrl} alt={file.name} className="h-full w-full object-cover" />
+                    ) : (
+                      <div className="flex items-center justify-center w-full h-full">
+                        <Icon icon="lucide:image" className="text-text-muted" width={32} />
+                      </div>
+                    )}
+                      <div className="absolute top-2 left-2 z-10">
+                        <div className={`inline-flex h-6 w-6 shrink-0 cursor-pointer items-center justify-center rounded-[4px] border transition-colors shadow-md ${selectedIds.has(file.id) ? 'border-blue-600 bg-blue-600 text-white opacity-100' : `bg-bg/80 border-border ${isSelectionMode ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}`}>
+                          {selectedIds.has(file.id) && <Icon icon="lucide:check" width={16} />}
+                        </div>
+                      </div>
+                    <div className="absolute top-2 right-2 bg-black/60 backdrop-blur-md rounded px-1.5 py-0.5 text-[10px] font-bold text-white uppercase shadow-sm">
+                      {file.format}
+                    </div>
+                  </div>
+                  
+                  <div className="p-3 flex flex-col gap-2 relative">
+                    <span className="truncate text-sm font-medium text-text-light" title={file.name}>{truncateMiddle(file.name, 28)}</span>
+                    <div className="flex items-center text-[10px] text-text-muted font-mono" title={`Original: ${formatBytes(file.originalSize)}`}>
+                      <span className="text-accent font-semibold">{formatBytes(file.optimizedSize)}</span>
+                    </div>
+                    
+                    <div className="flex items-center justify-between mt-1 pt-2 border-t border-border/50">
+                      {file.savings < 0 ? (
+                        <span className="inline-flex items-center justify-center rounded border border-red-500/20 bg-red-500/10 px-1.5 py-0.5 text-[10px] font-bold text-red-400">
+                          +{Math.abs(file.savings).toFixed(0)}%
+                        </span>
+                      ) : (
+                        <span className={`inline-flex items-center justify-center rounded border px-1.5 py-0.5 text-[10px] font-bold ${file.savings > 0 ? 'border-emerald-500/20 bg-emerald-500/10 text-emerald-400' : 'border-slate-500/20 bg-slate-500/10 text-slate-400'}`}>
+                          {file.savings > 0 ? `-${file.savings.toFixed(0)}%` : '0%'}
+                        </span>
+                      )}
+                      
+                      <div className="flex gap-1 relative" onClick={(e) => e.stopPropagation()}>
+                        <button onClick={() => copyToClipboard(file.cdnUrl)} className="text-text-muted hover:text-text-light p-1" title="Copy URL">
+                          <Icon icon="lucide:copy" width={14} />
+                        </button>
+                        <button onClick={() => { setActiveDropdownId(activeDropdownId === file.id ? null : file.id); }} className="text-text-muted hover:text-text-light p-1" title="More options">
+                          <Icon icon="lucide:more-vertical" width={14} />
+                        </button>
+
+                        {activeDropdownId === file.id && (
+                          <>
+                            <div className="fixed inset-0 z-40" onClick={() => setActiveDropdownId(null)} />
+                            <div className="absolute right-0 bottom-8 w-40 bg-card border border-border rounded-lg shadow-xl py-1 z-50 flex flex-col">
+                              <button onClick={async () => {
+                                setActiveDropdownId(null);
+                                try {
+                                  await downloadMediaFileClientApi(file.id, file.name);
+                                } catch (e) {
+                                  showFeedback(`Failed to download ${file.name}`, 'error');
+                                }
+                              }} className="w-full text-left px-3 py-2 text-xs hover:bg-bg/50 flex items-center gap-2"><Icon icon="lucide:download" width={14} /> Download</button>
+                              <button onClick={() => { setActiveDropdownId(null); setShareTarget({ id: file.id, type: 'file', name: file.name }); setIsShareModalOpen(true); }} className="w-full text-left px-3 py-2 text-xs hover:bg-bg/50 flex items-center gap-2 text-blue-400"><Icon icon="lucide:share-2" width={14} /> Share</button>
+                              <button onClick={() => { setActiveDropdownId(null); setEditTagsTargetFile(file); setEditTagsList(file.tags ? file.tags.map(t => t.name) : []); setTagInputVal(''); setIsEditTagsModalOpen(true); }} className="w-full text-left px-3 py-2 text-xs hover:bg-bg/50 flex items-center gap-2"><Icon icon="lucide:tag" width={14} /> Edit Tags</button>
+                              <button onClick={() => { setActiveDropdownId(null); setDeleteTarget({ id: file.id, type: 'file', name: file.name }); setIsDeleteModalOpen(true); }} className="w-full text-left px-3 py-2 text-xs hover:bg-bg/50 flex items-center gap-2 text-red-400"><Icon icon="lucide:trash-2" width={14} /> Delete</button>
+                            </div>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {!isLoading && folders.length === 0 && paginatedFiles.length === 0 && (
+          <div className="text-text-muted py-12 flex flex-col items-center justify-center gap-3">
+            <Icon icon="lucide:folder-open" width={48} className="text-text-muted/50" />
+            <span>This directory is empty.</span>
+          </div>
+        )}
+      </div>
+
+      <div className="border-border mt-auto flex flex-col items-center justify-center border-t px-6 py-6 max-md:px-4">
+        {hasMore ? (
           <Button
             variant="bordered"
-            onClick={handleNext}
-            disabled={currentPage >= totalPages || totalPages === 0}
-            className="h-9 px-4 text-sm disabled:pointer-events-none disabled:opacity-50"
+            onClick={handleLoadMore}
+            className="text-text-muted hover:text-text-light h-10 px-6 font-medium"
           >
-            Next
+            Load More
           </Button>
-        </div>
+        ) : (
+          <span className="text-text-muted text-sm text-center">
+            Showing all {filteredFiles.length} files
+          </span>
+        )}
       </div>
 
       {/* Floating Action Bar */}
@@ -1472,7 +1583,7 @@ export const MediaTable = ({
           <button
             onClick={() => {
               setSelectedIds(new Set());
-              if (onSelectionModeChange) onSelectionModeChange(false);
+              setForceSelectionMode(false);
             }}
             className="text-text-muted hover:text-text-light shrink-0 cursor-pointer rounded-full bg-slate-700/50 p-1.5 transition-colors hover:bg-slate-700"
           >
@@ -1845,16 +1956,16 @@ export const MediaTable = ({
                   editTagsList.map((tag) => (
                     <span
                       key={tag}
-                      className="inline-flex items-center gap-1 bg-accent/15 border border-accent/30 text-accent text-xs font-medium px-2.5 py-1 rounded-full transition-all"
+                      className="inline-flex items-center gap-1.5 bg-accent/15 border border-accent/30 text-accent text-sm font-medium px-4 py-2 min-h-[44px] rounded-full transition-all"
                     >
                       {tag}
                       <button
                         type="button"
                         onClick={() => setEditTagsList(editTagsList.filter((t) => t !== tag))}
-                        className="hover:bg-accent/20 rounded-full p-0.5 transition-colors"
+                        className="hover:bg-accent/20 rounded-full p-2 transition-colors ml-1"
                         title="Remove Tag"
                       >
-                        <Icon icon="lucide:x" width={12} height={12} />
+                        <Icon icon="lucide:x" width={16} height={16} />
                       </button>
                     </span>
                   ))
@@ -1967,7 +2078,7 @@ export const MediaTable = ({
                             setEditTagsList([...editTagsList, t.name]);
                           }
                         }}
-                        className={`inline-flex items-center text-xs px-3 py-1 rounded-full border transition-all hover:scale-105 active:scale-95 cursor-pointer ${isActive ? 'bg-accent/20 border-accent/40 text-accent font-medium' : 'bg-slate-800/30 border-slate-700/80 text-text-muted hover:border-slate-600 hover:text-text-light'}`}
+                        className={`inline-flex items-center justify-center text-sm px-4 py-2 min-h-[44px] min-w-[44px] rounded-full border transition-all hover:scale-105 active:scale-95 cursor-pointer ${isActive ? 'bg-accent/20 border-accent/40 text-accent font-medium' : 'bg-slate-800/30 border-slate-700/80 text-text-muted hover:border-slate-600 hover:text-text-light'}`}
                       >
                         {t.name}
                       </button>

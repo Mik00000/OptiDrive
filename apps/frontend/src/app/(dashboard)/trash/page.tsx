@@ -29,6 +29,8 @@ export default function TrashPage() {
   const [files, setFiles] = useState<MediaFile[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [forceSelectionMode, setForceSelectionMode] = useState(false);
+  const isSelectionMode = forceSelectionMode || selectedIds.size > 0;
   
   // Toast Feedback State
   const [actionFeedback, setActionFeedback] = useState<{
@@ -58,6 +60,7 @@ export default function TrashPage() {
       setFolders(data.folders);
       setFiles(data.files);
       setSelectedIds(new Set()); // Reset selection after reload
+      setForceSelectionMode(false);
     } catch (error) {
       console.error('Failed to fetch trash items', error);
       showFeedback('Failed to load Recycle Bin.', 'error');
@@ -260,8 +263,39 @@ export default function TrashPage() {
             </p>
           </div>
 
+          {/* Mobile Toolbar */}
+          {!isLoading && totalItemsCount > 0 && (
+            <div className="md:hidden flex items-center justify-between px-6 py-3 bg-card border-b border-border/80">
+              <span className="text-xs font-semibold text-text-muted">
+                {selectedIds.size > 0 ? `${selectedIds.size} selected` : 'Recycle Bin'}
+              </span>
+              <div className="flex gap-2">
+                {isSelectionMode ? (
+                  <Button
+                    variant="bordered"
+                    onClick={() => {
+                      setSelectedIds(new Set());
+                      setForceSelectionMode(false);
+                    }}
+                    className="h-8 px-3 text-xs border-blue-500/30 text-blue-400 hover:bg-blue-950/20"
+                  >
+                    Cancel
+                  </Button>
+                ) : (
+                  <Button
+                    variant="bordered"
+                    onClick={() => setForceSelectionMode(true)}
+                    className="h-8 px-3 text-xs text-text-muted hover:text-text-light"
+                  >
+                    Select
+                  </Button>
+                )}
+              </div>
+            </div>
+          )}
+
           {/* Table Container */}
-          <div className="overflow-x-auto">
+          <div className="hidden md:block overflow-x-auto">
             <table className="w-full border-collapse text-left">
               <thead>
                 {selectedIds.size > 0 ? (
@@ -558,6 +592,206 @@ export default function TrashPage() {
                 )}
               </tbody>
             </table>
+          </div>
+
+          {/* Mobile List View */}
+          <div className="md:hidden flex flex-col gap-3 p-4 bg-bg">
+            {isLoading ? (
+              // Mobile Loading skeleton
+              Array.from({ length: 3 }).map((_, i) => (
+                <div key={i} className="animate-pulse bg-card border border-border/50 p-4 rounded-xl flex gap-3">
+                  <div className="h-12 w-12 rounded-lg bg-slate-800 shrink-0" />
+                  <div className="flex flex-col gap-2 flex-1">
+                    <div className="h-4 w-1/2 bg-slate-850 rounded" />
+                    <div className="h-3 w-1/3 bg-slate-850 rounded" />
+                  </div>
+                </div>
+              ))
+            ) : totalItemsCount === 0 ? (
+              <div className="text-center py-12 flex flex-col items-center gap-3">
+                <div className="h-12 w-12 rounded-full bg-slate-900 border border-border flex items-center justify-center text-text-muted">
+                  <Icon icon="lucide:trash-2" width={24} />
+                </div>
+                <h4 className="text-text-light font-bold text-base">Recycle Bin is empty</h4>
+                <p className="text-text-muted text-xs px-6">
+                  Deleted files or folders will appear here.
+                </p>
+              </div>
+            ) : (
+              <div className="flex flex-col gap-3">
+                {/* Folders */}
+                {folders.map((folder) => {
+                  const isSelected = selectedIds.has(folder.id);
+                  const filesCount = folder.filesCount || 0;
+                  const subfoldersCount = folder.subfoldersCount || 0;
+                  const fileLabel = filesCount === 1 ? 'file' : 'files';
+                  const folderLabel = subfoldersCount === 1 ? 'folder' : 'folders';
+                  const folderDescription = `${filesCount} ${fileLabel}, ${subfoldersCount} ${folderLabel}`;
+                  return (
+                    <div
+                      key={folder.id}
+                      onClick={() => isSelectionMode ? handleSelectRow(folder.id) : null}
+                      className={`flex items-center justify-between p-3.5 rounded-xl border transition-colors cursor-pointer shadow-sm ${isSelected ? 'border-blue-500/50 bg-blue-900/20' : 'bg-card border-border hover:bg-card/85'}`}
+                    >
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className="relative">
+                          <div
+                            style={{
+                              borderColor: folder.color ? `${folder.color}35` : undefined,
+                              backgroundColor: folder.color ? `${folder.color}15` : undefined,
+                              color: folder.color || undefined
+                            }}
+                            className="bg-sidebar border-border text-accent flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border"
+                          >
+                            <Icon icon="lucide:folder" width={22} />
+                          </div>
+                          <div
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleSelectRow(folder.id);
+                            }}
+                            className={`absolute -top-1.5 -left-1.5 inline-flex h-6 w-6 shrink-0 cursor-pointer items-center justify-center rounded-[4px] border transition-colors shadow-md ${isSelected ? 'border-blue-600 bg-blue-600 text-white opacity-100' : `bg-bg/85 border-border ${isSelectionMode ? 'opacity-100' : 'opacity-0'}`}`}
+                          >
+                            {isSelected && <Icon icon="lucide:check" width={16} />}
+                          </div>
+                        </div>
+                        <div className="flex flex-col min-w-0">
+                          <span className="text-text-light truncate text-sm font-semibold">
+                            {folder.name}
+                          </span>
+                          <span className="text-[10px] text-text-muted mt-0.5 font-medium">
+                            {folderDescription} • {formatDate(folder.deletedAt)}
+                          </span>
+                        </div>
+                      </div>
+                      
+                      {/* Actions */}
+                      <div className="flex items-center gap-1.5 shrink-0 ml-2" onClick={(e) => e.stopPropagation()}>
+                        <button
+                          onClick={() => handleRestoreSingle(folder.id, 'folder')}
+                          className="text-text-muted hover:text-emerald-400 p-2 transition-colors"
+                          title="Restore"
+                        >
+                          <Icon icon="lucide:rotate-ccw" width={18} />
+                        </button>
+                        <button
+                          onClick={() => setDeleteTarget({ id: folder.id, type: 'folder', name: folder.name })}
+                          className="text-text-muted hover:text-error p-2 transition-colors"
+                          title="Delete Permanently"
+                        >
+                          <Icon icon="lucide:trash-2" width={18} />
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+
+                {/* Files */}
+                {files.map((file) => {
+                  const isSelected = selectedIds.has(file.id);
+                  return (
+                    <div
+                      key={file.id}
+                      onClick={() => isSelectionMode ? handleSelectRow(file.id) : null}
+                      className={`flex items-center justify-between p-3.5 rounded-xl border transition-colors cursor-pointer shadow-sm ${isSelected ? 'border-blue-500/50 bg-blue-900/20' : 'bg-card border-border hover:bg-card/85'}`}
+                    >
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className="relative">
+                          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-accent/10 border border-accent/20 text-accent">
+                            <Icon icon="lucide:image" width={22} />
+                          </div>
+                          <div
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleSelectRow(file.id);
+                            }}
+                            className={`absolute -top-1.5 -left-1.5 inline-flex h-6 w-6 shrink-0 cursor-pointer items-center justify-center rounded-[4px] border transition-colors shadow-md ${isSelected ? 'border-blue-600 bg-blue-600 text-white opacity-100' : `bg-bg/85 border-border ${isSelectionMode ? 'opacity-100' : 'opacity-0'}`}`}
+                          >
+                            {isSelected && <Icon icon="lucide:check" width={16} />}
+                          </div>
+                        </div>
+                        <div className="flex flex-col min-w-0">
+                          <span className="text-text-light truncate text-sm font-semibold">
+                            {file.name}
+                          </span>
+                          <div className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[10px] text-text-muted mt-0.5 font-medium">
+                            <span className="font-mono">{formatBytes(file.originalSize)}</span>
+                            <span>•</span>
+                            <span className="text-accent font-mono font-semibold">{formatBytes(file.optimizedSize)}</span>
+                            {file.savings > 0 && (
+                              <>
+                                <span>•</span>
+                                <span className="text-emerald-400 font-bold font-mono">-{file.savings.toFixed(0)}%</span>
+                              </>
+                            )}
+                            <span>•</span>
+                            <span>{formatDate(file.deletedAt)}</span>
+                          </div>
+                        </div>
+                      </div>
+                      
+                      {/* Actions */}
+                      <div className="flex items-center gap-1.5 shrink-0 ml-2" onClick={(e) => e.stopPropagation()}>
+                        <button
+                          onClick={() => handleRestoreSingle(file.id, 'file')}
+                          className="text-text-muted hover:text-emerald-400 p-2 transition-colors"
+                          title="Restore"
+                        >
+                          <Icon icon="lucide:rotate-ccw" width={18} />
+                        </button>
+                        <button
+                          onClick={() => setDeleteTarget({ id: file.id, type: 'file', name: file.name })}
+                          className="text-text-muted hover:text-error p-2 transition-colors"
+                          title="Delete Permanently"
+                        >
+                          <Icon icon="lucide:trash-2" width={18} />
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          {/* Floating Action Bar */}
+          <div
+            className={`fixed bottom-4 left-1/2 z-50 flex w-[calc(100%-2rem)] max-w-2xl -translate-x-1/2 items-center justify-between gap-3 rounded-2xl border border-slate-700/80 bg-slate-800/95 px-5 py-3.5 shadow-2xl backdrop-blur-md transition-all duration-300 md:hidden ${selectedIds.size > 0 ? 'pointer-events-auto translate-y-0 scale-100 opacity-100' : 'pointer-events-none translate-y-16 scale-95 opacity-0'}`}
+          >
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => {
+                  setSelectedIds(new Set());
+                  setForceSelectionMode(false);
+                }}
+                className="text-text-muted hover:text-text-light shrink-0 cursor-pointer rounded-full bg-slate-700/50 p-1.5 transition-colors hover:bg-slate-700"
+              >
+                <Icon icon="lucide:x" width={18} />
+              </button>
+              <span className="text-sm font-semibold text-white">
+                {selectedIds.size}{' '}
+                <span className="text-text-muted font-normal">selected</span>
+              </span>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <Button
+                variant="ghost"
+                onClick={handleRestoreBulk}
+                className="text-text-light h-9 !scale-100 bg-slate-700/50 text-sm whitespace-nowrap transition-colors hover:bg-slate-600"
+              >
+                <Icon icon="lucide:rotate-ccw" width={16} className="mr-1.5" />
+                Restore
+              </Button>
+              <Button
+                variant="danger"
+                onClick={() => setIsBulkDeleteConfirmOpen(true)}
+                className="h-9 !scale-100 text-sm whitespace-nowrap"
+              >
+                <Icon icon="lucide:trash-2" width={16} className="mr-1.5" />
+                Delete
+              </Button>
+            </div>
           </div>
         </div>
         )}
