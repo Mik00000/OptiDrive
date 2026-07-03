@@ -103,7 +103,7 @@ const MediaLibraryPage = () => {
       
       <section className="dashboard-page relative">
         <PageHeading title="Media Library">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 w-fit ">
             <Link href="/settings/compression" title="Configure Compression Defaults" className="shrink-0">
               <Button variant="bordered" className="p-2.5 h-10 w-10 flex items-center justify-center border-border bg-card text-text-muted hover:text-text-light">
                 <Icon icon="lucide:settings-2" width={18} height={18} />
@@ -114,12 +114,12 @@ const MediaLibraryPage = () => {
               variant={isUploadBlocked ? 'bordered' : 'accent'} 
               onClick={() => setIsUploadModalOpen(true)}
               disabled={isUploadBlocked}
-              className={`hidden md:flex ${isUploadBlocked ? 'opacity-50 border-dashed border-red-500/30 text-red-400 bg-red-950/10 cursor-not-allowed hover:scale-100 hover:brightness-100 active:scale-100' : ''}`}
+              className={`flex items-center justify-center p-2.5 h-10 w-10 md:w-auto md:px-4 ${isUploadBlocked ? 'opacity-50 border-dashed border-red-500/30 text-red-400 bg-red-950/10 cursor-not-allowed hover:scale-100 hover:brightness-100 active:scale-100' : ''}`}
             >
-              <div className="inline-flex h-5 w-5 items-center justify-center sm:h-4 sm:w-4">
+              <div className="inline-flex h-5 w-5 items-center justify-center sm:h-4 sm:w-4 shrink-0">
                 <Icon icon={isUploadBlocked ? "lucide:lock" : "lucide:upload"} width="100%" height="100%" />
               </div>
-              <span>{isUploadBlocked ? 'Upload Blocked' : 'Upload Media'}</span>
+              <span className="hidden md:inline ml-2">{isUploadBlocked ? 'Upload Blocked' : 'Upload Media'}</span>
             </Button>
           </div>
         </PageHeading>

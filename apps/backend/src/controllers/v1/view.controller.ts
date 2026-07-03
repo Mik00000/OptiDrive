@@ -103,8 +103,13 @@ export const viewMediaController = async (req: Request, res: Response): Promise<
     const q = req.query.q || req.query.quality;
     const f = req.query.f || req.query.format;
     const fit = req.query.fit;
+    const wm = req.query.wm || req.query.watermark;
+    const cx = req.query.cx;
+    const cy = req.query.cy;
+    const cw = req.query.cw;
+    const ch = req.query.ch;
 
-    const hasTransform = w || h || q || f || fit;
+    const hasTransform = w || h || q || f || fit || wm || (cx && cy && cw && ch);
 
     const isImage = (response.ContentType && response.ContentType.startsWith('image/')) ||
                     ['jpg', 'jpeg', 'png', 'webp', 'avif'].includes(mediaFile.format.toLowerCase());
@@ -119,6 +124,20 @@ export const viewMediaController = async (req: Request, res: Response): Promise<
       const buffer = Buffer.concat(chunks);
 
       let sharpImg = sharp(buffer);
+
+      // Crop (extract) — cx, cy, cw, ch у пікселях оригіналу
+      if (cx && cy && cw && ch) {
+        const meta = await sharpImg.metadata();
+        const origW = meta.width || 0;
+        const origH = meta.height || 0;
+        const cxN = Math.max(0, parseInt(cx as string, 10));
+        const cyN = Math.max(0, parseInt(cy as string, 10));
+        const cwN = Math.max(1, parseInt(cw as string, 10));
+        const chN = Math.max(1, parseInt(ch as string, 10));
+        if (cxN + cwN <= origW && cyN + chN <= origH) {
+          sharpImg = sharpImg.extract({ left: cxN, top: cyN, width: cwN, height: chN });
+        }
+      }
       
       const width = w ? parseInt(w as string, 10) : null;
       const height = h ? parseInt(h as string, 10) : null;
@@ -129,6 +148,49 @@ export const viewMediaController = async (req: Request, res: Response): Promise<
           height: height && !isNaN(height) ? height : undefined,
           fit: (fit as any) || 'cover'
         });
+      }
+
+      // 1.5 Watermarking (Pro & Enterprise only)
+      const hasWatermark = wm === 'true';
+      if (hasWatermark) {
+        const workspace = await prisma.workspace.findUnique({
+          where: { id: workspaceId },
+          select: { plan: true }
+        });
+        if (workspace && (workspace.plan === 'PRO' || workspace.plan === 'ENTERPRISE')) {
+          const wmText = String(req.query.wmText || req.query.watermarkText || 'OptiDrive');
+          const opacity = parseFloat(String(req.query.wmOpacity || req.query.watermarkOpacity || '0.3')) || 0.3;
+          
+          try {
+            const metadata = await sharpImg.metadata();
+            const imgWidth = metadata.width || 800;
+            const imgHeight = metadata.height || 600;
+
+            const svgText = `
+              <svg xmlns="http://www.w3.org/2000/svg" width="${imgWidth}" height="${imgHeight}">
+                <style>
+                  .watermark {
+                    fill: white;
+                    fill-opacity: ${opacity};
+                    font-family: sans-serif;
+                    font-size: ${Math.max(16, Math.floor(imgWidth / 15))}px;
+                    font-weight: bold;
+                  }
+                </style>
+                <text x="50%" y="50%" text-anchor="middle" class="watermark" transform="rotate(-30, ${imgWidth/2}, ${imgHeight/2})">${wmText}</text>
+              </svg>
+            `;
+
+            const resizedBuffer = await sharpImg.toBuffer();
+            sharpImg = sharp(resizedBuffer).composite([{
+              input: Buffer.from(svgText),
+              top: 0,
+              left: 0
+            }]);
+          } catch (wmErr) {
+            console.error('[Watermark V1] Failed to apply watermark:', wmErr);
+          }
+        }
       }
 
       const format = f ? (f as string).toLowerCase() : 'webp';

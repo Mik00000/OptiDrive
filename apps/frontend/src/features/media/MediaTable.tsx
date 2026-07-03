@@ -128,6 +128,7 @@ export const MediaTable = ({
   const [path, setPath] = useState<{ id: string; name: string }[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [previewFile, setPreviewFile] = useState<MediaFile | null>(null);
+  const [previewInitialTab, setPreviewInitialTab] = useState<'cdn' | 'share' | undefined>(undefined);
 
   // Folder actions state
   const [isCreateFolderModalOpen, setIsCreateFolderModalOpen] = useState(false);
@@ -746,7 +747,7 @@ export const MediaTable = ({
         </div>
       </div>
 
-      <div className={viewMode === 'list' ? 'hidden md:block overflow-x-auto w-full' : 'hidden'}>
+      <div className={viewMode === 'list' ? 'hidden md:block overflow-x-auto w-full overflow-visible' : 'hidden'}>
         <table className="w-full border-collapse text-left min-w-[800px]">
           <thead>
             {selectedIds.size > 0 ? (
@@ -1055,9 +1056,14 @@ export const MediaTable = ({
                         )}
                       </div>
                       <div className="flex min-w-0 flex-col">
-                        <span className="truncate font-medium" title={file.name}>
+                        <button
+                          type="button"
+                          className="truncate font-medium text-left hover:text-accent hover:underline transition-colors cursor-pointer"
+                          title={file.name}
+                          onClick={(e) => { e.stopPropagation(); setPreviewFile(file); }}
+                        >
                           {truncateMiddle(file.name, 35)}
-                        </span>
+                        </button>
                         {file.tags && file.tags.length > 0 && (
                           <div className="mt-1 flex flex-wrap gap-1">
                             {file.tags.map((tag: any) => (
@@ -1138,7 +1144,7 @@ export const MediaTable = ({
                                   showFeedback(`Failed to download ${file.name}`, 'error');
                                 }
                               }} className="w-full text-left px-3 py-2 text-xs hover:bg-bg/50 flex items-center gap-2"><Icon icon="lucide:download" width={14} /> Download</button>
-                              <button onClick={() => { setActiveDropdownId(null); setShareTarget({ id: file.id, type: 'file', name: file.name }); setIsShareModalOpen(true); }} className="w-full text-left px-3 py-2 text-xs hover:bg-bg/50 flex items-center gap-2 text-blue-400"><Icon icon="lucide:share-2" width={14} /> Share</button>
+                              <button onClick={() => { setActiveDropdownId(null); setPreviewFile(file); setPreviewInitialTab('share'); }} className="w-full text-left px-3 py-2 text-xs hover:bg-bg/50 flex items-center gap-2 text-blue-400"><Icon icon="lucide:share-2" width={14} /> Share</button>
                               <button onClick={() => { setActiveDropdownId(null); setEditTagsTargetFile(file); setEditTagsList(file.tags ? file.tags.map(t => t.name) : []); setTagInputVal(''); setIsEditTagsModalOpen(true); }} className="w-full text-left px-3 py-2 text-xs hover:bg-bg/50 flex items-center gap-2"><Icon icon="lucide:tag" width={14} /> Edit Tags</button>
                               <button onClick={() => { setActiveDropdownId(null); setDeleteTarget({ id: file.id, type: 'file', name: file.name }); setIsDeleteModalOpen(true); }} className="w-full text-left px-3 py-2 text-xs hover:bg-bg/50 flex items-center gap-2 text-red-400"><Icon icon="lucide:trash-2" width={14} /> Delete</button>
                             </div>
@@ -1305,7 +1311,12 @@ export const MediaTable = ({
                   </div>
                   
                   <div className="flex flex-col flex-1 min-w-0 pr-2">
-                    <span className="text-sm font-medium line-clamp-2 text-text-light break-all leading-tight mb-1" title={file.name}>{file.name}</span>
+                    <button
+                      type="button"
+                      className="text-sm font-medium line-clamp-2 text-text-light hover:text-accent hover:underline transition-colors break-all leading-tight mb-1 text-left cursor-pointer"
+                      title={file.name}
+                      onClick={(e) => { e.stopPropagation(); setPreviewFile(file); }}
+                    >{file.name}</button>
                     <div className="flex flex-wrap items-center gap-1.5 text-[10px] text-text-muted font-mono">
                       <span className="font-bold text-white bg-black/60 px-1 rounded uppercase tracking-wider">{file.format}</span>
                       <span>•</span>
@@ -1343,7 +1354,7 @@ export const MediaTable = ({
                           }} className="flex items-center gap-2 px-4 py-2 text-sm text-text-light hover:bg-slate-700/50 text-left transition-colors">
                             <Icon icon="lucide:download" width={16} /> Download
                           </button>
-                          <button onClick={() => { setActiveDropdownId(null); setShareTarget({ id: file.id, type: 'file', name: file.name }); setIsShareModalOpen(true); }} className="flex items-center gap-2 px-4 py-2 text-sm text-blue-400 hover:bg-slate-700/50 text-left transition-colors">
+                          <button onClick={() => { setActiveDropdownId(null); setPreviewFile(file); setPreviewInitialTab('share'); }} className="flex items-center gap-2 px-4 py-2 text-sm text-blue-400 hover:bg-slate-700/50 text-left transition-colors">
                             <Icon icon="lucide:share-2" width={16} /> Share
                           </button>
                           <button onClick={() => {
@@ -1500,7 +1511,12 @@ export const MediaTable = ({
                   </div>
                   
                   <div className="p-3 flex flex-col gap-2 relative">
-                    <span className="truncate text-sm font-medium text-text-light" title={file.name}>{truncateMiddle(file.name, 28)}</span>
+                    <button
+                      type="button"
+                      className="truncate text-sm font-medium text-text-light hover:text-accent hover:underline transition-colors text-left cursor-pointer"
+                      title={file.name}
+                      onClick={(e) => { e.stopPropagation(); setPreviewFile(file); }}
+                    >{truncateMiddle(file.name, 28)}</button>
                     <div className="flex items-center text-[10px] text-text-muted font-mono" title={`Original: ${formatBytes(file.originalSize)}`}>
                       <span className="text-accent font-semibold">{formatBytes(file.optimizedSize)}</span>
                     </div>
@@ -1536,7 +1552,7 @@ export const MediaTable = ({
                                   showFeedback(`Failed to download ${file.name}`, 'error');
                                 }
                               }} className="w-full text-left px-3 py-2 text-xs hover:bg-bg/50 flex items-center gap-2"><Icon icon="lucide:download" width={14} /> Download</button>
-                              <button onClick={() => { setActiveDropdownId(null); setShareTarget({ id: file.id, type: 'file', name: file.name }); setIsShareModalOpen(true); }} className="w-full text-left px-3 py-2 text-xs hover:bg-bg/50 flex items-center gap-2 text-blue-400"><Icon icon="lucide:share-2" width={14} /> Share</button>
+                              <button onClick={() => { setActiveDropdownId(null); setPreviewFile(file); setPreviewInitialTab('share'); }} className="w-full text-left px-3 py-2 text-xs hover:bg-bg/50 flex items-center gap-2 text-blue-400"><Icon icon="lucide:share-2" width={14} /> Share</button>
                               <button onClick={() => { setActiveDropdownId(null); setEditTagsTargetFile(file); setEditTagsList(file.tags ? file.tags.map(t => t.name) : []); setTagInputVal(''); setIsEditTagsModalOpen(true); }} className="w-full text-left px-3 py-2 text-xs hover:bg-bg/50 flex items-center gap-2"><Icon icon="lucide:tag" width={14} /> Edit Tags</button>
                               <button onClick={() => { setActiveDropdownId(null); setDeleteTarget({ id: file.id, type: 'file', name: file.name }); setIsDeleteModalOpen(true); }} className="w-full text-left px-3 py-2 text-xs hover:bg-bg/50 flex items-center gap-2 text-red-400"><Icon icon="lucide:trash-2" width={14} /> Delete</button>
                             </div>
@@ -2108,9 +2124,10 @@ export const MediaTable = ({
 
       <MediaPreviewModal
         isOpen={!!previewFile}
-        onClose={() => setPreviewFile(null)}
+        onClose={() => { setPreviewFile(null); setPreviewInitialTab(undefined); }}
         file={previewFile}
         onDelete={confirmDelete}
+        initialTab={previewInitialTab}
       />
 
       <ShareModal

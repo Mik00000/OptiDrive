@@ -326,7 +326,7 @@ export default function AnalyticsPage() {
               <Button 
                 variant="bordered" 
                 onClick={fetchStats} 
-                className="p-2.5 h-9 w-9 flex items-center justify-center border-border bg-card hover:bg-slate-800 text-text-muted hover:text-text-light"
+                className="p-2.5 h-9 w-9 flex items-center justify-center border-border bg-card hover:bg-slate-800 text-text-muted hover:text-text-light origin-right"
               >
                 <Icon icon="lucide:refresh-cw" className={isLoading ? 'animate-spin' : ''} width={16} />
               </Button>

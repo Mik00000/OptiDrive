@@ -225,7 +225,7 @@ export default function TrashPage() {
         {totalItemsCount > 0 && (
           <Button
             variant="ghost"
-            className="border border-error/20 hover:bg-error/10 text-error flex items-center gap-1.5 text-sm font-semibold py-2.5 px-4 animate-in fade-in"
+            className="border border-error/20 hover:bg-error/10 text-error flex items-center gap-1.5 text-sm font-semibold py-2.5 px-4 animate-in fade-in origin-right"
             onClick={() => setIsEmptyConfirmOpen(true)}
             disabled={isMigrating}
           >

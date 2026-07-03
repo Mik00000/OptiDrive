@@ -43,12 +43,119 @@ export const ProfileTab = () => {
   const [errorMessage, setErrorMessage] = useState('');
   const [feedback, setFeedback] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
 
+  // Cropper states
+  const [cropImageSrc, setCropImageSrc] = useState<string | null>(null);
+  const [isCropModalOpen, setIsCropModalOpen] = useState(false);
+  const [cropZoom, setCropZoom] = useState(1);
+  const [cropPanX, setCropPanX] = useState(0);
+  const [cropPanY, setCropPanY] = useState(0);
+  const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
+  
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [imageObj, setImageObj] = useState<HTMLImageElement | null>(null);
+  
+  const [isDragging, setIsDragging] = useState(false);
+  const dragStart = useRef({ x: 0, y: 0 });
+  const pinchStartDist = useRef(0);
+  const pinchStartZoom = useRef(1);
+
   useEffect(() => {
     if (user) {
       setName(user.name || '');
       setEmail(user.email || '');
     }
   }, [user]);
+
+  // Load avatar image when src changes
+  useEffect(() => {
+    if (!cropImageSrc) {
+      setImageObj(null);
+      return;
+    }
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.src = cropImageSrc;
+    img.onload = () => {
+      setImageObj(img);
+      setCropPanX(0);
+      setCropPanY(0);
+      setCropZoom(1);
+    };
+  }, [cropImageSrc]);
+
+  // Draw scaled and panned image on canvas
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas || !imageObj) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    const canvasWidth = canvas.width;
+    const canvasHeight = canvas.height;
+
+    const imgWidth = imageObj.width;
+    const imgHeight = imageObj.height;
+
+    const scale = Math.max(canvasWidth / imgWidth, canvasHeight / imgHeight);
+    const w = imgWidth * scale * cropZoom;
+    const h = imgHeight * scale * cropZoom;
+
+    const x = (canvasWidth - w) / 2 + cropPanX;
+    const y = (canvasHeight - h) / 2 + cropPanY;
+
+    ctx.drawImage(imageObj, x, y, w, h);
+  }, [imageObj, cropZoom, cropPanX, cropPanY]);
+
+  const handleMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    setIsDragging(true);
+    dragStart.current = { x: e.clientX - cropPanX, y: e.clientY - cropPanY };
+  };
+
+  const handleMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    if (!isDragging) return;
+    setCropPanX(e.clientX - dragStart.current.x);
+    setCropPanY(e.clientY - dragStart.current.y);
+  };
+
+  const handleMouseUpOrLeave = () => {
+    setIsDragging(false);
+  };
+
+  const handleTouchStart = (e: React.TouchEvent<HTMLCanvasElement>) => {
+    if (e.touches.length === 1) {
+      setIsDragging(true);
+      const touch = e.touches[0];
+      dragStart.current = { x: touch.clientX - cropPanX, y: touch.clientY - cropPanY };
+    } else if (e.touches.length === 2) {
+      setIsDragging(false);
+      const dist = Math.hypot(
+        e.touches[0].clientX - e.touches[1].clientX,
+        e.touches[0].clientY - e.touches[1].clientY
+      );
+      pinchStartDist.current = dist;
+      pinchStartZoom.current = cropZoom;
+    }
+  };
+
+  const handleTouchMove = (e: React.TouchEvent<HTMLCanvasElement>) => {
+    if (e.touches.length === 1 && isDragging) {
+      const touch = e.touches[0];
+      setCropPanX(touch.clientX - dragStart.current.x);
+      setCropPanY(touch.clientY - dragStart.current.y);
+    } else if (e.touches.length === 2) {
+      const dist = Math.hypot(
+        e.touches[0].clientX - e.touches[1].clientX,
+        e.touches[0].clientY - e.touches[1].clientY
+      );
+      if (pinchStartDist.current > 0) {
+        const factor = dist / pinchStartDist.current;
+        const newZoom = pinchStartZoom.current * factor;
+        setCropZoom(Math.min(3, Math.max(1, newZoom)));
+      }
+    }
+  };
 
   const showFeedback = (message: string, type: 'success' | 'error' | 'info' = 'success') => {
     setFeedback({ message, type });
@@ -59,23 +166,54 @@ export const ProfileTab = () => {
     fileInputRef.current?.click();
   };
 
-  const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files || files.length === 0) return;
     const file = files[0];
     
     e.target.value = '';
     
-    try {
+    const reader = new FileReader();
+    reader.onload = () => {
+      setCropImageSrc(reader.result as string);
+      setIsCropModalOpen(true);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const uploadCroppedAvatar = () => {
+    const sourceCanvas = canvasRef.current;
+    if (!sourceCanvas) return;
+
+    const cropCanvas = document.createElement('canvas');
+    cropCanvas.width = 250;
+    cropCanvas.height = 250;
+    const cropCtx = cropCanvas.getContext('2d');
+    if (!cropCtx) return;
+
+    // Crop circle viewport bounding box: [30, 30, 240, 240]
+    cropCtx.drawImage(sourceCanvas, 30, 30, 240, 240, 0, 0, 250, 250);
+
+    cropCanvas.toBlob(async (blob) => {
+      if (!blob) return;
+      const file = new File([blob], 'cropped-avatar.png', { type: 'image/png' });
+      setIsCropModalOpen(false);
+      setIsUploadingAvatar(true);
       showFeedback('Uploading avatar...', 'info');
-      const data = await uploadAvatarApi(file);
-      const token = localStorage.getItem('optidrive_token') || '';
-      login(token, { ...user, avatarUrl: data.avatarUrl } as any, true);
-      showFeedback('Avatar updated successfully');
-    } catch (err: any) {
-      console.error(err);
-      setErrorMessage(err.data?.error || err.response?.data?.error || err.message || 'Failed to upload avatar');
-    }
+
+      try {
+        const data = await uploadAvatarApi(file);
+        const token = localStorage.getItem('optidrive_token') || '';
+        login(token, { ...user, avatarUrl: data.avatarUrl } as any, true);
+        showFeedback('Avatar updated successfully');
+      } catch (err: any) {
+        console.error(err);
+        setErrorMessage(err.data?.error || err.response?.data?.error || err.message || 'Failed to upload avatar');
+      } finally {
+        setIsUploadingAvatar(false);
+        setCropImageSrc(null);
+      }
+    }, 'image/png');
   };
 
   const handleRemoveAvatar = async () => {
@@ -507,6 +645,86 @@ export const ProfileTab = () => {
         isOpen={isChangePasswordModalOpen}
         onClose={() => setIsChangePasswordModalOpen(false)}
       />
+
+      {/* Avatar Cropper Modal */}
+      <Modal
+        isOpen={isCropModalOpen}
+        onClose={() => {
+          setIsCropModalOpen(false);
+          setCropImageSrc(null);
+        }}
+        title="Position and Size Avatar"
+        icon="lucide:user-cog"
+      >
+        <div className="flex flex-col items-center gap-5">
+          <p className="text-text-muted text-xs text-center">
+            Drag to pan and use the slider below to zoom. The circular region highlights how the avatar will be displayed.
+          </p>
+
+          <div className="relative w-[300px] h-[300px] select-none mx-auto overflow-hidden bg-slate-950 rounded-2xl border border-border">
+            <canvas
+              width={300}
+              height={300}
+              ref={canvasRef}
+              onMouseDown={handleMouseDown}
+              onMouseMove={handleMouseMove}
+              onMouseUp={handleMouseUpOrLeave}
+              onMouseLeave={handleMouseUpOrLeave}
+              onTouchStart={handleTouchStart}
+              onTouchMove={handleTouchMove}
+              onTouchEnd={handleMouseUpOrLeave}
+              className="bg-slate-950 cursor-move w-[300px] h-[300px]"
+            />
+            {/* SVG Mask: center circle (radius 120px, i.e. 240px diameter) is transparent, outside is dark */}
+            <svg className="absolute inset-0 pointer-events-none w-[300px] h-[300px]" viewBox="0 0 300 300">
+              <defs>
+                <mask id="avatar-mask">
+                  <rect x="0" y="0" width="300" height="300" fill="white" />
+                  <circle cx="150" cy="150" r="120" fill="black" />
+                </mask>
+              </defs>
+              {/* Dark overlay with mask */}
+              <rect x="0" y="0" width="300" height="300" fill="rgba(15, 23, 42, 0.75)" mask="url(#avatar-mask)" />
+              {/* White boundary ring */}
+              <circle cx="150" cy="150" r="120" stroke="white" strokeWidth="2" strokeDasharray="5,5" fill="none" />
+            </svg>
+          </div>
+
+          <div className="w-full flex flex-col gap-2 p-1">
+            <div className="flex justify-between items-center text-xs text-text-muted">
+              <span>Zoom</span>
+              <span className="font-mono font-bold text-text-light">{Math.round(cropZoom * 100)}%</span>
+            </div>
+            <input
+              type="range"
+              min="1"
+              max="3"
+              step="0.05"
+              value={cropZoom}
+              onChange={(e) => setCropZoom(parseFloat(e.target.value))}
+              className="w-full h-2 bg-slate-700 border border-white/10 rounded-lg appearance-none cursor-pointer accent-accent my-1"
+            />
+          </div>
+
+          <div className="flex justify-end gap-3 w-full border-t border-border pt-4">
+            <Button
+              variant="bordered"
+              onClick={() => {
+                setIsCropModalOpen(false);
+                setCropImageSrc(null);
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="accent"
+              onClick={uploadCroppedAvatar}
+            >
+              Crop & Upload
+            </Button>
+          </div>
+        </div>
+      </Modal>
 
       {/* Toast Feedback */}
       {feedback && (

@@ -93,7 +93,29 @@ export const viewMediaFileOnTheFly = async (req: Request, res: Response): Promis
     // Обробка зображення через Sharp
     let sharpImg = sharp(buffer);
 
-    // 1. Зміна розміру (resize)
+    // 1. Обрізка (crop/extract) — cx, cy, cw, ch у пікселях оригінального зображення
+    const cxRaw = req.query.cx;
+    const cyRaw = req.query.cy;
+    const cwRaw = req.query.cw;
+    const chRaw = req.query.ch;
+
+    if (cxRaw && cyRaw && cwRaw && chRaw) {
+      const meta = await sharpImg.metadata();
+      const origW = meta.width || 0;
+      const origH = meta.height || 0;
+
+      const cx = Math.max(0, parseInt(cxRaw as string, 10));
+      const cy = Math.max(0, parseInt(cyRaw as string, 10));
+      const cw = Math.max(1, parseInt(cwRaw as string, 10));
+      const ch = Math.max(1, parseInt(chRaw as string, 10));
+
+      // Перевіряємо, що обрізка не виходить за межі зображення
+      if (cx + cw <= origW && cy + ch <= origH) {
+        sharpImg = sharpImg.extract({ left: cx, top: cy, width: cw, height: ch });
+      }
+    }
+
+    // 2. Зміна розміру (resize)
     const w = req.query.w || req.query.width;
     const h = req.query.h || req.query.height;
     const fit = (req.query.fit as string) || 'cover';
@@ -107,6 +129,50 @@ export const viewMediaFileOnTheFly = async (req: Request, res: Response): Promis
         height: height && !isNaN(height) ? height : undefined,
         fit: fit as any
       });
+    }
+
+
+    // 1.5 Watermarking (Pro & Enterprise only)
+    const hasWatermark = req.query.wm === 'true' || req.query.watermark === 'true';
+    if (hasWatermark) {
+      const workspace = await prisma.workspace.findUnique({
+        where: { id: mediaFile.workspaceId },
+        select: { plan: true }
+      });
+      if (workspace && (workspace.plan === 'PRO' || workspace.plan === 'ENTERPRISE')) {
+        const wmText = String(req.query.wmText || req.query.watermarkText || 'OptiDrive');
+        const opacity = parseFloat(String(req.query.wmOpacity || req.query.watermarkOpacity || '0.3')) || 0.3;
+        
+        try {
+          const metadata = await sharpImg.metadata();
+          const imgWidth = metadata.width || 800;
+          const imgHeight = metadata.height || 600;
+
+          const svgText = `
+            <svg xmlns="http://www.w3.org/2000/svg" width="${imgWidth}" height="${imgHeight}">
+              <style>
+                .watermark {
+                  fill: white;
+                  fill-opacity: ${opacity};
+                  font-family: sans-serif;
+                  font-size: ${Math.max(16, Math.floor(imgWidth / 15))}px;
+                  font-weight: bold;
+                }
+              </style>
+              <text x="50%" y="50%" text-anchor="middle" class="watermark" transform="rotate(-30, ${imgWidth/2}, ${imgHeight/2})">${wmText}</text>
+            </svg>
+          `;
+
+          const resizedBuffer = await sharpImg.toBuffer();
+          sharpImg = sharp(resizedBuffer).composite([{
+            input: Buffer.from(svgText),
+            top: 0,
+            left: 0
+          }]);
+        } catch (wmErr) {
+          console.error('[Watermark] Failed to apply watermark:', wmErr);
+        }
+      }
     }
 
     // 2. Формат та якість

@@ -95,7 +95,7 @@ export default function WebhooksPage() {
             <Button
               variant="bordered"
               onClick={() => setShowDocs(!showDocs)}
-              className="gap-2"
+              className="gap-2 origin-right"
               mobileBehavior="icon-only"
             >
               <Icon icon="lucide:book-open" width={16} />
@@ -105,6 +105,7 @@ export default function WebhooksPage() {
               variant="accent"
               mobileBehavior="icon-only"
               onClick={openCreateModal}
+              className="origin-right"
             >
               <div className="inline-flex h-4 w-4 items-center justify-center shrink-0">
                 <Icon icon="lucide:plus" width="100%" height="100%" />

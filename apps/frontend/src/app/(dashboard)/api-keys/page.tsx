@@ -54,6 +54,7 @@ const ApiKeysPage = () => {
               mobileBehavior="full-width"
               onClick={() => setModal(true)}
               disabled={limitReached}
+              className="origin-right"
             >
               <div className="inline-flex h-4 w-4 items-center justify-center">
                 <Icon icon="lucide:plus" width="100%" height="100%" />
