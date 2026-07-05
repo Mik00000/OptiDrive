@@ -63,6 +63,7 @@ enum ActivityType {
   KEY_GENERATED
   KEY_REVOKED
   PLAN_UPGRADED
+  PLAN_DOWNGRADED
   SETTING_CHANGED
   MEMBER_INVITED
   MEMBER_JOINED
@@ -139,6 +140,12 @@ model Workspace {
   warnedBandwidth100    Boolean  @default(false)
   warnedOptimizations80  Boolean  @default(false)
   warnedOptimizations100 Boolean  @default(false)
+
+  // Stripe Billing
+  stripeCustomerId     String?  @unique
+  stripeSubscriptionId String?  @unique
+  currentPeriodEnd     DateTime?
+  subscriptionStatus   String?  // Кешований статус з Stripe: active, past_due, canceled, unpaid тощо
 
   // Custom S3 Storage (for Enterprise BYOS)
   customS3Enabled      Boolean  @default(false)

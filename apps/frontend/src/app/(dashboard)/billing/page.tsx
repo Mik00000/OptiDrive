@@ -1,213 +1,406 @@
-"use client";
+'use client';
 
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/Button';
 import PageHeading from '@/components/PageHeading';
 import { Icon } from '@iconify/react';
 import { UpgradePlanModal } from '@/features/billing/UpgradePlanModal';
-import { UpdatePaymentModal } from '@/features/billing/UpdatePaymentModal';
 import { getWorkspaceStatsApi, WorkspaceStats } from '@/features/dashboard/api';
+import {
+  getBillingStatusApi,
+  createPortalSessionApi,
+  BillingStatus,
+} from '@/features/billing/api';
 import { toast } from 'react-toastify';
-
-const MOCK_INVOICES = [
-  { id: 'INV-2023-10-01', date: 'Oct 1, 2023', amount: '$29.00', status: 'Paid' },
-  { id: 'INV-2023-09-01', date: 'Sep 1, 2023', amount: '$29.00', status: 'Paid' },
-  { id: 'INV-2023-08-01', date: 'Aug 1, 2023', amount: '$29.00', status: 'Paid' },
-];
+import { useSearchParams } from 'next/navigation';
 
 const BillingAndSubscriptionsPage = () => {
   const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
-  const [isUpdatePaymentModalOpen, setIsUpdatePaymentModalOpen] = useState(false);
   const [stats, setStats] = useState<WorkspaceStats | null>(null);
+  const [billingStatus, setBillingStatus] = useState<BillingStatus | null>(
+    null,
+  );
+  const [isPortalLoading, setIsPortalLoading] = useState(false);
+  const searchParams = useSearchParams();
 
   useEffect(() => {
-    const fetchStats = async () => {
+    const fetchData = async () => {
       try {
-        const data = await getWorkspaceStatsApi();
-        setStats(data);
+        const [statsData, billingData] = await Promise.all([
+          getWorkspaceStatsApi(),
+          getBillingStatusApi(),
+        ]);
+        setStats(statsData);
+        setBillingStatus(billingData);
       } catch (e) {
         console.error(e);
       }
     };
-    fetchStats();
+    fetchData();
   }, []);
 
-  const bytesToGB = (bytes?: string | number) => bytes ? (Number(bytes) / (1024 * 1024 * 1024)).toFixed(2) : '0.00';
-  const percentage = stats ? Math.min(100, Math.round((Number(stats.storageUsed) / Number(stats.limits.storageBytes)) * 100)) : 0;
+  // Обробка повернення з Stripe Checkout
+  useEffect(() => {
+    const status = searchParams.get('status');
+    if (status === 'success') {
+      toast.success(
+        'Payment successful! Your workspace is now on the PRO plan.',
+      );
+      // Перезавантажуємо дані
+      const refresh = async () => {
+        try {
+          const [statsData, billingData] = await Promise.all([
+            getWorkspaceStatsApi(),
+            getBillingStatusApi(),
+          ]);
+          setStats(statsData);
+          setBillingStatus(billingData);
+        } catch (e) {
+          console.error(e);
+        }
+      };
+      refresh();
+      // Очищуємо URL від query params
+      window.history.replaceState({}, '', '/billing');
+    } else if (status === 'cancelled') {
+      toast.info('Checkout was cancelled.');
+      window.history.replaceState({}, '', '/billing');
+    }
+  }, [searchParams]);
+
+  const handleManageBilling = async () => {
+    setIsPortalLoading(true);
+    try {
+      const url = await createPortalSessionApi();
+      if (url) {
+        window.location.href = url;
+      }
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to open billing portal');
+    } finally {
+      setIsPortalLoading(false);
+    }
+  };
+
+  const bytesToGB = (bytes?: string | number) =>
+    bytes ? (Number(bytes) / (1024 * 1024 * 1024)).toFixed(2) : '0.00';
+  const percentage = stats
+    ? Math.min(
+        100,
+        Math.round(
+          (Number(stats.storageUsed) / Number(stats.limits.storageBytes)) * 100,
+        ),
+      )
+    : 0;
+
+  const isPro = stats?.plan === 'PRO';
+  const isActive = billingStatus?.subscriptionStatus === 'active';
+  const isPastDue = billingStatus?.subscriptionStatus === 'past_due';
+  const isCancelling = isActive && billingStatus?.cancelAtPeriodEnd === true;
+
+  const formatDate = (dateStr: string | null) => {
+    if (!dateStr) return '—';
+    return new Date(dateStr).toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+    });
+  };
+
 
   return (
     <section className="dashboard-page relative">
       <PageHeading title="Billing & Subscription" />
+
+      {/* Банер: платіж прострочено (past_due) */}
+      {isPastDue && (
+        <div className="mx-4 mt-2 flex items-start gap-3 rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 lg:mx-8">
+          <Icon icon="lucide:alert-triangle" className="mt-0.5 shrink-0 text-amber-400" width={18} />
+          <div className="flex flex-1 flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p className="text-sm font-semibold text-amber-300">Payment overdue — action required</p>
+              <p className="text-xs text-amber-400/80">
+                Your last payment failed. Stripe will retry automatically. Update your card to avoid losing PRO access.
+              </p>
+            </div>
+            <Button
+              variant="bordered"
+              className="mt-2 shrink-0 border-amber-500/40 text-amber-300 hover:border-amber-400 hover:bg-amber-400/10 sm:mt-0"
+              onClick={handleManageBilling}
+              disabled={isPortalLoading}
+            >
+              {isPortalLoading ? (
+                <Icon icon="lucide:loader-2" className="animate-spin" width={14} />
+              ) : (
+                <Icon icon="lucide:credit-card" width={14} />
+              )}
+              <span className="ml-1.5 text-xs">Update Payment Method</span>
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* Банер: підписка буде скасована в кінці періоду (cancel_at_period_end) */}
+      {isCancelling && (
+        <div className="mx-4 mt-2 flex items-start gap-3 rounded-xl border border-orange-500/30 bg-orange-500/10 p-4 lg:mx-8">
+          <Icon icon="lucide:clock" className="mt-0.5 shrink-0 text-orange-400" width={18} />
+          <div className="flex flex-1 flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p className="text-sm font-semibold text-orange-300">Subscription cancellation scheduled</p>
+              <p className="text-xs text-orange-400/80">
+                Your PRO plan will be cancelled on{' '}
+                <strong className="text-orange-300">{formatDate(billingStatus?.currentPeriodEnd ?? null)}</strong>.
+                {' '}After that, your workspace will be downgraded to FREE.
+              </p>
+            </div>
+            <Button
+              variant="bordered"
+              className="mt-2 shrink-0 border-orange-500/40 text-orange-300 hover:border-orange-400 hover:bg-orange-400/10 sm:mt-0"
+              onClick={handleManageBilling}
+              disabled={isPortalLoading}
+            >
+              {isPortalLoading ? (
+                <Icon icon="lucide:loader-2" className="animate-spin" width={14} />
+              ) : (
+                <Icon icon="lucide:refresh-cw" width={14} />
+              )}
+              <span className="ml-1.5 text-xs">Resume Subscription</span>
+            </Button>
+          </div>
+        </div>
+      )}
+
       <div className="flex flex-col gap-6 p-4 pb-8 lg:p-8 lg:pb-8">
-        <section className="border-border bg-card flex min-w-0 flex-1 flex-col md:flex-row gap-6 md:gap-3 rounded-2xl border p-5 md:p-6.25">
+        {/* Current Plan */}
+        <section className="border-border bg-card flex min-w-0 flex-1 flex-col gap-6 rounded-2xl border p-5 md:flex-row md:gap-3 md:p-6.25">
           <div className="flex-1">
-            <div className="mb-3 md:mb-1 flex items-center gap-2">
+            <div className="mb-3 flex items-center gap-2 md:mb-1">
               <span className="text-text-light text-xl font-semibold capitalize">
                 {stats ? stats.plan.toLowerCase() : 'Loading...'} Plan
               </span>
-              <span className="text-accent border-accent/30 bg-accent/20 h-fit rounded-full border px-2 py-0.5 text-xs font-medium">
-                Active
-              </span>
+              {isPro && isActive && !isCancelling ? (
+                <span className="text-accent border-accent/30 bg-accent/20 h-fit rounded-full border px-2 py-0.5 text-xs font-medium">
+                  Active
+                </span>
+              ) : isPro && isCancelling ? (
+                <span className="h-fit rounded-full border border-orange-400/30 bg-orange-400/20 px-2 py-0.5 text-xs font-medium text-orange-400">
+                  Cancelling
+                </span>
+              ) : isPro && isPastDue ? (
+                <span className="h-fit rounded-full border border-amber-400/30 bg-amber-400/20 px-2 py-0.5 text-xs font-medium text-amber-400">
+                  Past Due
+                </span>
+              ) : isPro ? (
+                <span className="h-fit rounded-full border border-orange-400/30 bg-orange-400/20 px-2 py-0.5 text-xs font-medium text-orange-400">
+                  {billingStatus?.subscriptionStatus || 'Inactive'}
+                </span>
+              ) : (
+                <span className="text-text-muted border-border bg-bg h-fit rounded-full border px-2 py-0.5 text-xs font-medium">
+                  Free
+                </span>
+              )}
             </div>
             <span className="text-text-muted mb-6 flex text-base">
-              {stats?.plan === 'FREE' ? 'Free forever' : stats?.plan === 'PRO' ? '$29/mo billed monthly' : 'Custom pricing'}
+              {!isPro
+                ? 'Free forever'
+                : isCancelling
+                  ? `Cancels on ${formatDate(billingStatus?.currentPeriodEnd ?? null)} • No further charges`
+                  : `$29/mo billed monthly${billingStatus?.currentPeriodEnd ? ` • Renews ${formatDate(billingStatus.currentPeriodEnd)}` : ''}`}
             </span>
             <div className="bg-bg border-border flex flex-col justify-between gap-3 rounded-xl border p-4">
               <div className="flex w-full justify-between">
                 <span className="text-text-light text-sm">Storage Used</span>
                 <span className="text-text-muted text-sm font-medium">
-                  {bytesToGB(stats?.storageUsed)} GB / {bytesToGB(stats?.limits?.storageBytes)} GB used
+                  {bytesToGB(stats?.storageUsed)} GB /{' '}
+                  {bytesToGB(stats?.limits?.storageBytes)} GB used
                 </span>
               </div>
               <div className="border-border h-2 w-full rounded-full border">
-                <div 
-                  className="bg-chart-gradient h-full rounded-full transition-all duration-500" 
+                <div
+                  className="bg-chart-gradient h-full rounded-full transition-all duration-500"
                   style={{ width: `${percentage}%` }}
                 ></div>
               </div>
-              <span className="text-text-muted text-xs flex justify-between">
+              <span className="text-text-muted flex justify-between text-xs">
                 <span>Resets on the 1st of every month</span>
                 <span>{percentage}% Used</span>
               </span>
             </div>
           </div>
-          <div className="flex flex-1 flex-col items-start md:items-end justify-between gap-4 md:gap-2 text-start md:text-end">
-            <div className="flex flex-col gap-1 w-full md:w-auto">
+          <div className="flex flex-1 flex-col items-start justify-between gap-4 text-start md:items-end md:gap-2 md:text-end">
+            <div className="flex w-full flex-col gap-1 md:w-auto">
               <span className="text-text-light text-sm">
-                Need more limits?
+                {isPro ? 'Manage your subscription' : 'Need more limits?'}
               </span>
               <p className="text-text-muted text-sm">
-                Upgrade to a higher plan for custom limits and priority support.
+                {isPro
+                  ? 'Change your card, cancel, or view invoices via Stripe.'
+                  : 'Upgrade to a higher plan for custom limits and priority support.'}
               </p>
             </div>
-            <Button variant="accent" mobileBehavior="full-width" className="md:w-auto mt-2 md:mt-0" onClick={() => setIsUpgradeModalOpen(true)}>
-              <div className="inline-flex h-5 w-5 items-center justify-center sm:h-4 sm:w-4">
-                <Icon icon="lucide:zap" width="100%" height="100%" />
-              </div>
-              <span>Upgrade Plan</span>
-            </Button>
+            {isPro ? (
+              <Button
+                variant="bordered"
+                mobileBehavior="full-width"
+                className="mt-2 md:mt-0 md:w-auto"
+                onClick={handleManageBilling}
+                disabled={isPortalLoading}
+              >
+                {isPortalLoading ? (
+                  <>
+                    <Icon
+                      icon="lucide:loader-2"
+                      className="animate-spin"
+                      width={16}
+                    />
+                    <span>Opening...</span>
+                  </>
+                ) : (
+                  <>
+                    <div className="inline-flex h-5 w-5 items-center justify-center sm:h-4 sm:w-4">
+                      <Icon icon="lucide:settings" width="100%" height="100%" />
+                    </div>
+                    <span>Manage Billing</span>
+                  </>
+                )}
+              </Button>
+            ) : (
+              <Button
+                variant="accent"
+                mobileBehavior="full-width"
+                className="mt-2 md:mt-0 md:w-auto"
+                onClick={() => setIsUpgradeModalOpen(true)}
+              >
+                <div className="inline-flex h-5 w-5 items-center justify-center sm:h-4 sm:w-4">
+                  <Icon icon="lucide:zap" width="100%" height="100%" />
+                </div>
+                <span>Upgrade Plan</span>
+              </Button>
+            )}
           </div>
         </section>
 
+        {/* Payment Method — тепер показує реальний статус або кнопку Manage */}
         <section className="border-border bg-card flex min-w-0 flex-1 flex-col rounded-2xl border">
           <div className="border-border flex flex-col gap-1 border-b p-5 md:p-6">
-            <span className="text-text-light text-lg font-semibold">Payment Method</span>
+            <span className="text-text-light text-lg font-semibold">
+              Payment Method
+            </span>
             <p className="text-text-muted text-sm">
               Manage your billing information and credit cards.
             </p>
           </div>
-          <div className="border-border flex flex-col md:flex-row gap-4 md:gap-2 md:justify-between p-5 md:p-6 md:items-center">
-            <div className='flex gap-4 items-center'>
-              <div className="bg-bg border border-border flex h-10 w-16 shrink-0 items-center justify-center rounded-lg">
-                <Icon icon="lucide:credit-card" width="24" height="24px"></Icon>
-              </div>
-              <div className="flex flex-col gap-0.5">
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className="text-text-light font-medium text-sm">
-                    Visa ending in 4242
+          <div className="border-border flex flex-col gap-4 p-5 md:flex-row md:items-center md:justify-between md:gap-2 md:p-6">
+            {isPro && billingStatus?.hasStripeCustomer ? (
+              <>
+                <div className="flex items-center gap-4">
+                  <div className="bg-bg border-border flex h-10 w-16 shrink-0 items-center justify-center rounded-lg border">
+                    <Icon
+                      icon="lucide:credit-card"
+                      width="24"
+                      height="24px"
+                    ></Icon>
+                  </div>
+                  <div className="flex flex-col gap-0.5">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="text-text-light text-sm font-medium">
+                        Managed via Stripe
+                      </span>
+                      <span className="rounded-md border border-emerald-500/20 bg-emerald-500/10 px-1.5 py-0.5 text-[10px] font-bold text-emerald-400 uppercase">
+                        CONNECTED
+                      </span>
+                    </div>
+                    <span className="text-text-muted text-sm">
+                      Click "Manage Billing" to update your card or view
+                      details.
+                    </span>
+                  </div>
+                </div>
+                <Button
+                  variant="bordered"
+                  mobileBehavior="full-width"
+                  className="md:w-auto"
+                  onClick={handleManageBilling}
+                  disabled={isPortalLoading}
+                >
+                  Manage
+                </Button>
+              </>
+            ) : (
+              <div className="flex items-center gap-4">
+                <div className="bg-bg border-border flex h-10 w-16 shrink-0 items-center justify-center rounded-lg border">
+                  <Icon
+                    icon="lucide:credit-card"
+                    width="24"
+                    height="24px"
+                  ></Icon>
+                </div>
+                <div className="flex flex-col gap-0.5">
+                  <span className="text-text-light text-sm font-medium">
+                    No payment method
                   </span>
-                  <span className="py-0.5 text-[10px] font-bold uppercase text-text-muted bg-bg border border-border px-1.5 rounded-md">
-                    DEFAULT
+                  <span className="text-text-muted text-sm">
+                    Upgrade to PRO to add a payment method.
                   </span>
                 </div>
-                <span className="text-text-muted text-sm">
-                  Expires 12/2025
-                </span>
+              </div>
+            )}
+          </div>
+        </section>
+
+        {/* Subscription Details — для PRO юзерів */}
+        {isPro && billingStatus && (
+          <section className="border-border bg-card flex min-w-0 flex-1 flex-col rounded-2xl border">
+            <div className="border-border flex flex-col gap-1 border-b p-5 md:p-6">
+              <span className="text-text-light text-lg font-semibold">
+                Subscription Details
+              </span>
+              <p className="text-text-muted text-sm">
+                Information about your active subscription.
+              </p>
+            </div>
+            <div className="flex flex-col gap-4 p-5 md:p-6">
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+                <div className="bg-bg border-border flex flex-col gap-1 rounded-xl border p-4">
+                  <span className="text-text-muted text-xs font-medium tracking-wide uppercase">
+                    Status
+                  </span>
+                  <div className="flex items-center gap-2">
+                    <span
+                      className={`h-2 w-2 rounded-full ${isActive ? 'bg-emerald-400' : 'bg-orange-400'}`}
+                    ></span>
+                    <span className="text-text-light font-semibold capitalize">
+                      {billingStatus.subscriptionStatus || 'Unknown'}
+                    </span>
+                  </div>
+                </div>
+                <div className="bg-bg border-border flex flex-col gap-1 rounded-xl border p-4">
+                  <span className="text-text-muted text-xs font-medium tracking-wide uppercase">
+                    Current Period Ends
+                  </span>
+                  <span className="text-text-light font-semibold">
+                    {formatDate(billingStatus.currentPeriodEnd)}
+                  </span>
+                </div>
+                <div className="bg-bg border-border flex flex-col gap-1 rounded-xl border p-4">
+                  <span className="text-text-muted text-xs font-medium tracking-wide uppercase">
+                    Monthly Cost
+                  </span>
+                  <span className="text-text-light font-semibold">
+                    $29.00/mo
+                  </span>
+                </div>
               </div>
             </div>
-            <Button variant='bordered' mobileBehavior="full-width" className="md:w-auto" onClick={() => setIsUpdatePaymentModalOpen(true)}>Update</Button>
-          </div>
-        </section>
-
-        <section className="border-border bg-card flex min-w-0 flex-1 flex-col rounded-2xl border">
-          <div className="border-border flex flex-col gap-1 border-b p-5 md:p-6">
-            <span className="text-text-light text-lg font-semibold">Billing History</span>
-            <p className="text-text-muted text-sm">
-              View and download your previous invoices.
-            </p>
-          </div>
-          
-          <div className="hidden md:block overflow-x-auto">
-            <table className="w-full border-collapse text-left">
-              <thead>
-                <tr className="border-border text-text-muted border-b text-xs font-medium">
-                  <th className="px-6 py-4 font-normal">Date</th>
-                  <th className="px-6 py-4 font-normal">Invoice ID</th>
-                  <th className="px-6 py-4 font-normal">Amount</th>
-                  <th className="px-6 py-4 font-normal">Status</th>
-                  <th className="px-6 py-4 text-right font-normal">Action</th>
-                </tr>
-              </thead>
-              <tbody className="text-text-light divide-border divide-y text-sm">
-                {MOCK_INVOICES.map((invoice) => (
-                  <tr key={invoice.id} className="hover:bg-slate-700/30 transition-colors">
-                    <td className="px-6 py-4 text-text-muted">{invoice.date}</td>
-                    <td className="px-6 py-4 font-mono text-xs font-semibold">{invoice.id}</td>
-                    <td className="px-6 py-4 font-medium">{invoice.amount}</td>
-                    <td className="px-6 py-4">
-                      {invoice.status === 'Paid' ? (
-                        <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-2 py-0.5 text-xs font-medium text-emerald-400">
-                          <span className="h-1.5 w-1.5 rounded-full bg-emerald-400"></span>
-                          Paid
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center gap-1.5 rounded-full border border-orange-500/20 bg-orange-500/10 px-2 py-0.5 text-xs font-medium text-orange-400">
-                          <span className="h-1.5 w-1.5 rounded-full bg-orange-400"></span>
-                          Pending
-                        </span>
-                      )}
-                    </td>
-                    <td className="px-6 py-4 text-right">
-                      <button 
-                        className="text-text-muted hover:text-text-light cursor-pointer p-1.5 align-middle opacity-70 transition-colors hover:opacity-100 hover:scale-110 "
-                        onClick={() => toast.info(`Downloading ${invoice.id}...`)}
-                      >
-                        <Icon icon="lucide:download" width={18} />
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-
-          <div className="flex flex-col divide-y divide-border/50 md:hidden">
-            {MOCK_INVOICES.map((invoice) => (
-              <div key={invoice.id} className="flex gap-4 p-5 hover:bg-slate-700/30 transition-colors">
-                <div className="flex-1 flex flex-col gap-2 justify-center">
-                  <div className="flex justify-between items-center">
-                    <span className="text-text-light font-semibold">{invoice.date}</span>
-                    <span className="text-text-light font-medium">{invoice.amount}</span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-slate-400 font-mono text-xs">{invoice.id}</span>
-                    {invoice.status === 'Paid' ? (
-                      <span className="inline-flex items-center rounded-full border border-emerald-500/20 bg-emerald-500/10 px-2 py-0.5 text-[11px] font-medium text-emerald-400">
-                        Paid
-                      </span>
-                    ) : (
-                      <span className="inline-flex items-center rounded-full border border-orange-500/20 bg-orange-500/10 px-2 py-0.5 text-[11px] font-medium text-orange-400">
-                        Pending
-                      </span>
-                    )}
-                  </div>
-                </div>
-                <div className="flex items-center">
-                  <button 
-                    className="flex items-center justify-center w-12 h-12 rounded-xl text-text-muted hover:text-text-light hover:bg-white/5 transition-colors active:scale-95"
-                    onClick={() => toast.info(`Downloading ${invoice.id}...`)}
-                  >
-                    <Icon icon="lucide:download" width={22} />
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-        </section>
+          </section>
+        )}
       </div>
-      
-      <UpgradePlanModal isOpen={isUpgradeModalOpen} onClose={() => setIsUpgradeModalOpen(false)} stats={stats} />
-      <UpdatePaymentModal isOpen={isUpdatePaymentModalOpen} onClose={() => setIsUpdatePaymentModalOpen(false)} />
+
+      <UpgradePlanModal
+        isOpen={isUpgradeModalOpen}
+        onClose={() => setIsUpgradeModalOpen(false)}
+        stats={stats}
+      />
     </section>
   );
 };

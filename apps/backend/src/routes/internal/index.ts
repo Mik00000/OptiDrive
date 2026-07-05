@@ -13,6 +13,7 @@ import shareRoutes from './share.routes';
 import webhookRoutes from './webhook.routes';
 import userRoutes from './user.routes';
 import domainsRoutes from './domains.routes';
+import billingRoutes from './billing.routes';
 
 import { blockDuringMigration } from '../../middlewares/migration.middleware';
 
@@ -55,5 +56,6 @@ router.use('/share', shareRoutes);
 router.use('/webhooks', webhookRoutes);
 router.use('/user', userRoutes);
 router.use('/domains', domainsRoutes);
+router.use('/billing', billingRoutes);
 
 export default router;

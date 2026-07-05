@@ -4,6 +4,9 @@ import { Icon } from "@iconify/react";
 import { Button } from "@/components/Button";
 import { Modal } from "@/components/Modal";
 import { WorkspaceStats } from "../dashboard/api";
+import { createCheckoutSessionApi } from "./api";
+import { useState } from "react";
+import { toast } from "react-toastify";
 
 interface UpgradePlanModalProps {
   isOpen: boolean;
@@ -13,6 +16,21 @@ interface UpgradePlanModalProps {
 
 export function UpgradePlanModal({ isOpen, onClose, stats }: UpgradePlanModalProps) {
   const currentPlan = stats?.plan || 'FREE';
+  const [isLoading, setIsLoading] = useState(false);
+
+  const handleUpgradeToPro = async () => {
+    setIsLoading(true);
+    try {
+      const url = await createCheckoutSessionApi();
+      if (url) {
+        window.location.href = url;
+      }
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to start checkout');
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   return (
     <Modal
@@ -76,9 +94,30 @@ export function UpgradePlanModal({ isOpen, onClose, stats }: UpgradePlanModalPro
           <Button variant="bordered" onClick={onClose} className="flex-1">
             Cancel
           </Button>
-          <Button variant="accent" onClick={onClose} className="flex-1">
-            Change Plan
-          </Button>
+          {currentPlan === 'FREE' ? (
+            <Button 
+              variant="accent" 
+              onClick={handleUpgradeToPro} 
+              className="flex-1"
+              disabled={isLoading}
+            >
+              {isLoading ? (
+                <>
+                  <Icon icon="lucide:loader-2" className="animate-spin" width={16} />
+                  <span>Processing...</span>
+                </>
+              ) : (
+                <>
+                  <Icon icon="lucide:zap" width={16} />
+                  <span>Upgrade to Pro — $29/mo</span>
+                </>
+              )}
+            </Button>
+          ) : (
+            <Button variant="accent" onClick={onClose} className="flex-1" disabled>
+              Current Plan
+            </Button>
+          )}
         </div>
       </div>
     </Modal>

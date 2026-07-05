@@ -290,3 +290,129 @@ export const sendSecurityAlertEmail = async (
     return false;
   }
 };
+
+export const sendBillingFailedEmail = async (
+  email: string,
+  workspaceName: string,
+  declineReason: string
+) => {
+  try {
+    const { data, error } = await sendEmail({
+      to: email,
+      subject: `[Important] Subscription payment failed for workspace ${workspaceName}`,
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+          <h2 style="color: #ef4444;">Payment Failed for Workspace ${workspaceName}</h2>
+          <p style="font-size: 16px; color: #555;">Hello!</p>
+          <p style="font-size: 16px; color: #555;">
+            We were unable to process the recurring payment for your <strong>PRO plan</strong> subscription in the workspace <strong>${workspaceName}</strong>.
+          </p>
+          <div style="background-color: #fee2e2; border-left: 4px solid #ef4444; padding: 15px; border-radius: 4px; margin: 20px 0;">
+            <p style="margin: 0; color: #991b1b; font-weight: bold;">Reason: ${declineReason}</p>
+          </div>
+          <p style="font-size: 15px; color: #555;">
+            Please update your payment method to keep your PRO features active. If the issue is not resolved, your workspace will be downgraded to the FREE plan.
+          </p>
+          <div style="text-align: center; margin: 30px 0;">
+            <a href="${process.env.FRONTEND_URL || 'http://localhost:3000'}/billing" style="background-color: #2563eb; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold; font-size: 16px;">
+              Update Payment Method
+            </a>
+          </div>
+        </div>
+      `,
+    });
+
+    if (error) {
+      console.error('Email API Error (Billing Failed):', error);
+      return false;
+    }
+    return true;
+  } catch (error) {
+    console.error('Error sending billing failed email:', error);
+    return false;
+  }
+};
+
+export const sendSubscriptionCancelledEmail = async (
+  email: string,
+  workspaceName: string
+) => {
+  try {
+    const { data, error } = await sendEmail({
+      to: email,
+      subject: `Subscription cancelled for workspace ${workspaceName}`,
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+          <h2 style="color: #6b7280;">Subscription Cancelled</h2>
+          <p style="font-size: 16px; color: #555;">Hello!</p>
+          <p style="font-size: 16px; color: #555;">
+            The PRO plan subscription for workspace <strong>${workspaceName}</strong> has been cancelled and your workspace has been downgraded to the <strong>FREE plan</strong>.
+          </p>
+          <p style="font-size: 15px; color: #555;">
+            Your storage quota is now limited to 1 GB. If you exceed this limit, your file optimizations and uploads may be temporarily blocked until you free up space or upgrade again.
+          </p>
+          <div style="text-align: center; margin: 30px 0;">
+            <a href="${process.env.FRONTEND_URL || 'http://localhost:3000'}/billing" style="background-color: #2563eb; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold; font-size: 16px;">
+              Re-subscribe to PRO
+            </a>
+          </div>
+        </div>
+      `,
+    });
+
+    if (error) {
+      console.error('Email API Error (Subscription Cancelled):', error);
+      return false;
+    }
+    return true;
+  } catch (error) {
+    console.error('Error sending subscription cancelled email:', error);
+    return false;
+  }
+};
+export const sendPaymentPastDueEmail = async (
+  email: string,
+  workspaceName: string
+) => {
+  const billingUrl = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/billing`;
+
+  try {
+    const { data, error } = await sendEmail({
+      to: email,
+      subject: `[Action Required] Update your payment method for workspace ${workspaceName}`,
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+          <h2 style="color: #f59e0b;">⚠️ Payment Overdue — Action Required</h2>
+          <p style="font-size: 16px; color: #555;">Hello!</p>
+          <p style="font-size: 16px; color: #555;">
+            We were unable to process a recurring payment for your <strong>PRO plan</strong> in workspace <strong>${workspaceName}</strong>. 
+            Your subscription is currently marked as <strong>past due</strong>.
+          </p>
+          <div style="background-color: #fef3c7; border-left: 4px solid #f59e0b; padding: 15px; border-radius: 4px; margin: 20px 0;">
+            <p style="margin: 0; color: #92400e; font-weight: bold;">Stripe will automatically retry the payment. If it fails again, your workspace will be downgraded to the FREE plan.</p>
+          </div>
+          <p style="font-size: 15px; color: #555;">
+            To prevent service interruption, please update your payment method as soon as possible:
+          </p>
+          <div style="text-align: center; margin: 30px 0;">
+            <a href="${billingUrl}" style="background-color: #f59e0b; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold; font-size: 16px;">
+              Update Payment Method
+            </a>
+          </div>
+          <p style="font-size: 14px; color: #888;">
+            You can manage your payment methods and view invoices via the Stripe billing portal on the Billing page.
+          </p>
+        </div>
+      `,
+    });
+
+    if (error) {
+      console.error('Email API Error (Past Due):', error);
+      return false;
+    }
+    return true;
+  } catch (error) {
+    console.error('Error sending past_due email:', error);
+    return false;
+  }
+};
