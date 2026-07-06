@@ -85,6 +85,14 @@ export const Sidebar = ({ className }: SidebarProps) => {
     }
   };
 
+  const isAdmin = user?.email === 'mikjarkov@gmail.com' || user?.email?.endsWith('@optidrive.app') || user?.email === 'admin@optidrive.app';
+  
+  const visibleMenu = [...menu];
+  if (user && isAdmin) {
+    // Додаємо Admin Panel перед Settings (індекс 9)
+    visibleMenu.splice(9, 0, { text: 'Admin Panel', link: '/admin', icon: 'lucide:shield-check' });
+  }
+
   return (
     <>
       {/* Mobile Backdrop */}
@@ -118,7 +126,7 @@ export const Sidebar = ({ className }: SidebarProps) => {
             <Icon icon="lucide:x" width={20} height={20} />
           </Button>
         </div>
-
+ 
         {/* Workspace Switcher */}
         <div className="relative mb-6 px-1" ref={workspaceDropdownRef}>
           <button
@@ -157,7 +165,7 @@ export const Sidebar = ({ className }: SidebarProps) => {
               className={twMerge("text-text-muted transition-transform duration-200", isWorkspaceDropdownOpen && "transform rotate-180")}
             />
           </button>
-
+ 
           {/* Workspace Dropdown Panel */}
           {isWorkspaceDropdownOpen && (
             <div className="absolute top-full left-0 mt-1.5 w-full rounded-xl border border-border bg-slate-950 p-1.5 shadow-2xl z-50 animate-in fade-in slide-in-from-top-2 duration-150">
@@ -222,10 +230,10 @@ export const Sidebar = ({ className }: SidebarProps) => {
             </div>
           )}
         </div>
-
+ 
       <nav className="flex-1">
         <ul className="flex flex-col gap-1">
-          {menu.map((item) => {
+          {visibleMenu.map((item) => {
             const isActive = pathname.startsWith(item.link);
             return (
               <li key={item.text} className="relative">

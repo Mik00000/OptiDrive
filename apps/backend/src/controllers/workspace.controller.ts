@@ -46,7 +46,26 @@ export const getWorkspaceStats = async (req: Request & { user?: any }, res: Resp
     });
 
     // Plan Limits
-    const limits = PLANS[workspace.plan as PlanType] || PLANS.FREE;
+    // Грейс-період: підписка вважається оплаченою протягом 3-х днів після початку прострочення платежу
+    const hasActiveGracePeriod = (
+      (workspace.subscriptionStatus === 'past_due' || workspace.subscriptionStatus === 'unpaid') &&
+      workspace.gracePeriodStartedAt &&
+      (Date.now() - new Date(workspace.gracePeriodStartedAt).getTime() < 3 * 24 * 60 * 60 * 1000)
+    );
+    const isSubscriptionPaid = workspace.plan === 'FREE' || workspace.subscriptionStatus === 'active' || !!hasActiveGracePeriod;
+    const limits: any = { ...((isSubscriptionPaid ? PLANS[workspace.plan as PlanType] : PLANS.FREE) || PLANS.FREE) };
+
+    if (workspace.plan === 'ENTERPRISE' && isSubscriptionPaid) {
+      if (workspace.enterpriseStorageBytes !== null) {
+        limits.storageBytes = workspace.enterpriseStorageBytes;
+      }
+      if (workspace.enterpriseBandwidthBytes !== null) {
+        limits.bandwidthBytes = workspace.enterpriseBandwidthBytes;
+      }
+      if (workspace.enterpriseOptimizations !== null) {
+        limits.monthlyOptimizations = workspace.enterpriseOptimizations;
+      }
+    }
 
     // Get analytics for the last 30 days (group by day)
     const thirtyDaysAgo = new Date();

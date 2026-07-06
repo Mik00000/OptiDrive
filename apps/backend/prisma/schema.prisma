@@ -146,6 +146,12 @@ model Workspace {
   stripeSubscriptionId String?  @unique
   currentPeriodEnd     DateTime?
   subscriptionStatus   String?  // Кешований статус з Stripe: active, past_due, canceled, unpaid тощо
+  gracePeriodStartedAt DateTime?
+
+  // Custom Enterprise Limits
+  enterpriseStorageBytes   BigInt?
+  enterpriseBandwidthBytes BigInt?
+  enterpriseOptimizations  Int?
 
   // Custom S3 Storage (for Enterprise BYOS)
   customS3Enabled      Boolean  @default(false)
@@ -173,6 +179,8 @@ model Workspace {
   shareLinks     ShareLink[]
   webhooks       Webhook[]
   customDomains  CustomDomain[]
+  enterpriseRequests EnterpriseRequest[]
+
 }
 
 model WorkspaceUser {
@@ -405,4 +413,49 @@ model CustomDomain {
   workspace   Workspace    @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
   @@index([workspaceId])
+}
+
+enum EnterpriseRequestStatus {
+  PENDING    // Нова заявка — очікує розгляду адміном
+  APPROVED   // Схвалено адміном, сформовано рахунок, очікує оплати від клієнта
+  CONTACTED  // Адмін вже написав/зателефонував клієнту
+  CONVERTED  // Конвертовано в підписку Enterprise
+  DECLINED   // Відмовлено
+}
+
+// 13. Запити на Enterprise-план
+model EnterpriseRequest {
+  id              String                  @id @default(cuid())
+  createdAt       DateTime                @default(now())
+  updatedAt       DateTime                @updatedAt
+  status          EnterpriseRequestStatus @default(PENDING)
+
+  // Контактні дані
+  contactName     String
+  contactEmail    String
+  companyName     String?
+
+  // Бізнес-деталі
+  expectedStorage  String   // Наприклад: "500 GB", "5 TB"
+  expectedTraffic  String   // Наприклад: "2 TB/month"
+  expectedOptimizations String? // Наприклад: "100 000"
+  teamSize         String?  // Наприклад: "10-50"
+  message          String?  // Додатковий текст від клієнта
+
+  // Зв'язок з воркспейсом
+  workspaceId     String
+  workspace       Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  // Нотатки адміна (заповнюються вручну)
+  adminNotes      String?
+
+  // Схвалені адміном значення для автоматичного нарахування при оплаті
+  approvedStorageGb       Int?
+  approvedBandwidthGb     Int?
+  approvedOptimizations   Int?
+  approvedPrice           Float?
+  stripePaymentLink       String?
+
+  @@index([workspaceId])
+  @@index([status])
 }

@@ -135,45 +135,216 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
 
   // Отримуємо current_period_end з items підписки
   const periodEnd = await getSubscriptionPeriodEnd(subscriptionId);
-  logDebug(`[handleCheckoutCompleted] Updating workspace ${workspaceId} to PRO. Subscription: ${subscriptionId}, Period End: ${periodEnd}`);
 
-  await prisma.workspace.update({
-    where: { id: workspaceId },
-    data: {
-      plan: 'PRO',
-      stripeSubscriptionId: subscriptionId,
-      subscriptionStatus: 'active',
-      stripeCustomerId: typeof session.customer === 'string'
-        ? session.customer
-        : session.customer?.id ?? null,
-      currentPeriodEnd: periodEnd,
-    },
-  });
+  const enterpriseRequestId = session.metadata?.enterpriseRequestId;
+  const isEnterprise = session.metadata?.plan === 'ENTERPRISE' || !!enterpriseRequestId;
 
-  // Логуємо апгрейд
-  await prisma.activityLog.create({
-    data: {
-      type: 'PLAN_UPGRADED',
-      description: 'Workspace upgraded to PRO plan',
-      workspaceId,
-    },
-  });
+  if (isEnterprise) {
+    let approvedStorageGb = 250;
+    let approvedBandwidthGb = 2000;
+    let approvedOptimizations = 100000;
 
-  logDebug(`[handleCheckoutCompleted] Workspace ${workspaceId} successfully upgraded`);
-  console.log(`[Stripe Webhook] Workspace ${workspaceId} upgraded to PRO`);
+    if (enterpriseRequestId) {
+      const entReq = await prisma.enterpriseRequest.findUnique({
+        where: { id: enterpriseRequestId }
+      });
+      if (entReq) {
+        if (entReq.approvedStorageGb) approvedStorageGb = entReq.approvedStorageGb;
+        if (entReq.approvedBandwidthGb) approvedBandwidthGb = entReq.approvedBandwidthGb;
+        if (entReq.approvedOptimizations) approvedOptimizations = entReq.approvedOptimizations;
+      }
+    }
+
+    const GB = 1024 * 1024 * 1024;
+    const storageBytes = BigInt(approvedStorageGb * GB);
+    const bandwidthBytes = BigInt(approvedBandwidthGb * GB);
+
+    logDebug(`[handleCheckoutCompleted] Updating workspace ${workspaceId} to ENTERPRISE. Subscription: ${subscriptionId}, Period End: ${periodEnd}`);
+
+    await prisma.workspace.update({
+      where: { id: workspaceId },
+      data: {
+        plan: 'ENTERPRISE',
+        stripeSubscriptionId: subscriptionId,
+        subscriptionStatus: 'active',
+        stripeCustomerId: typeof session.customer === 'string'
+          ? session.customer
+          : session.customer?.id ?? null,
+        currentPeriodEnd: periodEnd,
+        enterpriseStorageBytes: storageBytes,
+        enterpriseBandwidthBytes: bandwidthBytes,
+        enterpriseOptimizations: approvedOptimizations,
+      },
+    });
+
+    if (enterpriseRequestId) {
+      await prisma.enterpriseRequest.update({
+        where: { id: enterpriseRequestId },
+        data: { status: 'CONVERTED' }
+      });
+    }
+
+    // Скасовуємо стару підписку PRO, якщо вона існувала, щоб уникнути подвійного списання
+    const cancelSubscriptionId = session.metadata?.cancelSubscriptionId;
+    if (cancelSubscriptionId) {
+      try {
+        logDebug(`[handleCheckoutCompleted] Cancelling old PRO subscription: ${cancelSubscriptionId}`);
+        await stripe.subscriptions.cancel(cancelSubscriptionId);
+        
+        await prisma.activityLog.create({
+          data: {
+            type: 'SETTING_CHANGED',
+            description: `Cancelled old PRO subscription (${cancelSubscriptionId}) due to Enterprise upgrade`,
+            workspaceId,
+          },
+        });
+      } catch (err: any) {
+        console.error('[Stripe Webhook] Error cancelling old PRO subscription:', err.message);
+      }
+    }
+
+    // Логуємо апгрейд
+    await prisma.activityLog.create({
+      data: {
+        type: 'PLAN_UPGRADED',
+        description: `Workspace upgraded to ENTERPRISE plan. Limits: ${approvedStorageGb} GB Storage, ${approvedBandwidthGb} GB Bandwidth, ${approvedOptimizations} Optimizations/month`,
+        workspaceId,
+      },
+    });
+
+    logDebug(`[handleCheckoutCompleted] Workspace ${workspaceId} successfully upgraded to ENTERPRISE`);
+    console.log(`[Stripe Webhook] Workspace ${workspaceId} upgraded to ENTERPRISE`);
+  } else {
+    logDebug(`[handleCheckoutCompleted] Updating workspace ${workspaceId} to PRO. Subscription: ${subscriptionId}, Period End: ${periodEnd}`);
+
+    await prisma.workspace.update({
+      where: { id: workspaceId },
+      data: {
+        plan: 'PRO',
+        stripeSubscriptionId: subscriptionId,
+        subscriptionStatus: 'active',
+        stripeCustomerId: typeof session.customer === 'string'
+          ? session.customer
+          : session.customer?.id ?? null,
+        currentPeriodEnd: periodEnd,
+      },
+    });
+
+    // Логуємо апгрейд
+    await prisma.activityLog.create({
+      data: {
+        type: 'PLAN_UPGRADED',
+        description: 'Workspace upgraded to PRO plan',
+        workspaceId,
+      },
+    });
+
+    logDebug(`[handleCheckoutCompleted] Workspace ${workspaceId} successfully upgraded to PRO`);
+    console.log(`[Stripe Webhook] Workspace ${workspaceId} upgraded to PRO`);
+  }
 }
 
 /**
  * invoice.payment_succeeded — рекурентний платіж пройшов
  */
 async function handleInvoicePaymentSucceeded(invoice: Stripe.Invoice) {
-  // У новій версії Stripe API subscription знаходиться в parent.subscription_details
-  let subscriptionId: string | null = null;
-  
-  if (invoice.parent?.subscription_details?.subscription) {
-    const sub = invoice.parent.subscription_details.subscription;
-    subscriptionId = typeof sub === 'string' ? sub : sub.id;
+  // Зчитуємо ID підписки, щоб можна було завантажити її метадані
+  const rawSub = (invoice as any).subscription || invoice.parent?.subscription_details?.subscription;
+  const subscriptionId = typeof rawSub === 'string' ? rawSub : (rawSub as any)?.id || null;
+
+  // Спочатку шукаємо workspaceId у метаданих самого інвойсу або в деталях підписки в інвойсі
+  let metadataWorkspaceId = invoice.metadata?.workspaceId || (invoice as any).subscription_details?.metadata?.workspaceId;
+  let metadataPlan = invoice.metadata?.plan || (invoice as any).subscription_details?.metadata?.plan;
+
+  // Якщо немає в метаданих інвойсу, але є підписка — завантажуємо метадані підписки з Stripe API
+  if (!metadataWorkspaceId && subscriptionId) {
+    try {
+      const subscription = await stripe.subscriptions.retrieve(subscriptionId);
+      metadataWorkspaceId = subscription.metadata?.workspaceId;
+      metadataPlan = subscription.metadata?.plan;
+      logDebug(`[handleInvoicePaymentSucceeded] Retrieved subscription metadata: workspaceId=${metadataWorkspaceId}, plan=${metadataPlan}`);
+    } catch (e: any) {
+      logDebug(`[handleInvoicePaymentSucceeded] Error retrieving subscription metadata: ${e.message}`);
+    }
   }
+
+  if (metadataWorkspaceId) {
+    logDebug(`[handleInvoicePaymentSucceeded] Found workspaceId: ${metadataWorkspaceId}`);
+    
+    const workspace = await prisma.workspace.findUnique({
+      where: { id: metadataWorkspaceId },
+    });
+
+    if (!workspace) {
+      logDebug(`[handleInvoicePaymentSucceeded] Workspace not found for workspaceId: ${metadataWorkspaceId}`);
+      console.error(`[Stripe Webhook] Workspace not found for workspaceId: ${metadataWorkspaceId}`);
+      return;
+    }
+
+    // Визначаємо план: якщо вказано в метаданих — використовуємо його, інакше зберігаємо поточний план воркспейсу або за замовчуванням ставимо PRO
+    const planToSet = (metadataPlan === 'PRO' || metadataPlan === 'FREE' || metadataPlan === 'ENTERPRISE')
+      ? metadataPlan
+      : (workspace.plan === 'ENTERPRISE' ? 'ENTERPRISE' : 'PRO');
+    const customerId = typeof invoice.customer === 'string' ? invoice.customer : invoice.customer?.id || null;
+
+    let periodEnd: Date | null = null;
+    if (subscriptionId) {
+      periodEnd = await getSubscriptionPeriodEnd(subscriptionId);
+    }
+    if (!periodEnd && invoice.lines?.data?.[0]?.period?.end) {
+      periodEnd = new Date(invoice.lines.data[0].period.end * 1000);
+    }
+    if (!periodEnd) {
+      const date = new Date();
+      date.setMonth(date.getMonth() + 1);
+      periodEnd = date;
+    }
+
+    logDebug(`[handleInvoicePaymentSucceeded] Updating workspace ${workspace.id} to plan: ${planToSet} via metadata. Customer: ${customerId}, Subscription: ${subscriptionId}, Period End: ${periodEnd}`);
+
+    await prisma.workspace.update({
+      where: { id: workspace.id },
+      data: {
+        plan: planToSet,
+        stripeCustomerId: customerId,
+        stripeSubscriptionId: subscriptionId,
+        subscriptionStatus: 'active',
+        currentPeriodEnd: periodEnd,
+        gracePeriodStartedAt: null,
+      },
+    });
+
+    // Оновлюємо статус EnterpriseRequest на CONVERTED, якщо є активні запити
+    if (planToSet === 'ENTERPRISE') {
+      try {
+        await prisma.enterpriseRequest.updateMany({
+          where: {
+            workspaceId: workspace.id,
+            status: { in: ['PENDING', 'CONTACTED', 'APPROVED'] },
+          },
+          data: {
+            status: 'CONVERTED',
+          },
+        });
+      } catch (err: any) {
+        logDebug(`[handleInvoicePaymentSucceeded] Error updating enterprise requests: ${err.message}`);
+      }
+    }
+
+    await prisma.activityLog.create({
+      data: {
+        type: 'PLAN_UPGRADED',
+        description: `Workspace upgraded to ${planToSet} plan via custom invoice payment`,
+        workspaceId: workspace.id,
+      },
+    });
+
+    logDebug(`[handleInvoicePaymentSucceeded] Workspace ${workspace.id} successfully updated to ${planToSet}`);
+    console.log(`[Stripe Webhook] Workspace ${workspace.id} upgraded to ${planToSet} via metadata`);
+    return;
+  }
+
+  // subscriptionId вже успішно розраховано на початку функції handleInvoicePaymentSucceeded
 
   if (!subscriptionId) {
     logDebug('[handleInvoicePaymentSucceeded] No subscription ID found in invoice');
@@ -319,7 +490,10 @@ async function handleSubscriptionUpdated(subscription: Stripe.Subscription) {
     // Stripe буде робити повторні спроби. Email вже відправлений через invoice.payment_failed.
     await prisma.workspace.update({
       where: { id: workspace.id },
-      data: { subscriptionStatus: 'past_due' },
+      data: { 
+        subscriptionStatus: 'past_due',
+        gracePeriodStartedAt: workspace.gracePeriodStartedAt || new Date(),
+      },
     });
 
     // Відправляємо email-нагадування оновити картку
@@ -395,6 +569,7 @@ async function handleSubscriptionUpdated(subscription: Stripe.Subscription) {
         stripeSubscriptionId: subscription.id,
         subscriptionStatus: 'active',
         currentPeriodEnd: periodEnd,
+        gracePeriodStartedAt: null,
       },
     });
     logDebug(`[handleSubscriptionUpdated] Workspace ${workspace.id} updated to active`);
