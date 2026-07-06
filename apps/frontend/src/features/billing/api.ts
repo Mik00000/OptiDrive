@@ -100,3 +100,27 @@ export const getInvoiceHistoryApi = async (): Promise<InvoiceItem[]> => {
   return response.invoices;
 };
 
+export interface UsageAlertSettings {
+  storageWarningThreshold: number;
+  bandwidthWarningThreshold: number;
+  optimizationsWarningThreshold: number;
+  storageAlertsEnabled: boolean;
+  bandwidthAlertsEnabled: boolean;
+  optimizationsAlertsEnabled: boolean;
+}
+
+/**
+ * Отримати налаштування сповіщень про ліміти
+ */
+export const getUsageAlertSettingsApi = async (): Promise<UsageAlertSettings> => {
+  const response = await apiClient.get<{ success: boolean; data: UsageAlertSettings }>('/api/internal/billing/usage-alerts');
+  return response.data;
+};
+
+/**
+ * Оновити налаштування сповіщень про ліміти
+ */
+export const updateUsageAlertSettingsApi = async (settings: UsageAlertSettings): Promise<{ success: boolean; message: string }> => {
+  return apiClient.post<{ success: boolean; message: string }>('/api/internal/billing/usage-alerts', settings);
+};
+

@@ -34,7 +34,7 @@ export const getAdminEnterpriseRequestsApi = async (): Promise<AdminEnterpriseRe
  */
 export const approveEnterpriseRequestApi = async (
   id: string,
-  limits: { storageGb: number; bandwidthGb: number; optimizations: number; price: number }
+  limits: { storageGb: number; bandwidthGb: number; optimizations: number; price: number; couponCode?: string }
 ): Promise<{ success: boolean; message: string; paymentLink?: string }> => {
   const response = await apiClient.post<{ success: boolean; message: string; paymentLink?: string }>(`/api/internal/admin/enterprise-requests/${id}/approve`, limits);
   return response;

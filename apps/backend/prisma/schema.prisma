@@ -148,6 +148,14 @@ model Workspace {
   subscriptionStatus   String?  // Кешований статус з Stripe: active, past_due, canceled, unpaid тощо
   gracePeriodStartedAt DateTime?
 
+  // Quota Warning Settings
+  storageWarningThreshold       Int     @default(80)
+  bandwidthWarningThreshold     Int     @default(80)
+  optimizationsWarningThreshold Int     @default(80)
+  storageAlertsEnabled          Boolean @default(true)
+  bandwidthAlertsEnabled        Boolean @default(true)
+  optimizationsAlertsEnabled    Boolean @default(true)
+
   // Custom Enterprise Limits
   enterpriseStorageBytes   BigInt?
   enterpriseBandwidthBytes BigInt?
@@ -454,6 +462,7 @@ model EnterpriseRequest {
   approvedBandwidthGb     Int?
   approvedOptimizations   Int?
   approvedPrice           Float?
+  approvedCouponCode      String?
   stripePaymentLink       String?
 
   @@index([workspaceId])

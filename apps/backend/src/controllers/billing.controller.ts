@@ -95,6 +95,7 @@ export const createCheckoutSession = async (req: AuthRequest, res: Response): Pr
       customer: customerId,
       mode: 'subscription',
       payment_method_types: ['card'],
+      allow_promotion_codes: true,
       line_items: [
         {
           price: priceId,
@@ -315,6 +316,88 @@ export const getInvoiceHistory = async (req: AuthRequest, res: Response): Promis
   } catch (error: any) {
     console.error('[Billing] Error getting invoice history:', error);
     res.status(500).json({ error: error.message || 'Failed to get invoice history' });
+  }
+};
+
+/**
+ * GET /api/internal/billing/usage-alerts
+ * Повертає налаштування сповіщень про ліміти воркспейсу
+ */
+export const getUsageAlertSettings = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const workspaceId = req.user!.workspaceId;
+    const workspace = await prisma.workspace.findUnique({
+      where: { id: workspaceId },
+      select: {
+        storageWarningThreshold: true,
+        bandwidthWarningThreshold: true,
+        optimizationsWarningThreshold: true,
+        storageAlertsEnabled: true,
+        bandwidthAlertsEnabled: true,
+        optimizationsAlertsEnabled: true,
+      },
+    });
+    res.json({ success: true, data: workspace });
+  } catch (error: any) {
+    console.error('[Billing] Error getting usage alerts settings:', error);
+    res.status(500).json({ error: error.message || 'Failed to get usage alerts settings' });
+  }
+};
+
+/**
+ * POST /api/internal/billing/usage-alerts
+ * Оновлює налаштування сповіщень про ліміти воркспейсу
+ */
+export const updateUsageAlertSettings = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const workspaceId = req.user!.workspaceId;
+    const {
+      storageWarningThreshold,
+      bandwidthWarningThreshold,
+      optimizationsWarningThreshold,
+      storageAlertsEnabled,
+      bandwidthAlertsEnabled,
+      optimizationsAlertsEnabled,
+    } = req.body;
+
+    if (
+      typeof storageWarningThreshold !== 'number' ||
+      typeof bandwidthWarningThreshold !== 'number' ||
+      typeof optimizationsWarningThreshold !== 'number' ||
+      typeof storageAlertsEnabled !== 'boolean' ||
+      typeof bandwidthAlertsEnabled !== 'boolean' ||
+      typeof optimizationsAlertsEnabled !== 'boolean'
+    ) {
+      res.status(400).json({ error: 'Invalid input types.' });
+      return;
+    }
+
+    const validateThreshold = (val: number) => val >= 10 && val <= 95;
+    if (
+      !validateThreshold(storageWarningThreshold) ||
+      !validateThreshold(bandwidthWarningThreshold) ||
+      !validateThreshold(optimizationsWarningThreshold)
+    ) {
+      res.status(400).json({ error: 'Warning thresholds must be between 10% and 95%.' });
+      return;
+    }
+
+    await prisma.workspace.update({
+      where: { id: workspaceId },
+      data: {
+        storageWarningThreshold,
+        bandwidthWarningThreshold,
+        optimizationsWarningThreshold,
+        storageAlertsEnabled,
+        bandwidthAlertsEnabled,
+        optimizationsAlertsEnabled,
+      },
+    });
+
+    res.json({ success: true, message: 'Granular usage alerts updated successfully.' });
+  } catch (error: any) {
+    console.error('[Billing] Error updating usage alerts settings:', error);
+    res.status(500).json({ error: error.message || 'Failed to update usage alerts settings' });
   }
 };
 

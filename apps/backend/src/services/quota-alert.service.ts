@@ -18,7 +18,13 @@ export const checkAndTriggerQuotaEmails = async (workspaceId: string): Promise<v
         warnedBandwidth80: true,
         warnedBandwidth100: true,
         warnedOptimizations80: true,
-        warnedOptimizations100: true
+        warnedOptimizations100: true,
+        storageWarningThreshold: true,
+        bandwidthWarningThreshold: true,
+        optimizationsWarningThreshold: true,
+        storageAlertsEnabled: true,
+        bandwidthAlertsEnabled: true,
+        optimizationsAlertsEnabled: true,
       }
     });
 
@@ -62,45 +68,53 @@ export const checkAndTriggerQuotaEmails = async (workspaceId: string): Promise<v
     };
 
     // 1. Storage Checks
-    if (storagePercent >= 100) {
-      if (!workspace.warnedStorage100) {
-        const recipients = await getAlertRecipients();
-        for (const recipient of recipients) {
-          await sendQuotaWarningEmail(
-            recipient.email,
-            workspace.name,
-            'storage',
-            100,
-            formatGb(workspace.storageUsed),
-            formatGb(limits.storageBytes)
-          );
+    if (workspace.storageAlertsEnabled) {
+      const threshold = workspace.storageWarningThreshold;
+      if (storagePercent >= 100) {
+        if (!workspace.warnedStorage100) {
+          const recipients = await getAlertRecipients();
+          for (const recipient of recipients) {
+            await sendQuotaWarningEmail(
+              recipient.email,
+              workspace.name,
+              'storage',
+              100,
+              formatGb(workspace.storageUsed),
+              formatGb(limits.storageBytes)
+            );
+          }
+          updates.warnedStorage100 = true;
+          updates.warnedStorage80 = true;
+          shouldUpdateDb = true;
         }
-        updates.warnedStorage100 = true;
-        updates.warnedStorage80 = true;
-        shouldUpdateDb = true;
-      }
-    } else if (storagePercent >= 80) {
-      if (!workspace.warnedStorage80) {
-        const recipients = await getAlertRecipients();
-        for (const recipient of recipients) {
-          await sendQuotaWarningEmail(
-            recipient.email,
-            workspace.name,
-            'storage',
-            80,
-            formatGb(workspace.storageUsed),
-            formatGb(limits.storageBytes)
-          );
+      } else if (storagePercent >= threshold) {
+        if (!workspace.warnedStorage80) {
+          const recipients = await getAlertRecipients();
+          for (const recipient of recipients) {
+            await sendQuotaWarningEmail(
+              recipient.email,
+              workspace.name,
+              'storage',
+              threshold,
+              formatGb(workspace.storageUsed),
+              formatGb(limits.storageBytes)
+            );
+          }
+          updates.warnedStorage80 = true;
+          shouldUpdateDb = true;
         }
-        updates.warnedStorage80 = true;
-        shouldUpdateDb = true;
-      }
-      if (workspace.warnedStorage100) {
-        updates.warnedStorage100 = false;
-        shouldUpdateDb = true;
+        if (workspace.warnedStorage100) {
+          updates.warnedStorage100 = false;
+          shouldUpdateDb = true;
+        }
+      } else {
+        if (workspace.warnedStorage80 || workspace.warnedStorage100) {
+          updates.warnedStorage80 = false;
+          updates.warnedStorage100 = false;
+          shouldUpdateDb = true;
+        }
       }
     } else {
-      // Storage fell below 80% (files deleted)
       if (workspace.warnedStorage80 || workspace.warnedStorage100) {
         updates.warnedStorage80 = false;
         updates.warnedStorage100 = false;
@@ -109,42 +123,51 @@ export const checkAndTriggerQuotaEmails = async (workspaceId: string): Promise<v
     }
 
     // 2. Bandwidth Checks
-    if (bandwidthPercent >= 100) {
-      if (!workspace.warnedBandwidth100) {
-        const recipients = await getAlertRecipients();
-        for (const recipient of recipients) {
-          await sendQuotaWarningEmail(
-            recipient.email,
-            workspace.name,
-            'bandwidth',
-            100,
-            formatGb(workspace.bandwidthUsed),
-            formatGb(limits.bandwidthBytes)
-          );
+    if (workspace.bandwidthAlertsEnabled) {
+      const threshold = workspace.bandwidthWarningThreshold;
+      if (bandwidthPercent >= 100) {
+        if (!workspace.warnedBandwidth100) {
+          const recipients = await getAlertRecipients();
+          for (const recipient of recipients) {
+            await sendQuotaWarningEmail(
+              recipient.email,
+              workspace.name,
+              'bandwidth',
+              100,
+              formatGb(workspace.bandwidthUsed),
+              formatGb(limits.bandwidthBytes)
+            );
+          }
+          updates.warnedBandwidth100 = true;
+          updates.warnedBandwidth80 = true;
+          shouldUpdateDb = true;
         }
-        updates.warnedBandwidth100 = true;
-        updates.warnedBandwidth80 = true;
-        shouldUpdateDb = true;
-      }
-    } else if (bandwidthPercent >= 80) {
-      if (!workspace.warnedBandwidth80) {
-        const recipients = await getAlertRecipients();
-        for (const recipient of recipients) {
-          await sendQuotaWarningEmail(
-            recipient.email,
-            workspace.name,
-            'bandwidth',
-            80,
-            formatGb(workspace.bandwidthUsed),
-            formatGb(limits.bandwidthBytes)
-          );
+      } else if (bandwidthPercent >= threshold) {
+        if (!workspace.warnedBandwidth80) {
+          const recipients = await getAlertRecipients();
+          for (const recipient of recipients) {
+            await sendQuotaWarningEmail(
+              recipient.email,
+              workspace.name,
+              'bandwidth',
+              threshold,
+              formatGb(workspace.bandwidthUsed),
+              formatGb(limits.bandwidthBytes)
+            );
+          }
+          updates.warnedBandwidth80 = true;
+          shouldUpdateDb = true;
         }
-        updates.warnedBandwidth80 = true;
-        shouldUpdateDb = true;
-      }
-      if (workspace.warnedBandwidth100) {
-        updates.warnedBandwidth100 = false;
-        shouldUpdateDb = true;
+        if (workspace.warnedBandwidth100) {
+          updates.warnedBandwidth100 = false;
+          shouldUpdateDb = true;
+        }
+      } else {
+        if (workspace.warnedBandwidth80 || workspace.warnedBandwidth100) {
+          updates.warnedBandwidth80 = false;
+          updates.warnedBandwidth100 = false;
+          shouldUpdateDb = true;
+        }
       }
     } else {
       if (workspace.warnedBandwidth80 || workspace.warnedBandwidth100) {
@@ -155,42 +178,51 @@ export const checkAndTriggerQuotaEmails = async (workspaceId: string): Promise<v
     }
 
     // 3. Optimizations Checks
-    if (optimizationsPercent >= 100) {
-      if (!workspace.warnedOptimizations100) {
-        const recipients = await getAlertRecipients();
-        for (const recipient of recipients) {
-          await sendQuotaWarningEmail(
-            recipient.email,
-            workspace.name,
-            'optimizations',
-            100,
-            String(workspace.monthlyOptimizations),
-            String(limits.monthlyOptimizations)
-          );
+    if (workspace.optimizationsAlertsEnabled) {
+      const threshold = workspace.optimizationsWarningThreshold;
+      if (optimizationsPercent >= 100) {
+        if (!workspace.warnedOptimizations100) {
+          const recipients = await getAlertRecipients();
+          for (const recipient of recipients) {
+            await sendQuotaWarningEmail(
+              recipient.email,
+              workspace.name,
+              'optimizations',
+              100,
+              String(workspace.monthlyOptimizations),
+              String(limits.monthlyOptimizations)
+            );
+          }
+          updates.warnedOptimizations100 = true;
+          updates.warnedOptimizations80 = true;
+          shouldUpdateDb = true;
         }
-        updates.warnedOptimizations100 = true;
-        updates.warnedOptimizations80 = true;
-        shouldUpdateDb = true;
-      }
-    } else if (optimizationsPercent >= 80) {
-      if (!workspace.warnedOptimizations80) {
-        const recipients = await getAlertRecipients();
-        for (const recipient of recipients) {
-          await sendQuotaWarningEmail(
-            recipient.email,
-            workspace.name,
-            'optimizations',
-            80,
-            String(workspace.monthlyOptimizations),
-            String(limits.monthlyOptimizations)
-          );
+      } else if (optimizationsPercent >= threshold) {
+        if (!workspace.warnedOptimizations80) {
+          const recipients = await getAlertRecipients();
+          for (const recipient of recipients) {
+            await sendQuotaWarningEmail(
+              recipient.email,
+              workspace.name,
+              'optimizations',
+              threshold,
+              String(workspace.monthlyOptimizations),
+              String(limits.monthlyOptimizations)
+            );
+          }
+          updates.warnedOptimizations80 = true;
+          shouldUpdateDb = true;
         }
-        updates.warnedOptimizations80 = true;
-        shouldUpdateDb = true;
-      }
-      if (workspace.warnedOptimizations100) {
-        updates.warnedOptimizations100 = false;
-        shouldUpdateDb = true;
+        if (workspace.warnedOptimizations100) {
+          updates.warnedOptimizations100 = false;
+          shouldUpdateDb = true;
+        }
+      } else {
+        if (workspace.warnedOptimizations80 || workspace.warnedOptimizations100) {
+          updates.warnedOptimizations80 = false;
+          updates.warnedOptimizations100 = false;
+          shouldUpdateDb = true;
+        }
       }
     } else {
       if (workspace.warnedOptimizations80 || workspace.warnedOptimizations100) {

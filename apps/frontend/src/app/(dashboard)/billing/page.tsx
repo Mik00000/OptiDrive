@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/Button';
 import PageHeading from '@/components/PageHeading';
 import { Icon } from '@iconify/react';
@@ -12,6 +12,9 @@ import {
   BillingStatus,
   getInvoiceHistoryApi,
   InvoiceItem,
+  getUsageAlertSettingsApi,
+  updateUsageAlertSettingsApi,
+  UsageAlertSettings,
 } from '@/features/billing/api';
 import { toast } from 'react-toastify';
 import { useSearchParams } from 'next/navigation';
@@ -26,6 +29,8 @@ const BillingAndSubscriptionsPage = () => {
   const [isCancelLoading, setIsCancelLoading] = useState(false);
   const [invoices, setInvoices] = useState<InvoiceItem[]>([]);
   const [isInvoiceLoading, setIsInvoiceLoading] = useState(false);
+  const [alertsSettings, setAlertsSettings] = useState<UsageAlertSettings | null>(null);
+  const [isAlertsSaving, setIsAlertsSaving] = useState(false);
   const searchParams = useSearchParams();
 
   useEffect(() => {
@@ -57,6 +62,14 @@ const BillingAndSubscriptionsPage = () => {
         } finally {
           setIsInvoiceLoading(false);
         }
+
+        // Завантажуємо налаштування сповіщень
+        try {
+          const alertsData = await getUsageAlertSettingsApi();
+          setAlertsSettings(alertsData);
+        } catch (alertErr) {
+          console.error("Failed to load alerts settings:", alertErr);
+        }
       } catch (e) {
         console.error("Failed to load initial billing or enterprise data:", e);
       }
@@ -74,14 +87,18 @@ const BillingAndSubscriptionsPage = () => {
       // Перезавантажуємо дані
       const refresh = async () => {
         try {
-          const [statsData, billingData, invoicesData] = await Promise.all([
+          const [statsData, billingData, invoicesData, alertsData] = await Promise.all([
             getWorkspaceStatsApi(),
             getBillingStatusApi(),
             getInvoiceHistoryApi().catch(() => []),
+            getUsageAlertSettingsApi().catch(() => null),
           ]);
           setStats(statsData);
           setBillingStatus(billingData);
           setInvoices(invoicesData);
+          if (alertsData) {
+            setAlertsSettings(alertsData);
+          }
         } catch (e) {
           console.error(e);
         }
@@ -132,6 +149,39 @@ const BillingAndSubscriptionsPage = () => {
     } finally {
       setIsCancelLoading(false);
     }
+  };
+
+  const isFirstMount = useRef(true);
+
+  // Debounce saving settings to prevent spamming the backend
+  useEffect(() => {
+    if (!alertsSettings) return;
+
+    if (isFirstMount.current) {
+      isFirstMount.current = false;
+      return;
+    }
+
+    const timer = setTimeout(async () => {
+      setIsAlertsSaving(true);
+      try {
+        await updateUsageAlertSettingsApi(alertsSettings);
+      } catch (err: any) {
+        toast.error(err.message || 'Failed to update settings.');
+      } finally {
+        setIsAlertsSaving(false);
+      }
+    }, 800); // 800ms debounce
+
+    return () => clearTimeout(timer);
+  }, [alertsSettings]);
+
+  const handleToggleAlertField = (field: 'storageAlertsEnabled' | 'bandwidthAlertsEnabled' | 'optimizationsAlertsEnabled', value: boolean) => {
+    setAlertsSettings((prev) => prev ? { ...prev, [field]: value } : null);
+  };
+
+  const handleThresholdChange = (field: 'storageWarningThreshold' | 'bandwidthWarningThreshold' | 'optimizationsWarningThreshold', value: number) => {
+    setAlertsSettings((prev) => prev ? { ...prev, [field]: value } : null);
   };
 
   const bytesToGB = (bytes?: string | number) =>
@@ -470,6 +520,251 @@ const BillingAndSubscriptionsPage = () => {
                   <span className="text-text-light font-semibold">
                     {isEnterprise ? 'Custom Pricing' : '$29.00/mo'}
                   </span>
+                </div>
+              </div>
+            </div>
+          </section>
+        )}
+
+        {/* Usage Alerts Settings — показується якщо є завантажені налаштування */}
+        {alertsSettings && (
+          <section className="border-border bg-card flex min-w-0 flex-1 flex-col rounded-2xl border">
+            <div className="flex items-center justify-between border-border border-b p-5 md:p-6">
+              <div className="flex flex-col gap-1">
+                <span className="text-text-light text-lg font-semibold">
+                  Usage Alerts Settings
+                </span>
+                <p className="text-slate-300 text-sm">
+                  Configure granular thresholds when you want to receive email alerts.
+                </p>
+              </div>
+              {isAlertsSaving && (
+                <span className="text-xs text-accent font-medium flex items-center gap-1.5 bg-accent/10 border border-accent/25 rounded-full px-2.5 py-1">
+                  <Icon icon="lucide:loader-2" className="animate-spin" width={12} />
+                  Saving...
+                </span>
+              )}
+            </div>
+            <div className="flex flex-col gap-6 p-5 md:p-6 text-sm text-text-light">
+              {/* Storage Alerts */}
+              <div className="flex flex-col gap-3">
+                <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="flex flex-col gap-0.5">
+                    <span className="font-semibold text-text-light">Storage Limit</span>
+                    <span className="text-slate-300 text-xs">
+                      Send warning when disk space usage reaches the threshold.
+                    </span>
+                  </div>
+                  <button
+                    onClick={() => handleToggleAlertField('storageAlertsEnabled', !alertsSettings.storageAlertsEnabled)}
+                    className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                      alertsSettings.storageAlertsEnabled ? 'bg-accent' : 'bg-bg-dark border-border'
+                    }`}
+                  >
+                    <span
+                      className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                        alertsSettings.storageAlertsEnabled ? 'translate-x-5' : 'translate-x-0'
+                      }`}
+                    />
+                  </button>
+                </div>
+                
+                <div className={`bg-bg/40 border border-border/60 rounded-xl p-4 flex flex-col gap-2 mt-1 transition-all duration-200 ${
+                  alertsSettings.storageAlertsEnabled ? 'opacity-100' : 'opacity-40 pointer-events-none select-none'
+                }`}>
+                  <div className="flex justify-between items-center text-xs font-semibold">
+                    <div className="flex items-center gap-1.5 text-text-muted">
+                      <span>Warning Threshold</span>
+                      <div className="group relative cursor-pointer flex items-center">
+                        <Icon icon="lucide:info" width={12} className="text-text-muted hover:text-text-light transition-colors" />
+                        <div className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 rounded bg-bg-dark border border-border p-2 text-[10px] font-medium leading-normal text-text-light opacity-0 shadow-lg transition-opacity group-hover:opacity-100 z-50">
+                          Alerts are triggered before reaching 100% to give you time to manage limits.
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <input
+                        type="number"
+                        min="10"
+                        max="95"
+                        value={alertsSettings.storageWarningThreshold}
+                        onChange={(e) => {
+                          const val = Number(e.target.value);
+                          handleThresholdChange('storageWarningThreshold', isNaN(val) ? 10 : val);
+                        }}
+                        onBlur={(e) => {
+                          const val = Math.max(10, Math.min(95, Number(e.target.value) || 10));
+                          handleThresholdChange('storageWarningThreshold', val);
+                        }}
+                        className="w-14 px-1.5 py-0.5 bg-bg-dark border border-border rounded text-center text-text-light font-mono text-xs font-semibold outline-none focus:border-accent"
+                      />
+                      <span className="text-text-muted text-xs font-medium">%</span>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3 mt-1">
+                    <span className="text-[10px] text-text-muted font-semibold font-mono">10%</span>
+                    <input
+                      type="range"
+                      min="10"
+                      max="95"
+                      step="1"
+                      value={alertsSettings.storageWarningThreshold}
+                      onChange={(e) => handleThresholdChange('storageWarningThreshold', Number(e.target.value))}
+                      className="custom-slider"
+                      style={{
+                        background: `linear-gradient(to right, #6366f1 0%, #6366f1 ${((alertsSettings.storageWarningThreshold - 10) / (95 - 10)) * 100}%, #374151 ${((alertsSettings.storageWarningThreshold - 10) / (95 - 10)) * 100}%, #374151 100%)`
+                      }}
+                    />
+                    <span className="text-[10px] text-text-muted font-semibold font-mono">95%</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Bandwidth Alerts */}
+              <div className="border-t border-border/60 pt-6 flex flex-col gap-3">
+                <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="flex flex-col gap-0.5">
+                    <span className="font-semibold text-text-light">Traffic / Bandwidth</span>
+                    <span className="text-slate-300 text-xs">
+                      Send warning when monthly bandwidth consumption reaches the threshold.
+                    </span>
+                  </div>
+                  <button
+                    onClick={() => handleToggleAlertField('bandwidthAlertsEnabled', !alertsSettings.bandwidthAlertsEnabled)}
+                    className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                      alertsSettings.bandwidthAlertsEnabled ? 'bg-accent' : 'bg-bg-dark border-border'
+                    }`}
+                  >
+                    <span
+                      className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                        alertsSettings.bandwidthAlertsEnabled ? 'translate-x-5' : 'translate-x-0'
+                      }`}
+                    />
+                  </button>
+                </div>
+
+                <div className={`bg-bg/40 border border-border/60 rounded-xl p-4 flex flex-col gap-2 mt-1 transition-all duration-200 ${
+                  alertsSettings.bandwidthAlertsEnabled ? 'opacity-100' : 'opacity-40 pointer-events-none select-none'
+                }`}>
+                  <div className="flex justify-between items-center text-xs font-semibold">
+                    <div className="flex items-center gap-1.5 text-text-muted">
+                      <span>Warning Threshold</span>
+                      <div className="group relative cursor-pointer flex items-center">
+                        <Icon icon="lucide:info" width={12} className="text-text-muted hover:text-text-light transition-colors" />
+                        <div className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 rounded bg-bg-dark border border-border p-2 text-[10px] font-medium leading-normal text-text-light opacity-0 shadow-lg transition-opacity group-hover:opacity-100 z-50">
+                          Alerts are triggered before reaching 100% to give you time to manage limits.
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <input
+                        type="number"
+                        min="10"
+                        max="95"
+                        value={alertsSettings.bandwidthWarningThreshold}
+                        onChange={(e) => {
+                          const val = Number(e.target.value);
+                          handleThresholdChange('bandwidthWarningThreshold', isNaN(val) ? 10 : val);
+                        }}
+                        onBlur={(e) => {
+                          const val = Math.max(10, Math.min(95, Number(e.target.value) || 10));
+                          handleThresholdChange('bandwidthWarningThreshold', val);
+                        }}
+                        className="w-14 px-1.5 py-0.5 bg-bg-dark border border-border rounded text-center text-text-light font-mono text-xs font-semibold outline-none focus:border-accent"
+                      />
+                      <span className="text-text-muted text-xs font-medium">%</span>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3 mt-1">
+                    <span className="text-[10px] text-text-muted font-semibold font-mono">10%</span>
+                    <input
+                      type="range"
+                      min="10"
+                      max="95"
+                      step="1"
+                      value={alertsSettings.bandwidthWarningThreshold}
+                      onChange={(e) => handleThresholdChange('bandwidthWarningThreshold', Number(e.target.value))}
+                      className="custom-slider"
+                      style={{
+                        background: `linear-gradient(to right, #6366f1 0%, #6366f1 ${((alertsSettings.bandwidthWarningThreshold - 10) / (95 - 10)) * 100}%, #374151 ${((alertsSettings.bandwidthWarningThreshold - 10) / (95 - 10)) * 100}%, #374151 100%)`
+                      }}
+                    />
+                    <span className="text-[10px] text-text-muted font-semibold font-mono">95%</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Optimizations Alerts */}
+              <div className="border-t border-border/60 pt-6 flex flex-col gap-3">
+                <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="flex flex-col gap-0.5">
+                    <span className="font-semibold text-text-light">Optimizations</span>
+                    <span className="text-slate-300 text-xs">
+                      Send warning when monthly optimizations quota usage reaches the threshold.
+                    </span>
+                  </div>
+                  <button
+                    onClick={() => handleToggleAlertField('optimizationsAlertsEnabled', !alertsSettings.optimizationsAlertsEnabled)}
+                    className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                      alertsSettings.optimizationsAlertsEnabled ? 'bg-accent' : 'bg-bg-dark border-border'
+                    }`}
+                  >
+                    <span
+                      className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                        alertsSettings.optimizationsAlertsEnabled ? 'translate-x-5' : 'translate-x-0'
+                      }`}
+                    />
+                  </button>
+                </div>
+
+                <div className={`bg-bg/40 border border-border/60 rounded-xl p-4 flex flex-col gap-2 mt-1 transition-all duration-200 ${
+                  alertsSettings.optimizationsAlertsEnabled ? 'opacity-100' : 'opacity-40 pointer-events-none select-none'
+                }`}>
+                  <div className="flex justify-between items-center text-xs font-semibold">
+                    <div className="flex items-center gap-1.5 text-text-muted">
+                      <span>Warning Threshold</span>
+                      <div className="group relative cursor-pointer flex items-center">
+                        <Icon icon="lucide:info" width={12} className="text-text-muted hover:text-text-light transition-colors" />
+                        <div className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 rounded bg-bg-dark border border-border p-2 text-[10px] font-medium leading-normal text-text-light opacity-0 shadow-lg transition-opacity group-hover:opacity-100 z-50">
+                          Alerts are triggered before reaching 100% to give you time to manage limits.
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <input
+                        type="number"
+                        min="10"
+                        max="95"
+                        value={alertsSettings.optimizationsWarningThreshold}
+                        onChange={(e) => {
+                          const val = Number(e.target.value);
+                          handleThresholdChange('optimizationsWarningThreshold', isNaN(val) ? 10 : val);
+                        }}
+                        onBlur={(e) => {
+                          const val = Math.max(10, Math.min(95, Number(e.target.value) || 10));
+                          handleThresholdChange('optimizationsWarningThreshold', val);
+                        }}
+                        className="w-14 px-1.5 py-0.5 bg-bg-dark border border-border rounded text-center text-text-light font-mono text-xs font-semibold outline-none focus:border-accent"
+                      />
+                      <span className="text-text-muted text-xs font-medium">%</span>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3 mt-1">
+                    <span className="text-[10px] text-text-muted font-semibold font-mono">10%</span>
+                    <input
+                      type="range"
+                      min="10"
+                      max="95"
+                      step="1"
+                      value={alertsSettings.optimizationsWarningThreshold}
+                      onChange={(e) => handleThresholdChange('optimizationsWarningThreshold', Number(e.target.value))}
+                      className="custom-slider"
+                      style={{
+                        background: `linear-gradient(to right, #6366f1 0%, #6366f1 ${((alertsSettings.optimizationsWarningThreshold - 10) / (95 - 10)) * 100}%, #374151 ${((alertsSettings.optimizationsWarningThreshold - 10) / (95 - 10)) * 100}%, #374151 100%)`
+                      }}
+                    />
+                    <span className="text-[10px] text-text-muted font-semibold font-mono">95%</span>
+                  </div>
                 </div>
               </div>
             </div>

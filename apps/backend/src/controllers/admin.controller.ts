@@ -77,7 +77,7 @@ export const approveEnterpriseRequest = async (req: AuthRequest, res: Response):
     }
 
     const { id } = req.params;
-    const { storageGb, bandwidthGb, optimizations, price } = req.body;
+    const { storageGb, bandwidthGb, optimizations, price, couponCode } = req.body;
 
     const parsedStorageGb = Number(storageGb);
     const parsedBandwidthGb = Number(bandwidthGb);
@@ -208,6 +208,33 @@ export const approveEnterpriseRequest = async (req: AuthRequest, res: Response):
       }
     }
 
+    // Перевіряємо та резолвимо промокод або купон у Stripe
+    let discounts: any[] | undefined = undefined;
+    if (couponCode && String(couponCode).trim() !== '') {
+      const cleanCoupon = String(couponCode).trim();
+      try {
+        // Спробуємо знайти як промокод
+        const promoCodes = await stripe.promotionCodes.list({
+          code: cleanCoupon,
+          active: true,
+          limit: 1,
+        });
+        if (promoCodes.data && promoCodes.data.length > 0 && promoCodes.data[0]) {
+          discounts = [{ promotion_code: promoCodes.data[0].id }];
+        } else {
+          // Спробуємо знайти як купон
+          const coupon = await stripe.coupons.retrieve(cleanCoupon);
+          if (coupon.valid) {
+            discounts = [{ coupon: coupon.id }];
+          }
+        }
+      } catch (err: any) {
+        console.error('[Admin] Failed to lookup promotion code or coupon:', err.message);
+        res.status(400).json({ error: `Stripe Coupon or Promo Code '${cleanCoupon}' was not found or is invalid.` });
+        return;
+      }
+    }
+
     // Будуємо subscription_data з урахуванням exactOptionalPropertyTypes: true
     const subscriptionData: any = {
       metadata: {
@@ -224,7 +251,7 @@ export const approveEnterpriseRequest = async (req: AuthRequest, res: Response):
 
     // 4. Створюємо Stripe Checkout Session з динамічною ціною та підпискою
     const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
-    const session = await stripe.checkout.sessions.create({
+    const sessionOptions: any = {
       customer: customerId,
       mode: 'subscription',
       payment_method_types: ['card'],
@@ -253,7 +280,13 @@ export const approveEnterpriseRequest = async (req: AuthRequest, res: Response):
         cancelSubscriptionId: cancelSubscriptionId || '',
       },
       subscription_data: subscriptionData,
-    });
+    };
+
+    if (discounts !== undefined) {
+      sessionOptions.discounts = discounts;
+    }
+
+    const session = await stripe.checkout.sessions.create(sessionOptions);
 
     // 4. Оновлюємо статус запиту на APPROVED (очікує оплати) та зберігаємо кастомні ліміти
     await prisma.enterpriseRequest.update({
@@ -264,6 +297,7 @@ export const approveEnterpriseRequest = async (req: AuthRequest, res: Response):
         approvedBandwidthGb: Number(bandwidthGb),
         approvedOptimizations: Number(optimizations),
         approvedPrice: Number(price),
+        approvedCouponCode: couponCode ? String(couponCode).trim() : null,
         stripePaymentLink: session.url,
       },
     });

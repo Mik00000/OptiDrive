@@ -30,6 +30,7 @@ export default function AdminPage() {
     bandwidthGb: 2000,
     optimizations: 100000,
     price: 150,
+    couponCode: "",
   });
 
   const isAdmin = user?.email === 'mikjarkov@gmail.com' || user?.email?.endsWith('@optidrive.app') || user?.email === 'admin@optidrive.app';
@@ -90,6 +91,7 @@ export default function AdminPage() {
       bandwidthGb: parsedTraffic,
       optimizations: parsedStorage >= 1000 ? 500000 : 100000, // автоматична оцінка
       price: parsedStorage >= 1024 ? 300 : 150, // автоматична оцінка ціни
+      couponCode: "",
     });
     
     setIsApproveModalOpen(true);
@@ -106,6 +108,7 @@ export default function AdminPage() {
         bandwidthGb: Number(limitsForm.bandwidthGb),
         optimizations: Number(limitsForm.optimizations),
         price: Number(limitsForm.price),
+        couponCode: limitsForm.couponCode,
       });
 
       if (res.success) {
@@ -344,6 +347,16 @@ export default function AdminPage() {
               value={limitsForm.price}
               onChange={(e) => setLimitsForm((prev) => ({ ...prev, price: Number(e.target.value) }))}
               required
+            />
+          </div>
+
+          <div className="flex flex-col gap-1">
+            <label className="text-text-light text-xs font-semibold">Stripe Coupon / Promo Code (Optional)</label>
+            <Input
+              type="text"
+              placeholder="e.g. 50OFF, SAVE30"
+              value={limitsForm.couponCode}
+              onChange={(e) => setLimitsForm((prev) => ({ ...prev, couponCode: e.target.value }))}
             />
           </div>
 
