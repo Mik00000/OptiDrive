@@ -323,11 +323,7 @@ export default function LandingPage() {
               <ul className="flex flex-col gap-3 text-xs text-text-muted">
                 <li className="flex items-center gap-2.5">
                   <Icon icon="lucide:check" className="text-success" width={16} />
-                  <span>1 GB Storage</span>
-                </li>
-                <li className="flex items-center gap-2.5">
-                  <Icon icon="lucide:check" className="text-success" width={16} />
-                  <span>10 GB Bandwidth/mo</span>
+                  <span>1 GB Storage & 10 GB Bandwidth</span>
                 </li>
                 <li className="flex items-center gap-2.5">
                   <Icon icon="lucide:check" className="text-success" width={16} />
@@ -335,7 +331,15 @@ export default function LandingPage() {
                 </li>
                 <li className="flex items-center gap-2.5">
                   <Icon icon="lucide:check" className="text-success" width={16} />
-                  <span>1 API Key & 2 Members</span>
+                  <span>7 days trash retention</span>
+                </li>
+                <li className="flex items-center gap-2.5">
+                  <Icon icon="lucide:check" className="text-success" width={16} />
+                  <span>Standard CDN speed</span>
+                </li>
+                <li className="flex items-center gap-2.5 opacity-40 line-through">
+                  <Icon icon="lucide:x" className="text-text-muted" width={16} />
+                  <span>Watermarks & Webhooks</span>
                 </li>
               </ul>
             </div>
@@ -364,7 +368,7 @@ export default function LandingPage() {
               <ul className="flex flex-col gap-3 text-xs text-text-muted">
                 <li className="flex items-center gap-2.5">
                   <Icon icon="lucide:check" className="text-accent" width={16} />
-                  <span className="text-text-light"><strong>50 GB</strong> Storage</span>
+                  <span className="text-text-light"><strong>50 GB</strong> Storage / 10K optims</span>
                 </li>
                 <li className="flex items-center gap-2.5">
                   <Icon icon="lucide:check" className="text-accent" width={16} />
@@ -372,11 +376,11 @@ export default function LandingPage() {
                 </li>
                 <li className="flex items-center gap-2.5">
                   <Icon icon="lucide:check" className="text-accent" width={16} />
-                  <span className="text-text-light"><strong>10,000</strong> Optimizations/mo</span>
+                  <span className="text-text-light"><strong>30 days</strong> trash retention</span>
                 </li>
                 <li className="flex items-center gap-2.5">
                   <Icon icon="lucide:check" className="text-accent" width={16} />
-                  <span>10 API Keys & 10 Members</span>
+                  <span>Text Watermarks only</span>
                 </li>
                 <li className="flex items-center gap-2.5">
                   <Icon icon="lucide:check" className="text-accent" width={16} />
@@ -384,7 +388,7 @@ export default function LandingPage() {
                 </li>
                 <li className="flex items-center gap-2.5">
                   <Icon icon="lucide:check" className="text-accent" width={16} />
-                  <span>Watermarking, WebP & AVIF</span>
+                  <span>High speed CDN priority (10Gbps)</span>
                 </li>
               </ul>
             </div>
@@ -414,7 +418,15 @@ export default function LandingPage() {
                 </li>
                 <li className="flex items-center gap-2.5">
                   <Icon icon="lucide:check" className="text-success" width={16} />
-                  <span><strong>2 TB+</strong> Bandwidth/mo</span>
+                  <span><strong>90 days</strong> trash retention</span>
+                </li>
+                <li className="flex items-center gap-2.5">
+                  <Icon icon="lucide:check" className="text-success" width={16} />
+                  <span>Text & Image Watermarking</span>
+                </li>
+                <li className="flex items-center gap-2.5">
+                  <Icon icon="lucide:check" className="text-success" width={16} />
+                  <span>Webhook retry queue (DLQ)</span>
                 </li>
                 <li className="flex items-center gap-2.5">
                   <Icon icon="lucide:check" className="text-success" width={16} />
@@ -422,15 +434,7 @@ export default function LandingPage() {
                 </li>
                 <li className="flex items-center gap-2.5">
                   <Icon icon="lucide:check" className="text-success" width={16} />
-                  <span>Unlimited Custom Domains & Webhooks</span>
-                </li>
-                <li className="flex items-center gap-2.5">
-                  <Icon icon="lucide:check" className="text-success" width={16} />
-                  <span>Audit Logs & Custom RBAC Roles</span>
-                </li>
-                <li className="flex items-center gap-2.5">
-                  <Icon icon="lucide:check" className="text-success" width={16} />
-                  <span>Dedicated Support (SLA)</span>
+                  <span>Premium CDN routing speed</span>
                 </li>
               </ul>
             </div>

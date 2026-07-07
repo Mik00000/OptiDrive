@@ -3,7 +3,7 @@ import multer from 'multer';
 import { authenticateApiKey } from '../../middlewares/apiKey.middleware';
 import { v1ApiLimiter, v1CompressLimiter } from '../../middleware/rate-limit';
 import { compressImageController } from '../../controllers/v1/compression.controller';
-import { viewMediaController, viewAvatarController } from '../../controllers/v1/view.controller';
+import { viewMediaController, viewAvatarController, viewWatermarkController } from '../../controllers/v1/view.controller';
 import { listMediaController, deleteMediaController } from '../../controllers/v1/media.controller';
 import { listFoldersController, createFolderController, deleteFolderController } from '../../controllers/v1/folders.controller';
 import { listTagsController, createTagController, updateTagController, deleteTagController } from '../../controllers/v1/tags.controller';
@@ -21,8 +21,9 @@ const upload = multer({
   },
 });
 
-// Public Endpoints to view images and avatars
+// Public Endpoints to view images, avatars and watermarks
 router.get('/media/avatars/:filename', viewAvatarController);
+router.get('/media/watermarks/:filename', viewWatermarkController);
 router.get('/media/:workspaceId/:filename', viewMediaController);
 
 // Protect all v1 routes below with API Key authentication

@@ -6,6 +6,7 @@ import Switch from '@/components/Switch';
 import { Icon } from '@iconify/react';
 import { getUserNotificationsApi, updateUserNotificationsApi, UserNotificationPreferences } from '../api';
 import { getUsageAlertSettingsApi, updateUsageAlertSettingsApi, UsageAlertSettings } from '@/features/billing/api';
+import Slider from '@/components/Slider';
 
 export const NotificationsTab = () => {
   const [isLoading, setIsLoading] = useState(true);
@@ -288,17 +289,11 @@ export const NotificationsTab = () => {
                   </div>
                   <div className="flex items-center gap-3 mt-1">
                     <span className="text-[10px] text-text-muted font-semibold font-mono">10%</span>
-                    <input
-                      type="range"
-                      min="10"
-                      max="95"
-                      step="1"
+                    <Slider
+                      min={10}
+                      max={95}
                       value={alertsSettings.storageWarningThreshold}
-                      onChange={(e) => handleThresholdChange('storageWarningThreshold', Number(e.target.value))}
-                      className="custom-slider"
-                      style={{
-                        background: `linear-gradient(to right, #6366f1 0%, #6366f1 ${((alertsSettings.storageWarningThreshold - 10) / (95 - 10)) * 100}%, #374151 ${((alertsSettings.storageWarningThreshold - 10) / (95 - 10)) * 100}%, #374151 100%)`
-                      }}
+                      onChange={(val) => handleThresholdChange('storageWarningThreshold', val)}
                     />
                     <span className="text-[10px] text-text-muted font-semibold font-mono">95%</span>
                   </div>
@@ -357,17 +352,11 @@ export const NotificationsTab = () => {
                   </div>
                   <div className="flex items-center gap-3 mt-1">
                     <span className="text-[10px] text-text-muted font-semibold font-mono">10%</span>
-                    <input
-                      type="range"
-                      min="10"
-                      max="95"
-                      step="1"
+                    <Slider
+                      min={10}
+                      max={95}
                       value={alertsSettings.bandwidthWarningThreshold}
-                      onChange={(e) => handleThresholdChange('bandwidthWarningThreshold', Number(e.target.value))}
-                      className="custom-slider"
-                      style={{
-                        background: `linear-gradient(to right, #6366f1 0%, #6366f1 ${((alertsSettings.bandwidthWarningThreshold - 10) / (95 - 10)) * 100}%, #374151 ${((alertsSettings.bandwidthWarningThreshold - 10) / (95 - 10)) * 100}%, #374151 100%)`
-                      }}
+                      onChange={(val) => handleThresholdChange('bandwidthWarningThreshold', val)}
                     />
                     <span className="text-[10px] text-text-muted font-semibold font-mono">95%</span>
                   </div>
@@ -426,17 +415,11 @@ export const NotificationsTab = () => {
                   </div>
                   <div className="flex items-center gap-3 mt-1">
                     <span className="text-[10px] text-text-muted font-semibold font-mono">10%</span>
-                    <input
-                      type="range"
-                      min="10"
-                      max="95"
-                      step="1"
+                    <Slider
+                      min={10}
+                      max={95}
                       value={alertsSettings.optimizationsWarningThreshold}
-                      onChange={(e) => handleThresholdChange('optimizationsWarningThreshold', Number(e.target.value))}
-                      className="custom-slider"
-                      style={{
-                        background: `linear-gradient(to right, #6366f1 0%, #6366f1 ${((alertsSettings.optimizationsWarningThreshold - 10) / (95 - 10)) * 100}%, #374151 ${((alertsSettings.optimizationsWarningThreshold - 10) / (95 - 10)) * 100}%, #374151 100%)`
-                      }}
+                      onChange={(val) => handleThresholdChange('optimizationsWarningThreshold', val)}
                     />
                     <span className="text-[10px] text-text-muted font-semibold font-mono">95%</span>
                   </div>

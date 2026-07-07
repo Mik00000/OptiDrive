@@ -23,6 +23,8 @@ interface ModalProps {
   children: React.ReactNode;
   /** Додаткові класи для картки */
   className?: string;
+  /** Чи можна закрити кліком поза межами модалки */
+  closeOnOutsideClick?: boolean;
 }
 
 /**
@@ -44,15 +46,16 @@ export function Modal({
   maxWidth = "max-w-md",
   children,
   className,
+  closeOnOutsideClick = true,
 }: ModalProps) {
   /* Закриття по Escape */
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
+      if (e.key === "Escape" && closeOnOutsideClick) onClose();
     };
     if (isOpen) document.addEventListener("keydown", handler);
     return () => document.removeEventListener("keydown", handler);
-  }, [isOpen, onClose]);
+  }, [isOpen, onClose, closeOnOutsideClick]);
 
   /* Блокування скролу сторінки коли модалка відкрита */
   useEffect(() => {
@@ -72,7 +75,11 @@ export function Modal({
     /* Backdrop */
     <div
       className="fixed inset-0 z-50 flex items-center justify-center p-4"
-      onClick={(e) => e.target === e.currentTarget && onClose()}
+      onClick={(e) => {
+        if (closeOnOutsideClick && e.target === e.currentTarget) {
+          onClose();
+        }
+      }}
     >
       {/* Розмите тло */}
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />

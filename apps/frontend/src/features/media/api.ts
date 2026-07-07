@@ -142,7 +142,15 @@ export const uploadMediaFileApi = async (formData: FormData): Promise<any> => {
     body: formData,
   });
 
-  const data = await response.json();
+  let data: any;
+  const contentType = response.headers.get('content-type') || '';
+  if (contentType.includes('application/json')) {
+    data = await response.json();
+  } else {
+    const text = await response.text();
+    console.error('[uploadMediaFileApi] Non-JSON response:', response.status, text.slice(0, 500));
+    throw new Error(`Upload failed: server returned non-JSON response (${response.status})`);
+  }
 
   if (!response.ok) {
     throw new Error(data.error || `Upload failed: ${response.status}`);
@@ -150,6 +158,34 @@ export const uploadMediaFileApi = async (formData: FormData): Promise<any> => {
 
   return data;
 };
+
+export const uploadWatermarkApi = async (formData: FormData): Promise<any> => {
+  const token = localStorage.getItem('optidrive_token');
+  const response = await fetch('/api/internal/workspace/watermark', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${token}`
+    },
+    body: formData,
+  });
+
+  let data: any;
+  const contentType = response.headers.get('content-type') || '';
+  if (contentType.includes('application/json')) {
+    data = await response.json();
+  } else {
+    const text = await response.text();
+    console.error('[uploadWatermarkApi] Non-JSON response:', response.status, text.slice(0, 500));
+    throw new Error(`Upload failed: server returned non-JSON response (${response.status})`);
+  }
+
+  if (!response.ok) {
+    throw new Error(data.error || `Upload failed: ${response.status}`);
+  }
+
+  return data;
+};
+
 
 export const downloadMediaFileClientApi = async (id: string, filename: string): Promise<void> => {
   const token = localStorage.getItem('optidrive_token');

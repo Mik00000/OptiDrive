@@ -6,10 +6,19 @@ import Switch from '@/components/Switch';
 import { Input } from '@/components/Inputs';
 import { Icon } from '@iconify/react';
 import { getCompressionDefaultsApi, updateCompressionDefaultsApi, CompressionDefaults } from '../api';
+import { useAuth } from '@/contexts/AuthContext';
+import { uploadWatermarkApi } from '@/features/media/api';
 
 export const CompressionTab = () => {
+  const { user, workspaces } = useAuth();
+  const activeWorkspace = workspaces.find((w) => w.id === user?.workspaceId) || workspaces[0];
+  const plan = activeWorkspace?.plan || 'FREE';
+  const isProOrEnterprise = plan === 'PRO' || plan === 'ENTERPRISE';
+  const isEnterprise = plan === 'ENTERPRISE';
+
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [isUploadingWm, setIsUploadingWm] = useState(false);
   const [feedback, setFeedback] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
 
   // Form states
@@ -20,6 +29,10 @@ export const CompressionTab = () => {
   const [maxWidth, setMaxWidth] = useState<string>('');
   const [maxHeight, setMaxHeight] = useState<string>('');
   const [fit, setFit] = useState<string>('cover');
+
+  // Watermark defaults
+  const [watermarkText, setWatermarkText] = useState<string>('OptiDrive');
+  const [watermarkUrl, setWatermarkUrl] = useState<string | null>(null);
 
   const showFeedback = (message: string, type: 'success' | 'error' = 'success') => {
     setFeedback({ message, type });
@@ -38,6 +51,8 @@ export const CompressionTab = () => {
         setMaxWidth(data.defaultMaxWidth ? String(data.defaultMaxWidth) : '');
         setMaxHeight(data.defaultMaxHeight ? String(data.defaultMaxHeight) : '');
         setFit(data.defaultFit);
+        setWatermarkText(data.defaultWatermarkText || 'OptiDrive');
+        setWatermarkUrl(data.defaultWatermarkUrl || null);
       } catch (error) {
         console.error('Failed to fetch compression defaults:', error);
         showFeedback('Failed to load settings', 'error');
@@ -75,7 +90,9 @@ export const CompressionTab = () => {
         defaultStripMetadata: stripMetadata,
         defaultMaxWidth: maxWidth ? Number(maxWidth) : null,
         defaultMaxHeight: maxHeight ? Number(maxHeight) : null,
-        defaultFit: fit
+        defaultFit: fit,
+        defaultWatermarkText: watermarkText,
+        defaultWatermarkUrl: watermarkUrl
       });
       showFeedback('Compression defaults saved successfully');
     } catch (error: any) {
@@ -226,6 +243,132 @@ export const CompressionTab = () => {
                         { label: "Inside (Scale proportionally to fit inside)", value: "inside" },
                       ]}
                     />
+                  </div>
+                )}
+              </div>
+
+              {/* Default Watermark configuration */}
+              <div className="flex flex-col gap-4 border border-border/80 bg-sidebar/30 p-4 rounded-xl md:col-span-2">
+                <span className="text-sm text-text-light font-semibold flex items-center gap-2">
+                  <Icon icon="lucide:copyright" width={16} className="text-accent" />
+                  Default Workspace Watermark
+                  {!isProOrEnterprise && (
+                    <span className="bg-purple-500/20 text-purple-400 text-[9px] font-bold px-1.5 py-0.5 rounded tracking-wide shrink-0">
+                      PRO+
+                    </span>
+                  )}
+                </span>
+                
+                {isProOrEnterprise ? (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 mt-1">
+                    {/* Default Watermark Text */}
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-xs font-semibold text-text-secondary">Default Text Watermark</label>
+                      <Input
+                        type="text"
+                        placeholder="e.g. MyBrand"
+                        value={watermarkText}
+                        onChange={(e) => setWatermarkText(e.target.value)}
+                      />
+                      <p className="text-[10px] text-text-muted mt-0.5 leading-normal">
+                        This text is used if no custom text is provided in the watermark query.
+                      </p>
+                    </div>
+
+                    {/* Default SVG/Image Watermark */}
+                    <div className="flex flex-col gap-1.5">
+                      <div className="flex items-center justify-between">
+                        <label className="text-xs font-semibold text-text-secondary flex items-center gap-1.5">
+                          Default Image/SVG Watermark
+                          {!isEnterprise && (
+                            <span className="bg-purple-500/20 text-purple-400 text-[8px] font-bold px-1 py-0.5 rounded tracking-wide shrink-0">
+                              ENT
+                            </span>
+                          )}
+                        </label>
+                        {watermarkUrl && (
+                          <button
+                            type="button"
+                            onClick={() => setWatermarkUrl(null)}
+                            className="text-[10px] font-bold text-error hover:underline transition-all cursor-pointer"
+                          >
+                            Remove
+                          </button>
+                        )}
+                      </div>
+                      
+                      {isEnterprise ? (
+                        <div className="flex items-center gap-3">
+                          {watermarkUrl ? (
+                            <div className="flex items-center gap-2.5 p-2 bg-[#0c1222]/80 border border-white/5 rounded-lg flex-1 overflow-hidden">
+                              <div className="h-8 w-8 rounded border border-border bg-slate-900 flex items-center justify-center shrink-0 overflow-hidden">
+                                <img src={watermarkUrl} alt="Watermark preview" className="max-h-full max-w-full object-contain" />
+                              </div>
+                              <span className="text-[11px] font-mono text-text-muted truncate flex-1">
+                                {watermarkUrl}
+                              </span>
+                            </div>
+                          ) : (
+                            <label className={`flex-1 flex flex-col items-center justify-center border-2 border-dashed border-border/80 rounded-lg p-3 hover:border-accent transition-all cursor-pointer bg-[#0c1222]/20 hover:bg-[#0c1222]/40 ${isUploadingWm ? 'pointer-events-none opacity-50' : ''}`}>
+                              {isUploadingWm ? (
+                                <div className="flex items-center gap-1.5 text-xs text-text-muted">
+                                  <Icon icon="lucide:loader-2" className="animate-spin text-accent" width={14} />
+                                  Uploading...
+                                </div>
+                              ) : (
+                                <div className="flex flex-col items-center gap-1 text-center">
+                                  <Icon icon="lucide:upload-cloud" className="text-text-muted" width={18} />
+                                  <span className="text-[11px] text-text-secondary font-semibold">Upload default SVG / PNG logo</span>
+                                </div>
+                              )}
+                              <input
+                                type="file"
+                                accept=".svg,.png"
+                                className="hidden"
+                                onChange={async (e) => {
+                                  const file = e.target.files?.[0];
+                                  if (!file) return;
+                                  setIsUploadingWm(true);
+                                  try {
+                                    const formData = new FormData();
+                                    formData.append('image', file);
+                                    const res = await uploadWatermarkApi(formData);
+                                    const cdnUrl = res?.data?.cdnUrl || res?.cdnUrl;
+                                    if (cdnUrl) {
+                                      setWatermarkUrl(cdnUrl);
+                                      showFeedback('Default watermark image uploaded');
+                                    } else {
+                                      showFeedback('Upload failed', 'error');
+                                    }
+                                  } catch (err: any) {
+                                    console.error(err);
+                                    showFeedback(err?.message || 'Upload failed', 'error');
+                                  } finally {
+                                    setIsUploadingWm(false);
+                                  }
+                                }}
+                              />
+                            </label>
+                          )}
+                        </div>
+                      ) : (
+                        <div className="bg-slate-900/60 border border-border/50 rounded-xl p-3.5 flex flex-col items-center justify-center text-center">
+                          <Icon icon="lucide:lock" className="text-text-muted mb-1" width={16} />
+                          <span className="text-[11px] font-bold text-text-secondary">Enterprise Plan Feature</span>
+                          <span className="text-[10px] text-text-muted mt-0.5">
+                            Upgrade to Enterprise to upload custom default brand logo watermarks.
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="bg-slate-900/60 border border-border/50 rounded-xl p-6 flex flex-col items-center justify-center text-center">
+                    <Icon icon="lucide:lock" className="text-text-muted mb-1.5" width={20} />
+                    <span className="text-xs font-bold text-text-secondary">PRO+ Feature</span>
+                    <span className="text-[11px] text-text-muted mt-1 leading-normal">
+                      Watermarking features require a PRO or ENTERPRISE subscription.
+                    </span>
                   </div>
                 )}
               </div>

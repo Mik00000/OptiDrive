@@ -313,3 +313,98 @@ export const testWebhook = async (req: AuthRequest, res: Response): Promise<void
     res.status(500).json({ success: false, error: 'Failed to test webhook' });
   }
 };
+
+export const retryWebhookDelivery = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const { workspaceId } = req.user!;
+    const webhookId = req.params.webhookId as string;
+    const deliveryId = req.params.deliveryId as string;
+
+    const workspace = await prisma.workspace.findUnique({
+      where: { id: workspaceId }
+    });
+
+    if (!workspace || workspace.plan !== 'ENTERPRISE') {
+      res.status(403).json({
+        success: false,
+        error: 'Webhook retry queue (DLQ) is only available on the ENTERPRISE plan.'
+      });
+      return;
+    }
+
+    const webhook = await prisma.webhook.findFirst({
+      where: { id: webhookId, workspaceId }
+    });
+
+    if (!webhook) {
+      res.status(404).json({ success: false, error: 'Webhook not found' });
+      return;
+    }
+
+    const delivery = await prisma.webhookDelivery.findFirst({
+      where: { id: deliveryId, webhookId }
+    });
+
+    if (!delivery) {
+      res.status(404).json({ success: false, error: 'Delivery log not found' });
+      return;
+    }
+
+    const axios = (await import('axios')).default;
+    const crypto = await import('crypto');
+
+    const payload = JSON.parse(delivery.payload);
+    const signature = crypto
+      .createHmac('sha256', webhook.secret)
+      .update(delivery.payload)
+      .digest('hex');
+
+    const startTime = Date.now();
+    let status = 0;
+    let responseBody = '';
+    let success = false;
+
+    try {
+      const response = await axios.post(webhook.url, payload, {
+        headers: {
+          'Content-Type': 'application/json',
+          'X-OptiDrive-Signature': `sha256=${signature}`,
+          'X-OptiDrive-Event': delivery.event,
+        },
+        timeout: 10000,
+      });
+
+      status = response.status;
+      responseBody = typeof response.data === 'string' ? response.data : JSON.stringify(response.data);
+      success = status >= 200 && status < 300;
+    } catch (error: any) {
+      if (error.response) {
+        status = error.response.status;
+        responseBody = typeof error.response.data === 'string' ? error.response.data : JSON.stringify(error.response.data);
+      } else {
+        status = 500;
+        responseBody = error.message || 'Unknown network error';
+      }
+      success = false;
+    } finally {
+      const duration = Date.now() - startTime;
+
+      const newDelivery = await prisma.webhookDelivery.create({
+        data: {
+          webhookId: webhook.id,
+          event: delivery.event,
+          status,
+          success,
+          payload: delivery.payload,
+          response: `${responseBody.slice(0, 1000)} (Retried)`,
+          duration,
+        },
+      });
+
+      res.json({ success, status, duration, response: responseBody.slice(0, 500), delivery: newDelivery });
+    }
+  } catch (error) {
+    console.error('retryWebhookDelivery error:', error);
+    res.status(500).json({ success: false, error: 'Failed to retry webhook delivery' });
+  }
+};

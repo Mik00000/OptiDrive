@@ -159,7 +159,7 @@ export function Input({
 
   const variants = {
     text: '',
-    search: 'gap-2.25 text-text-muted',
+    search: 'gap-2.25 text-white',
     password: '',
     date: '',
     number: '',

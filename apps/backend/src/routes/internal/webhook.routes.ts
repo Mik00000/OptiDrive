@@ -8,7 +8,8 @@ import {
   updateWebhook,
   deleteWebhook,
   getWebhookDeliveries,
-  testWebhook
+  testWebhook,
+  retryWebhookDelivery
 } from '../../controllers/internal/webhook.controller';
 
 const router: Router = Router();
@@ -22,5 +23,6 @@ router.patch('/:webhookId', updateWebhook);
 router.delete('/:webhookId', deleteWebhook);
 router.get('/:webhookId/deliveries', getWebhookDeliveries);
 router.post('/:webhookId/test', testWebhook);
+router.post('/:webhookId/deliveries/:deliveryId/retry', retryWebhookDelivery);
 
 export default router;

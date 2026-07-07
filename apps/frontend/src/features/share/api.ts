@@ -10,7 +10,7 @@ export interface ShareLink {
   createdAt: string;
 }
 
-export const createShareLinkApi = async (data: { fileId?: string; folderId?: string; password?: string; expiresInDays?: string }) => {
+export const createShareLinkApi = async (data: { fileId?: string; folderId?: string; password?: string; expiresInDays?: string; transformationParams?: string }) => {
   const token = localStorage.getItem('optidrive_token');
   const response = await fetch('/api/internal/share', {
     method: 'POST',

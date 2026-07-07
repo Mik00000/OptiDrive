@@ -21,7 +21,8 @@ export default function WebhooksPage() {
     handleUpdate,
     handleDelete,
     handleTest,
-    fetchDeliveries
+    fetchDeliveries,
+    handleRetryDelivery
   } = useWebhooks();
 
   const [isFormModalOpen, setIsFormModalOpen] = useState(false);
@@ -227,6 +228,20 @@ app.post('/webhook', (req, res) => {
         webhook={selectedWebhook}
         deliveries={deliveries}
         isLoading={isDeliveriesLoading}
+        onRetry={async (deliveryId) => {
+          if (!selectedWebhook) return;
+          try {
+            const newDelivery = await handleRetryDelivery(selectedWebhook.id, deliveryId);
+            if (newDelivery) {
+              toast.success(`Webhook retried successfully! New status: ${newDelivery.status}`);
+              // Reload deliveries list
+              const data = await fetchDeliveries(selectedWebhook.id);
+              setDeliveries(data);
+            }
+          } catch (err: any) {
+            toast.error(err.message || 'Failed to retry webhook delivery');
+          }
+        }}
       />
     </>
   );

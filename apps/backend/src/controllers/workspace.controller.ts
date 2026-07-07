@@ -3,6 +3,10 @@ import { prisma } from '../config/prisma';
 import { PLANS, PlanType } from '@optidrive/shared';
 import { generateToken } from '../utils/jwt';
 import { logActivity } from '../services/activity.service';
+import { getS3ConfigForWorkspace } from '../config/s3';
+import { PutObjectCommand } from '@aws-sdk/client-s3';
+import { extname } from 'path';
+import fs from 'fs/promises';
 
 export const getWorkspaceStats = async (req: Request & { user?: any }, res: Response): Promise<void> => {
   try {
@@ -411,7 +415,9 @@ export const getCompressionDefaults = async (req: Request & { user?: any }, res:
         defaultStripMetadata: true,
         defaultMaxWidth: true,
         defaultMaxHeight: true,
-        defaultFit: true
+        defaultFit: true,
+        defaultWatermarkText: true,
+        defaultWatermarkUrl: true
       }
     });
 
@@ -442,7 +448,9 @@ export const updateCompressionDefaults = async (req: Request & { user?: any }, r
       defaultStripMetadata,
       defaultMaxWidth,
       defaultMaxHeight,
-      defaultFit
+      defaultFit,
+      defaultWatermarkText,
+      defaultWatermarkUrl
     } = req.body;
 
     const updateData: any = {};
@@ -457,6 +465,10 @@ export const updateCompressionDefaults = async (req: Request & { user?: any }, r
       updateData.defaultMaxHeight = defaultMaxHeight === null || defaultMaxHeight === '' ? null : Number(defaultMaxHeight);
     }
     if (defaultFit !== undefined) updateData.defaultFit = String(defaultFit);
+    if (defaultWatermarkText !== undefined) updateData.defaultWatermarkText = String(defaultWatermarkText);
+    if (defaultWatermarkUrl !== undefined) {
+      updateData.defaultWatermarkUrl = defaultWatermarkUrl === null || defaultWatermarkUrl === '' ? null : String(defaultWatermarkUrl);
+    }
 
     const updated = await prisma.workspace.update({
       where: { id: workspaceId },
@@ -467,7 +479,7 @@ export const updateCompressionDefaults = async (req: Request & { user?: any }, r
     await prisma.activityLog.create({
       data: {
         type: 'SETTING_CHANGED',
-        description: `Updated compression settings (Preset: ${updated.defaultPreset}, Format: ${updated.defaultFormat}, Quality: ${updated.defaultQuality}%)`,
+        description: `Updated compression settings (Preset: ${updated.defaultPreset}, Format: ${updated.defaultFormat}, Quality: ${updated.defaultQuality}%, Default WM Text: ${updated.defaultWatermarkText})`,
         workspaceId,
         userId: req.user?.userId || null,
       }
@@ -482,7 +494,9 @@ export const updateCompressionDefaults = async (req: Request & { user?: any }, r
         defaultStripMetadata: updated.defaultStripMetadata,
         defaultMaxWidth: updated.defaultMaxWidth,
         defaultMaxHeight: updated.defaultMaxHeight,
-        defaultFit: updated.defaultFit
+        defaultFit: updated.defaultFit,
+        defaultWatermarkText: updated.defaultWatermarkText,
+        defaultWatermarkUrl: updated.defaultWatermarkUrl
       }
     });
   } catch (error) {
@@ -1308,5 +1322,69 @@ export const getWorkspaceAuditLogs = async (req: Request & { user?: any }, res: 
     res.status(500).json({ error: 'Internal Server Error' });
   }
 };
+
+export const uploadWatermark = async (req: Request & { user?: any }, res: Response): Promise<void> => {
+  const tempPath = req.file?.path;
+  try {
+    const workspaceId = req.user?.workspaceId;
+    if (!workspaceId) {
+      res.status(401).json({ error: 'Unauthorized: No workspace context' });
+      return;
+    }
+
+    if (!req.file) {
+      res.status(400).json({ error: 'No watermark file provided' });
+      return;
+    }
+
+    const { originalname, mimetype } = req.file;
+    const fileExt = extname(originalname).toLowerCase() || '.png';
+    
+    if (fileExt !== '.svg' && fileExt !== '.png') {
+      res.status(400).json({ error: 'Only SVG and PNG formats are supported for watermarks' });
+      return;
+    }
+
+    const fileKey = `watermarks/${workspaceId}-${Date.now()}${fileExt}`;
+
+    // Read buffer from disk
+    const buffer = await fs.readFile(tempPath!);
+
+    const { client, bucketName, publicUrl } = await getS3ConfigForWorkspace(workspaceId);
+
+    // Upload to S3/R2
+    const uploadCommand = new PutObjectCommand({
+      Bucket: bucketName,
+      Key: fileKey,
+      Body: buffer,
+      ContentType: mimetype === 'image/svg+xml' ? 'image/svg+xml' : 'image/png',
+      CacheControl: 'public, max-age=31536000',
+    });
+
+    await client.send(uploadCommand);
+
+    let watermarkUrl = '';
+    if (publicUrl) {
+      watermarkUrl = `${publicUrl}/${fileKey}`;
+    } else {
+      const apiBase = process.env.API_URL || 'http://localhost:3001';
+      watermarkUrl = `${apiBase}/api/v1/media/watermarks/${fileKey.replace('watermarks/', '')}`;
+    }
+
+    res.status(200).json({
+      success: true,
+      message: 'Watermark uploaded successfully',
+      cdnUrl: watermarkUrl,
+    });
+  } catch (error) {
+    console.error('uploadWatermark Error:', error);
+    res.status(500).json({ error: 'Internal Server Error' });
+  } finally {
+    if (tempPath) {
+      await fs.unlink(tempPath).catch(() => {});
+    }
+  }
+};
+
 
 

@@ -70,16 +70,24 @@ const keepNeonAwake = () => {
 // Фонова задача для автоматичного очищення кошика від старіших за 30 днів об'єктів
 const runTrashAutoPurge = async () => {
   try {
-    const purgeThreshold = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000); // 30 днів тому
-    console.log(`[Auto-Purge] Running trash auto-purge for items deleted before ${purgeThreshold.toISOString()}`);
+    console.log('[Auto-Purge] Running trash auto-purge based on plan retention policies...');
 
-    // 1. Очищення видалених файлів
-    const filesToPurge = await prisma.mediaFile.findMany({
-      where: {
-        isDeleted: true,
-        deletedAt: { lte: purgeThreshold }
-      }
-    });
+    // Очисні пороги за тарифами: FREE = 7 днів, PRO = 30 днів, ENTERPRISE = 90 днів
+    const purgeFilesForPlan = async (plan: 'FREE' | 'PRO' | 'ENTERPRISE', days: number) => {
+      const threshold = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+      return prisma.mediaFile.findMany({
+        where: {
+          isDeleted: true,
+          deletedAt: { lte: threshold },
+          workspace: { plan }
+        }
+      });
+    };
+
+    const freeFiles = await purgeFilesForPlan('FREE', 7);
+    const proFiles = await purgeFilesForPlan('PRO', 30);
+    const entFiles = await purgeFilesForPlan('ENTERPRISE', 90);
+    const filesToPurge = [...freeFiles, ...proFiles, ...entFiles];
 
     if (filesToPurge.length > 0) {
       console.log(`[Auto-Purge] Found ${filesToPurge.length} files to delete permanently`);
@@ -126,12 +134,21 @@ const runTrashAutoPurge = async () => {
     }
 
     // 2. Очищення видалених папок
-    const foldersToPurge = await prisma.folder.findMany({
-      where: {
-        isDeleted: true,
-        deletedAt: { lte: purgeThreshold }
-      }
-    });
+    const purgeFoldersForPlan = async (plan: 'FREE' | 'PRO' | 'ENTERPRISE', days: number) => {
+      const threshold = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+      return prisma.folder.findMany({
+        where: {
+          isDeleted: true,
+          deletedAt: { lte: threshold },
+          workspace: { plan }
+        }
+      });
+    };
+
+    const freeFolders = await purgeFoldersForPlan('FREE', 7);
+    const proFolders = await purgeFoldersForPlan('PRO', 30);
+    const entFolders = await purgeFoldersForPlan('ENTERPRISE', 90);
+    const foldersToPurge = [...freeFolders, ...proFolders, ...entFolders];
 
     if (foldersToPurge.length > 0) {
       console.log(`[Auto-Purge] Found ${foldersToPurge.length} folders to delete permanently`);

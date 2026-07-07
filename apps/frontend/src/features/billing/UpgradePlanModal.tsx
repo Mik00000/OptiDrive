@@ -126,23 +126,19 @@ export function UpgradePlanModal({ isOpen, onClose, stats, onPlanUpdated, isSubs
                 </li>
                 <li className="text-xs text-text-light flex items-center gap-2">
                   <Icon icon="lucide:check" className="text-emerald-500" width={14} />
-                  <span>1 API key</span>
+                  <span>7 days trash retention</span>
                 </li>
                 <li className="text-xs text-text-light flex items-center gap-2">
                   <Icon icon="lucide:check" className="text-emerald-500" width={14} />
-                  <span>2 Team members</span>
+                  <span>Standard CDN speed</span>
                 </li>
                 <li className="text-xs text-text-muted/60 flex items-center gap-2 line-through">
                   <Icon icon="lucide:x" className="text-text-muted/40" width={14} />
-                  <span>Custom domains</span>
+                  <span>Watermarks & Webhooks</span>
                 </li>
                 <li className="text-xs text-text-muted/60 flex items-center gap-2 line-through">
                   <Icon icon="lucide:x" className="text-text-muted/40" width={14} />
-                  <span>Webhooks</span>
-                </li>
-                <li className="text-xs text-text-muted/60 flex items-center gap-2 line-through">
-                  <Icon icon="lucide:x" className="text-text-muted/40" width={14} />
-                  <span>Custom S3 storage (BYOS)</span>
+                  <span>Custom domains & BYOS</span>
                 </li>
               </ul>
 
@@ -178,11 +174,7 @@ export function UpgradePlanModal({ isOpen, onClose, stats, onPlanUpdated, isSubs
               <ul className="flex flex-col gap-2.5 flex-1">
                 <li className="text-xs text-text-light flex items-center gap-2">
                   <Icon icon="lucide:check" className="text-emerald-500" width={14} />
-                  <span><strong>50 GB</strong> storage</span>
-                </li>
-                <li className="text-xs text-text-light flex items-center gap-2">
-                  <Icon icon="lucide:check" className="text-emerald-500" width={14} />
-                  <span><strong>10,000</strong> optimizations / mo</span>
+                  <span><strong>50 GB</strong> storage / 10K optims</span>
                 </li>
                 <li className="text-xs text-text-light flex items-center gap-2">
                   <Icon icon="lucide:check" className="text-emerald-500" width={14} />
@@ -190,23 +182,23 @@ export function UpgradePlanModal({ isOpen, onClose, stats, onPlanUpdated, isSubs
                 </li>
                 <li className="text-xs text-text-light flex items-center gap-2">
                   <Icon icon="lucide:check" className="text-emerald-500" width={14} />
-                  <span><strong>10</strong> API keys & team members</span>
+                  <span><strong>30 days</strong> trash retention</span>
                 </li>
                 <li className="text-xs text-text-light flex items-center gap-2">
                   <Icon icon="lucide:check" className="text-emerald-500" width={14} />
-                  <span><strong>1</strong> Custom domain</span>
+                  <span>Text watermarks only</span>
                 </li>
                 <li className="text-xs text-text-light flex items-center gap-2">
                   <Icon icon="lucide:check" className="text-emerald-500" width={14} />
-                  <span><strong>5</strong> Webhooks</span>
+                  <span>1 Domain & 5 Webhooks</span>
                 </li>
                 <li className="text-xs text-text-light flex items-center gap-2">
                   <Icon icon="lucide:check" className="text-emerald-500" width={14} />
-                  <span>Watermarking, WebP & AVIF</span>
+                  <span>Webhook delivery logs</span>
                 </li>
                 <li className="text-xs text-text-light flex items-center gap-2">
                   <Icon icon="lucide:check" className="text-emerald-500" width={14} />
-                  <span>Priority support</span>
+                  <span>High speed CDN priority (10Gbps)</span>
                 </li>
               </ul>
 
@@ -270,45 +262,23 @@ export function UpgradePlanModal({ isOpen, onClose, stats, onPlanUpdated, isSubs
               <ul className="flex flex-col gap-2.5 flex-1">
                 <li className="text-xs text-text-light flex items-center gap-2">
                   <Icon icon="lucide:check" className="text-emerald-500" width={14} />
-                  <span>
-                    <strong>
-                      {hasApprovedEnterpriseRequest && enterpriseStatus?.approvedStorageGb
-                        ? `${enterpriseStatus.approvedStorageGb} GB`
-                        : '250 GB+'}
-                    </strong> storage
-                  </span>
+                  <span><strong>250 GB+</strong> storage / 100K+ optims</span>
                 </li>
                 <li className="text-xs text-text-light flex items-center gap-2">
                   <Icon icon="lucide:check" className="text-emerald-500" width={14} />
-                  <span>
-                    <strong>
-                      {hasApprovedEnterpriseRequest && enterpriseStatus?.approvedOptimizations
-                        ? enterpriseStatus.approvedOptimizations.toLocaleString()
-                        : '100,000+'}
-                    </strong> optimizations / mo
-                  </span>
+                  <span><strong>90 days</strong> trash retention</span>
                 </li>
                 <li className="text-xs text-text-light flex items-center gap-2">
                   <Icon icon="lucide:check" className="text-emerald-500" width={14} />
-                  <span>
-                    <strong>
-                      {hasApprovedEnterpriseRequest && enterpriseStatus?.approvedBandwidthGb
-                        ? `${enterpriseStatus.approvedBandwidthGb} GB`
-                        : '2 TB+'}
-                    </strong> traffic / mo
-                  </span>
+                  <span>Text & Image watermarking</span>
                 </li>
                 <li className="text-xs text-text-light flex items-center gap-2">
                   <Icon icon="lucide:check" className="text-emerald-500" width={14} />
-                  <span>Unlimited members & API keys</span>
+                  <span>Webhook retry queue (DLQ)</span>
                 </li>
                 <li className="text-xs text-text-light flex items-center gap-2">
                   <Icon icon="lucide:check" className="text-emerald-500" width={14} />
-                  <span>Unlimited custom domains & webhooks</span>
-                </li>
-                <li className="text-xs text-text-light flex items-center gap-2">
-                  <Icon icon="lucide:check" className="text-emerald-500" width={14} />
-                  <span>Audit logs & security compliance</span>
+                  <span>Premium CDN routing speed</span>
                 </li>
                 <li className="text-xs text-text-light flex items-center gap-2">
                   <Icon icon="lucide:check" className="text-emerald-500" width={14} />

@@ -88,7 +88,14 @@ export const getShareLinkInfo = async (req: Request, res: Response): Promise<voi
       payload.name = shareLink.file.name;
       payload.size = Number(shareLink.file.optimizedSize);
       payload.format = shareLink.file.format;
-      payload.cdnUrl = shareLink.file.cdnUrl; // They can preview it!
+      
+      let finalCdnUrl = shareLink.file.cdnUrl;
+      if (shareLink.transformationParams) {
+        // Direct S3/R2 CDN URLs do not support dynamic on-the-fly transformations.
+        // We route the request through our public view API to apply crop/watermark.
+        finalCdnUrl = `/api/public/media/view/${shareLink.file.id}?${shareLink.transformationParams}`;
+      }
+      payload.cdnUrl = finalCdnUrl; // They can preview it!
     }
 
     res.status(200).json({ data: payload });
@@ -218,6 +225,29 @@ export const downloadShareLink = async (req: Request, res: Response): Promise<vo
     } else if (shareLink.fileId && shareLink.file) {
       const file = shareLink.file;
       const urlParts = file.cdnUrl.split('/');
+      const filename = urlParts[urlParts.length - 1];
+
+      if (shareLink.transformationParams) {
+        // Parse transformation parameters and mock the request
+        const params = new URLSearchParams(shareLink.transformationParams);
+        const queryObj: Record<string, string> = {};
+        params.forEach((value, key) => {
+          queryObj[key] = value;
+        });
+
+        req.query = queryObj;
+        req.params = {
+          id: shareLink.fileId
+        };
+
+        // Set content disposition to download it as an attachment
+        res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(file.name)}"`);
+
+        // Delegate to viewMediaFileOnTheFly
+        const { viewMediaFileOnTheFly } = await import('./public-media.controller');
+        return viewMediaFileOnTheFly(req, res);
+      }
+
       const fileKey = `${urlParts[urlParts.length - 2]}/${urlParts[urlParts.length - 1]}`;
 
       const { getS3ConfigForWorkspace, s3Client: defaultS3Client, BUCKET_NAME: defaultBucketName } = await import('../config/s3');

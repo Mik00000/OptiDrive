@@ -68,6 +68,8 @@ export interface CompressionDefaults {
   defaultMaxWidth: number | null;
   defaultMaxHeight: number | null;
   defaultFit: string;
+  defaultWatermarkText: string;
+  defaultWatermarkUrl: string | null;
 }
 
 export const getCompressionDefaultsApi = async () => {

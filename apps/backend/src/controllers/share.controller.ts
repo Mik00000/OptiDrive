@@ -12,7 +12,7 @@ export const createShareLink = async (req: AuthRequest, res: Response): Promise<
       return;
     }
 
-    const { fileId, folderId, password, expiresInDays } = req.body;
+    const { fileId, folderId, password, expiresInDays, transformationParams } = req.body;
 
     if (!fileId && !folderId) {
       res.status(400).json({ error: 'Either fileId or folderId is required' });
@@ -58,6 +58,7 @@ export const createShareLink = async (req: AuthRequest, res: Response): Promise<
         fileId: fileId || null,
         folderId: folderId || null,
         password: hashedPassword,
+        transformationParams: transformationParams || null,
         expiresAt,
         workspaceId,
       }

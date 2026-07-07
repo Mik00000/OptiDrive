@@ -258,7 +258,7 @@ export default function TrashPage() {
             <Icon icon="lucide:info" className="text-accent shrink-0" width={20} />
             <p className="text-sm text-text-muted leading-relaxed">
               Items in the Recycle Bin will be automatically and permanently deleted after{' '}
-              <span className="text-text-light font-semibold">30 days</span>. All items in the bin
+              <span className="text-text-light font-semibold">{activeWorkspace?.plan === 'FREE' ? 7 : activeWorkspace?.plan === 'PRO' ? 30 : 90} days</span>. All items in the bin
               still count towards your storage space quota.
             </p>
           </div>

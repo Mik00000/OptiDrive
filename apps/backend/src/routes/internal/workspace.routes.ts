@@ -13,8 +13,18 @@ import {
   deleteActiveWorkspace,
   testS3Connection,
   startWorkspaceMigration,
-  getWorkspaceAuditLogs
+  getWorkspaceAuditLogs,
+  uploadWatermark
 } from '../../controllers/workspace.controller';
+import multer from 'multer';
+import os from 'os';
+
+const upload = multer({
+  dest: os.tmpdir(),
+  limits: {
+    fileSize: 5 * 1024 * 1024 // 5MB limit
+  }
+});
 
 const router: Router = Router();
 
@@ -30,6 +40,7 @@ router.put('/update', requirePermissions([Permission.MANAGE_WORKSPACE]), updateW
 router.delete('/delete', deleteActiveWorkspace);
 router.post('/test-s3', requirePermissions([Permission.MANAGE_WORKSPACE]), testS3Connection);
 router.post('/start-migration', requirePermissions([Permission.MANAGE_WORKSPACE]), startWorkspaceMigration);
+router.post('/watermark', upload.single('image'), uploadWatermark);
 router.get('/audit-logs', getWorkspaceAuditLogs);
 
 export default router;

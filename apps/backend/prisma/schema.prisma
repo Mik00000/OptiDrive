@@ -132,6 +132,8 @@ model Workspace {
   defaultMaxWidth      Int?
   defaultMaxHeight     Int?
   defaultFit           String   @default("cover")
+  defaultWatermarkText String   @default("OptiDrive")
+  defaultWatermarkUrl  String?
 
   // Попередження про ліміти (для запобігання дублювання листів)
   warnedStorage80       Boolean  @default(false)
@@ -349,16 +351,17 @@ model Tag {
 
 // 10. Публічні посилання
 model ShareLink {
-  id          String    @id @default(cuid())
-  slug        String    @unique
-  isFolder    Boolean   @default(false)
-  fileId      String?
-  folderId    String?
-  password    String?
-  expiresAt   DateTime?
-  downloads   Int       @default(0)
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  id                   String    @id @default(cuid())
+  slug                 String    @unique
+  isFolder             Boolean   @default(false)
+  fileId               String?
+  folderId             String?
+  password             String?
+  transformationParams String?
+  expiresAt            DateTime?
+  downloads            Int       @default(0)
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
 
   workspaceId String
   workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)

@@ -655,7 +655,7 @@ export const MediaTable = ({
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
         />
-        <div className="flex items-center gap-3 w-full md:w-auto overflow-x-auto scrollbar-hide pb-2 md:pb-0">
+        <div className="flex items-center gap-3 w-full md:w-auto flex-wrap pb-2 md:pb-0">
           <Input
             variant="select"
             icon="lucide:filter"
@@ -740,7 +740,7 @@ export const MediaTable = ({
         </div>
       </div>
 
-      <div className={viewMode === 'list' ? 'hidden md:block overflow-x-auto w-full overflow-visible' : 'hidden'}>
+      <div className={viewMode === 'list' ? 'hidden md:block w-full overflow-visible' : 'hidden'}>
         <table className="w-full border-collapse text-left min-w-[800px]">
           <thead>
             {selectedIds.size > 0 ? (

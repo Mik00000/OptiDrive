@@ -4,6 +4,8 @@ import React, { useState, useEffect } from 'react';
 import { Modal } from '@/components/Modal';
 import { Icon } from '@iconify/react';
 import { Webhook, WebhookDelivery } from './types';
+import { useAuth } from '@/contexts/AuthContext';
+import { toast } from 'react-toastify';
 
 interface WebhookDeliveriesModalProps {
   isOpen: boolean;
@@ -11,6 +13,7 @@ interface WebhookDeliveriesModalProps {
   webhook: Webhook | null;
   deliveries: WebhookDelivery[];
   isLoading: boolean;
+  onRetry: (deliveryId: string) => Promise<void>;
 }
 
 export const WebhookDeliveriesModal = ({
@@ -18,9 +21,16 @@ export const WebhookDeliveriesModal = ({
   onClose,
   webhook,
   deliveries,
-  isLoading
+  isLoading,
+  onRetry
 }: WebhookDeliveriesModalProps) => {
+  const { user, workspaces } = useAuth();
+  const activeWorkspace = workspaces.find((w) => w.id === user?.workspaceId);
+  const plan = activeWorkspace?.plan || 'FREE';
+  const isEnterprise = plan === 'ENTERPRISE';
+
   const [selectedDelivery, setSelectedDelivery] = useState<WebhookDelivery | null>(null);
+  const [isRetrying, setIsRetrying] = useState(false);
 
   // Automatically select the latest delivery (first in the list) when list updates
   useEffect(() => {
@@ -114,7 +124,37 @@ export const WebhookDeliveriesModal = ({
               {selectedDelivery ? (
                 <div className="flex flex-col gap-4">
                   <div className="rounded-xl border border-border bg-card-bg/30 p-4">
-                    <h5 className="text-sm font-semibold text-text mb-3">Delivery Details</h5>
+                    <div className="flex items-center justify-between mb-3 gap-2">
+                      <h5 className="text-sm font-semibold text-text">Delivery Details</h5>
+                      <button
+                        onClick={async () => {
+                          if (!isEnterprise) {
+                            toast.info('Webhook retry queue (DLQ) is only available on the ENTERPRISE plan.');
+                            return;
+                          }
+                          setIsRetrying(true);
+                          try {
+                            await onRetry(selectedDelivery.id);
+                          } finally {
+                            setIsRetrying(false);
+                          }
+                        }}
+                        disabled={isRetrying}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-accent/20 bg-accent/5 text-accent text-xs font-semibold hover:bg-accent/10 transition-colors disabled:opacity-50"
+                      >
+                        {isRetrying ? (
+                          <Icon icon="lucide:loader-2" className="animate-spin" width={14} />
+                        ) : (
+                          <Icon icon="lucide:rotate-ccw" width={14} />
+                        )}
+                        <span>Retry Delivery</span>
+                        {!isEnterprise && (
+                          <span className="bg-purple-500/20 text-purple-400 text-[8px] font-bold px-1.5 py-0.5 rounded tracking-wide shrink-0">
+                            ENT
+                          </span>
+                        )}
+                      </button>
+                    </div>
                     <div className="grid grid-cols-2 gap-y-2 gap-x-4 text-xs">
                       <span className="text-text-muted">Response Status:</span>
                       <span className={`font-semibold ${selectedDelivery.success ? 'text-success' : 'text-error'}`}>

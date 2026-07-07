@@ -93,6 +93,19 @@ export function useWebhooks() {
     }
   }, []);
 
+  const handleRetryDelivery = useCallback(async (webhookId: string, deliveryId: string): Promise<WebhookDelivery | null> => {
+    try {
+      const response = await apiClient.post<{ success: boolean; delivery: WebhookDelivery }>(`/api/internal/webhooks/${webhookId}/deliveries/${deliveryId}/retry`);
+      if (response.success) {
+        return response.delivery;
+      }
+      return null;
+    } catch (error) {
+      console.error("Failed to retry webhook delivery:", error);
+      throw error;
+    }
+  }, []);
+
   return {
     webhooks,
     isLoading,
@@ -102,6 +115,7 @@ export function useWebhooks() {
     handleUpdate,
     handleDelete,
     handleTest,
-    fetchDeliveries
+    fetchDeliveries,
+    handleRetryDelivery
   };
 }
