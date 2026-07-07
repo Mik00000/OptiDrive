@@ -24,15 +24,15 @@ export function Button({
 
   const variants = {
     primary:
-      'bg-button border border-border hover:brightness-140 hover:scale-105 text-white',
-    accent: 'bg-accent hover:brightness-140 hover:scale-105 text-white',
+      'bg-button border border-border hover:brightness-110 text-white',
+    accent: 'bg-accent hover:brightness-110 text-white',
     bordered:
-      'bg-none border border-border hover:bg-white/10 hover:scale-105 text-text-light',
-    destructive: 'bg-error hover:bg-red-500 hover:scale-105 text-white ',
-    danger: 'bg-error hover:bg-red-500 hover:scale-105 text-white',
+      'bg-none border border-border hover:bg-white/5 text-text-light',
+    destructive: 'bg-error hover:bg-red-500 text-white',
+    danger: 'bg-error hover:bg-red-500 text-white',
     ghost:
-      'bg-none border-none hover:scale-115 text-text-light',
-    success: 'bg-success hover:bg-green-600 hover:scale-105 text-white ',
+      'bg-none border-none hover:bg-white/5 text-text-light',
+    success: 'bg-success hover:bg-green-600 text-white',
   };
 
   const mobileStyles = {

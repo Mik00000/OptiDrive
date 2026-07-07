@@ -2087,7 +2087,7 @@ export const MediaTable = ({
                             setEditTagsList([...editTagsList, t.name]);
                           }
                         }}
-                        className={`inline-flex items-center justify-center text-sm px-4 py-2 min-h-[44px] min-w-[44px] rounded-full border transition-all hover:scale-105 active:scale-95 cursor-pointer ${isActive ? 'bg-accent/20 border-accent/40 text-accent font-medium' : 'bg-slate-800/30 border-slate-700/80 text-text-muted hover:border-slate-600 hover:text-text-light'}`}
+                        className={`inline-flex items-center justify-center text-sm px-4 py-2 min-h-[44px] min-w-[44px] rounded-full border transition-all active:scale-95 cursor-pointer ${isActive ? 'bg-accent/20 border-accent/40 text-accent font-medium' : 'bg-slate-800/30 border-slate-700/80 text-text-muted hover:border-slate-600 hover:text-text-light'}`}
                       >
                         {t.name}
                       </button>

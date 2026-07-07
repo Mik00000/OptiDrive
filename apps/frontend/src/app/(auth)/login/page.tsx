@@ -47,6 +47,10 @@ export default function LoginPage() {
             }).join('')
           );
           const userObj = JSON.parse(userStr);
+          
+          // Clear query parameters from URL history immediately to prevent logout redirect loop
+          window.history.replaceState({}, document.title, window.location.pathname);
+          
           login(token, userObj);
         } catch (err) {
           console.error('Failed to parse user from URL', err);

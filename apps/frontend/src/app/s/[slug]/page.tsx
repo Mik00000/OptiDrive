@@ -128,8 +128,9 @@ export default function SharedLinkPage({ params }: { params: Promise<{ slug: str
 
   if (info) {
     return (
-      <div className="flex min-h-screen flex-col bg-bg">
-        <header className="flex h-16 items-center justify-between border-b border-border px-6 md:px-12 bg-card/50">
+      <div className="flex h-screen flex-col overflow-hidden bg-[#070b13] text-text-light">
+        {/* Header */}
+        <header className="flex h-16 items-center justify-between border-b border-border/40 px-6 md:px-12 bg-[#0c1222]/60 backdrop-blur-md z-10 shrink-0">
           <div className="flex items-center gap-2.5">
             <Image src="/images/logo.svg" alt="OptiDrive Logo" width={32} height={32} />
             <span className="font-headings font-bold text-lg text-text-light tracking-tight">OptiDrive</span>
@@ -139,81 +140,106 @@ export default function SharedLinkPage({ params }: { params: Promise<{ slug: str
           </div>
         </header>
 
-        <main className="flex flex-1 flex-col items-center justify-center p-6 py-12">
-          <div className="w-full max-w-2xl bg-card border border-border rounded-3xl overflow-hidden shadow-2xl">
-            {/* Preview Section */}
-            {info.isFolder ? (
-              <div className="flex flex-col border-b border-border bg-slate-900/40">
-                <div className="flex flex-col items-center justify-center py-12">
-                  <Icon icon="lucide:folder-open" width={64} className="text-accent/80 mb-4" />
-                  <h2 className="text-2xl font-bold text-text-light">{info.name}</h2>
-                  <p className="text-text-muted mt-2">Shared Folder (Download as ZIP)</p>
+        {/* Main Content Area */}
+        <main className="flex flex-1 items-center justify-center p-4 md:p-6 bg-[#03060c] relative overflow-hidden">
+          {info.isFolder ? (
+            /* Folder View Card */
+            <div className="w-full max-w-2xl bg-[#0c1222]/85 border border-border/60 rounded-3xl overflow-hidden shadow-2xl backdrop-blur-md flex flex-col my-auto max-h-[70vh]">
+              <div className="flex flex-col items-center justify-center py-10 px-6 border-b border-border/50 bg-slate-900/30 shrink-0">
+                <div className="h-16 w-16 bg-accent/10 text-accent rounded-full flex items-center justify-center mb-4">
+                  <Icon icon="lucide:folder-open" width={36} />
                 </div>
-                
-                {info.children && (info.children.folders.length > 0 || info.children.files.length > 0) && (
-                  <div className="flex flex-col px-6 md:px-8 pb-8">
-                    <h3 className="text-sm font-semibold text-text-light uppercase tracking-wider mb-4 border-b border-border/50 pb-2">
-                      Folder Contents ({info.children.folders.length + info.children.files.length})
-                    </h3>
-                    <div className="flex flex-col gap-2 max-h-[300px] overflow-y-auto custom-scrollbar pr-2">
-                      {info.children.folders.map((f: any) => (
-                        <div key={f.id} className="flex items-center gap-3 p-2.5 rounded-lg bg-bg border border-border/50">
-                          <Icon icon="lucide:folder" width={20} className="text-accent/70 shrink-0" />
-                          <span className="text-sm font-medium text-text-light truncate">{f.name}</span>
-                        </div>
-                      ))}
-                      {info.children.files.map((f: any) => (
-                        <div key={f.id} className="flex items-center gap-3 p-2.5 rounded-lg bg-bg border border-border/50">
-                          <Icon icon="lucide:file" width={20} className="text-text-muted shrink-0" />
-                          <span className="text-sm font-medium text-text-light truncate flex-1">{f.name}</span>
-                          <span className="text-xs text-text-muted font-mono">{formatBytes(f.optimizedSize)}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
+                <h2 className="text-xl font-bold text-text-light text-center truncate max-w-full">{info.name}</h2>
+                <p className="text-xs text-text-muted mt-1.5 font-medium">Shared Folder • Download content as ZIP archive</p>
               </div>
-            ) : (
-              <div className="flex flex-col items-center justify-center bg-slate-950/80 border-b border-border">
-                {info.cdnUrl ? (
-                  <div className="w-full h-[400px] flex items-center justify-center p-4">
-                    <img 
-                      src={info.cdnUrl} 
-                      alt={info.name} 
-                      className="max-w-full max-h-full object-contain rounded-lg drop-shadow-lg"
-                    />
+              
+              {info.children && (info.children.folders.length > 0 || info.children.files.length > 0) ? (
+                <div className="flex flex-col px-6 md:px-8 py-6 overflow-y-auto custom-scrollbar flex-1">
+                  <h3 className="text-xs font-bold text-text-muted uppercase tracking-wider mb-3 border-b border-border/40 pb-1.5">
+                    Folder Contents ({info.children.folders.length + info.children.files.length})
+                  </h3>
+                  <div className="flex flex-col gap-2">
+                    {info.children.folders.map((f: any) => (
+                      <div key={f.id} className="flex items-center gap-3 p-2.5 rounded-xl bg-bg/50 border border-border/30 hover:border-accent/40 transition-colors">
+                        <Icon icon="lucide:folder" width={18} className="text-accent/80 shrink-0" />
+                        <span className="text-sm font-medium text-text-light truncate">{f.name}</span>
+                      </div>
+                    ))}
+                    {info.children.files.map((f: any) => (
+                      <div key={f.id} className="flex items-center gap-3 p-2.5 rounded-xl bg-bg/50 border border-border/30 hover:border-accent/40 transition-colors">
+                        <Icon icon="lucide:file" width={18} className="text-text-muted shrink-0" />
+                        <span className="text-sm font-medium text-text-light truncate flex-1">{f.name}</span>
+                        <span className="text-xs text-text-muted font-mono">{formatBytes(f.optimizedSize)}</span>
+                      </div>
+                    ))}
                   </div>
-                ) : (
-                  <div className="flex flex-col items-center justify-center h-[300px]">
-                    <Icon icon="lucide:file" width={64} className="text-text-muted/50 mb-4" />
-                    <span className="text-lg font-medium text-text-light">{info.name}</span>
+                </div>
+              ) : (
+                <div className="text-center py-12 text-sm text-text-muted flex-1 flex flex-col items-center justify-center">
+                  <Icon icon="lucide:folder" className="opacity-30 mb-2" width={32} />
+                  This folder is empty.
+                </div>
+              )}
+            </div>
+          ) : (
+            /* Fullscreen Image Preview */
+            <div className="w-full h-full flex items-center justify-center">
+              {info.cdnUrl ? (
+                <img 
+                  src={info.cdnUrl} 
+                  alt={info.name} 
+                  className="max-w-full max-h-full object-contain drop-shadow-[0_10px_35px_rgba(0,0,0,0.85)] select-none transition-all duration-300"
+                />
+              ) : (
+                <div className="flex flex-col items-center justify-center text-center">
+                  <div className="h-16 w-16 bg-white/5 border border-border/40 text-text-muted/60 rounded-full flex items-center justify-center mb-4">
+                    <Icon icon="lucide:file" width={32} />
                   </div>
-                )}
-              </div>
-            )}
+                  <span className="text-lg font-medium text-text-light">{info.name}</span>
+                </div>
+              )}
+            </div>
+          )}
+        </main>
 
-            {/* Info and Actions */}
-            <div className="flex flex-col md:flex-row items-center justify-between gap-6 p-6 md:p-8">
-              <div className="flex flex-col w-full min-w-0 text-center md:text-left">
-                <h2 className="text-xl font-semibold text-text-light truncate" title={info.name}>{info.name}</h2>
-                {!info.isFolder && (
-                  <div className="flex items-center justify-center md:justify-start gap-3 mt-2 text-sm text-text-muted font-mono">
-                    <span className="uppercase font-bold tracking-wider">{info.format}</span>
-                    <span>•</span>
-                    <span>{formatBytes(info.size)}</span>
-                  </div>
-                )}
-              </div>
-
-              <div className="shrink-0 w-full md:w-auto">
-                <Button variant="accent" onClick={handleDownload} className="w-full md:w-auto justify-center h-12 px-8 text-base shadow-lg shadow-accent/20">
-                  <Icon icon="lucide:download" width={20} className="mr-2" />
-                  Download
-                </Button>
-              </div>
+        {/* Gorgeous Bottom Bar */}
+        <footer className="w-full border-t border-border/40 bg-[#0c1222]/85 backdrop-blur-lg px-6 md:px-12 py-4 flex flex-col md:flex-row items-center justify-between gap-4 z-10 shrink-0">
+          <div className="flex items-center gap-3.5 w-full md:w-auto min-w-0">
+            <div className="h-10 w-10 bg-accent/10 border border-accent/20 rounded-xl flex items-center justify-center text-accent shrink-0">
+              <Icon icon={info.isFolder ? "lucide:folder" : "lucide:image"} width={20} />
+            </div>
+            <div className="flex flex-col min-w-0">
+              <h2 className="text-sm md:text-base font-semibold text-text-light truncate max-w-sm md:max-w-xl" title={info.name}>
+                {info.name}
+              </h2>
+              {!info.isFolder && (
+                <div className="flex items-center gap-2 mt-1 text-[11px] text-text-muted font-mono uppercase tracking-wider">
+                  <span className="font-bold text-accent/80 bg-accent/5 px-1.5 py-0.5 border border-accent/15 rounded">
+                    {info.format}
+                  </span>
+                  <span>•</span>
+                  <span>{formatBytes(info.size)}</span>
+                </div>
+              )}
+              {info.isFolder && (
+                <span className="text-[11px] text-text-muted font-medium mt-1">
+                  Folder containing {info.children?.folders.length + info.children?.files.length} item(s)
+                </span>
+              )}
             </div>
           </div>
-        </main>
+
+          <div className="shrink-0 w-full md:w-auto">
+            <Button 
+              variant="accent" 
+              onClick={handleDownload} 
+              className="w-full md:w-auto justify-center h-11 px-8 text-sm font-semibold shadow-lg shadow-accent/25 hover:shadow-accent/40 transition-all duration-300"
+            >
+              <Icon icon="lucide:download" width={18} className="mr-2" />
+              Download
+            </Button>
+          </div>
+        </footer>
       </div>
     );
   }

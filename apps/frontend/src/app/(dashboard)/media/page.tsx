@@ -128,7 +128,7 @@ const MediaLibraryPage = () => {
         <button
           onClick={() => setIsUploadModalOpen(true)}
           disabled={isUploadBlocked}
-          className={`md:hidden fixed bottom-6 right-6 z-40 h-14 w-14 rounded-full shadow-2xl flex items-center justify-center transition-transform hover:scale-105 active:scale-95 ${isUploadBlocked ? 'bg-red-950/80 text-red-400 border border-red-500/30' : 'bg-accent text-white'}`}
+          className={`md:hidden fixed bottom-6 right-6 z-40 h-14 w-14 rounded-full shadow-2xl flex items-center justify-center transition-transform active:scale-95 ${isUploadBlocked ? 'bg-red-950/80 text-red-400 border border-red-500/30' : 'bg-accent text-white'}`}
         >
           <Icon icon={isUploadBlocked ? "lucide:lock" : "lucide:upload"} width={24} />
         </button>
@@ -150,7 +150,7 @@ const MediaLibraryPage = () => {
               </div>
               <Button
                 variant="accent"
-                className="w-full sm:w-auto h-10 px-5 shrink-0 justify-center font-semibold text-sm hover:scale-102 transition-transform duration-200"
+                className="w-full sm:w-auto h-10 px-5 shrink-0 justify-center font-semibold text-sm transition-transform duration-200"
                 onClick={handleStartMigration}
                 disabled={isStartingMigration}
               >

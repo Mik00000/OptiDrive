@@ -227,7 +227,7 @@ export default function QuotaAlerts({ stats: propStats }: QuotaAlertsProps) {
   return (
     <div className="flex flex-col gap-4 w-full mb-2">
       <div
-        className={`flex items-start gap-4 p-4.5 rounded-2xl border transition-all duration-300 relative ${
+        className={`flex items-start gap-4 p-4.5 pr-12 rounded-2xl border transition-all duration-300 relative ${
           singleAlert.type === 'critical'
             ? 'border-red-500/25 bg-red-500/10 text-text-light shadow-lg shadow-red-500/5 animate-pulse-subtle'
             : 'border-amber-500/25 bg-amber-500/10 text-text-light shadow-lg shadow-amber-500/5'
@@ -243,7 +243,7 @@ export default function QuotaAlerts({ stats: propStats }: QuotaAlertsProps) {
           <Icon icon={singleAlert.icon} width={22} height={22} />
         </div>
 
-        <div className="flex-1 flex flex-col sm:flex-row sm:items-center justify-between gap-4 pr-6 sm:pr-0">
+        <div className="flex-1 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="flex flex-col gap-0.5">
             <span className="text-sm font-semibold flex items-center gap-2">
               {singleAlert.type === 'critical' ? (
@@ -275,10 +275,10 @@ export default function QuotaAlerts({ stats: propStats }: QuotaAlertsProps) {
         {singleAlert.dismissible && (
           <button
             onClick={() => handleDismiss(singleAlert.id)}
-            className="absolute top-4.5 right-4 text-text-muted hover:text-text-light transition-colors p-1"
+            className="absolute top-3.5 right-3 text-text-muted hover:text-text-light hover:bg-white/5 transition-all p-2 rounded-xl flex items-center justify-center"
             title="Dismiss alert"
           >
-            <Icon icon="lucide:x" width={16} height={16} />
+            <Icon icon="lucide:x" width={18} height={18} />
           </button>
         )}
       </div>
