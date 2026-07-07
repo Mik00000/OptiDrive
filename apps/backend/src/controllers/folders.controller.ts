@@ -1,6 +1,7 @@
 import { Response } from 'express';
 import { prisma } from '../config/prisma';
 import { AuthRequest } from '../middlewares/auth.middleware';
+import { validateFolderName } from '../utils/validation';
 import { triggerWebhooks } from '../services/webhook.service';
 import { s3Client, BUCKET_NAME } from '../config/s3';
 import { DeleteObjectCommand } from '@aws-sdk/client-s3';
@@ -36,6 +37,14 @@ export const createFolder = async (req: AuthRequest, res: Response): Promise<voi
       return;
     }
 
+    let cleanName: string;
+    try {
+      cleanName = validateFolderName(name);
+    } catch (err: any) {
+      res.status(400).json({ error: err.message });
+      return;
+    }
+
     // If parentId is provided, check if parent folder exists and belongs to same workspace
     if (parentId) {
       const parent = await prisma.folder.findFirst({
@@ -50,7 +59,7 @@ export const createFolder = async (req: AuthRequest, res: Response): Promise<voi
     // Check uniqueness of name in current directory
     const existing = await prisma.folder.findFirst({
       where: {
-        name,
+        name: cleanName,
         parentId: parentId || null,
         workspaceId
       }
@@ -63,7 +72,7 @@ export const createFolder = async (req: AuthRequest, res: Response): Promise<voi
 
     const folder = await prisma.folder.create({
       data: {
-        name,
+        name: cleanName,
         parentId: parentId || null,
         workspaceId,
         color: color || null,
@@ -148,6 +157,16 @@ export const renameFolder = async (req: AuthRequest, res: Response): Promise<voi
       return;
     }
 
+    let cleanName: string | undefined = undefined;
+    if (name !== undefined) {
+      try {
+        cleanName = validateFolderName(name);
+      } catch (err: any) {
+        res.status(400).json({ error: err.message });
+        return;
+      }
+    }
+
     const folder = await prisma.folder.findFirst({
       where: { id: folderId, workspaceId }
     });
@@ -158,10 +177,10 @@ export const renameFolder = async (req: AuthRequest, res: Response): Promise<voi
     }
 
     // Check uniqueness in target directory if name is changed
-    if (name && name !== folder.name) {
+    if (cleanName && cleanName !== folder.name) {
       const existing = await prisma.folder.findFirst({
         where: {
-          name,
+          name: cleanName,
           parentId: folder.parentId,
           workspaceId,
           id: { not: folderId }
@@ -174,12 +193,13 @@ export const renameFolder = async (req: AuthRequest, res: Response): Promise<voi
       }
     }
 
+    const updateData: any = {};
+    if (cleanName !== undefined) updateData.name = cleanName;
+    if (color !== undefined) updateData.color = color;
+
     const updated = await prisma.folder.update({
       where: { id: folderId },
-      data: {
-        name: name !== undefined ? name : undefined,
-        color: color !== undefined ? color : undefined,
-      }
+      data: updateData
     });
 
     // Log Activity

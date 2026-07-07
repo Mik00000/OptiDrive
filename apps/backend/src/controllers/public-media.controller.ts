@@ -140,7 +140,21 @@ export const viewMediaFileOnTheFly = async (req: Request, res: Response): Promis
         select: { plan: true }
       });
       if (workspace && (workspace.plan === 'PRO' || workspace.plan === 'ENTERPRISE')) {
-        const wmText = String(req.query.wmText || req.query.watermarkText || 'OptiDrive');
+        const escapeXml = (unsafe: string): string => {
+          return unsafe.replace(/[<>&'"]/g, (c) => {
+            switch (c) {
+              case '<': return '&lt;';
+              case '>': return '&gt;';
+              case '&': return '&amp;';
+              case '\'': return '&apos;';
+              case '"': return '&quot;';
+              default: return c;
+            }
+          });
+        };
+
+        const wmTextRaw = String(req.query.wmText || req.query.watermarkText || 'OptiDrive');
+        const wmText = escapeXml(wmTextRaw);
         const opacity = parseFloat(String(req.query.wmOpacity || req.query.watermarkOpacity || '0.3')) || 0.3;
         
         try {

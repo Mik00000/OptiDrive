@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import multer from 'multer';
 import { authenticateApiKey } from '../../middlewares/apiKey.middleware';
+import { v1ApiLimiter, v1CompressLimiter } from '../../middleware/rate-limit';
 import { compressImageController } from '../../controllers/v1/compression.controller';
 import { viewMediaController, viewAvatarController } from '../../controllers/v1/view.controller';
 import { listMediaController, deleteMediaController } from '../../controllers/v1/media.controller';
@@ -26,6 +27,7 @@ router.get('/media/:workspaceId/:filename', viewMediaController);
 
 // Protect all v1 routes below with API Key authentication
 router.use(authenticateApiKey);
+router.use(v1ApiLimiter);
 
 import { blockDuringMigration } from '../../middlewares/migration.middleware';
 router.use((req, res, next) => {
@@ -39,7 +41,7 @@ router.use((req, res, next) => {
 // Compression Endpoint
 // The user sends an image via multipart/form-data with the field name 'image'
 import { checkQuota } from '../../middlewares/quota.middleware';
-router.post('/compress', upload.single('image'), checkQuota, compressImageController);
+router.post('/compress', v1CompressLimiter, upload.single('image'), checkQuota, compressImageController);
 
 // Media Management Endpoints
 router.get('/media', listMediaController);

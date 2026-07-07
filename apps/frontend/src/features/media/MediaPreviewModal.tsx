@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { useThrottle } from '@/hooks/useThrottle';
 import { Icon } from '@iconify/react';
 import { Modal } from '@/components/Modal';
 import { MediaFile, downloadMediaFileClientApi } from './api';
@@ -500,12 +501,16 @@ export function MediaPreviewModal({ isOpen, onClose, file, onDelete, initialTab 
     setIsDebouncing(true);
   }, []);
 
+  const throttledApplyMove = useThrottle((clientX: number, clientY: number) => {
+    applyMoveGlobal(clientX, clientY);
+    draw();
+  });
+
   // ── Global mouse listeners for tracking outside canvas ──
   useEffect(() => {
     const handleGlobalMouseMove = (e: MouseEvent) => {
       if (!isDraggingRef.current && !isResizingRef.current && !isDrawingNewRef.current) return;
-      applyMoveGlobal(e.clientX, e.clientY);
-      draw();
+      throttledApplyMove(e.clientX, e.clientY);
     };
 
     const handleGlobalMouseUp = () => {
@@ -522,7 +527,7 @@ export function MediaPreviewModal({ isOpen, onClose, file, onDelete, initialTab 
       document.removeEventListener('mousemove', handleGlobalMouseMove);
       document.removeEventListener('mouseup', handleGlobalMouseUp);
     };
-  }, [isEditing, applyMoveGlobal, finishInteraction, draw]);
+  }, [isEditing, throttledApplyMove, finishInteraction, draw]);
 
   const onMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
     if (!cropEnabled) return;
@@ -582,8 +587,7 @@ export function MediaPreviewModal({ isOpen, onClose, file, onDelete, initialTab 
       draw();
       return;
     }
-    applyMoveGlobal(e.touches[0].clientX, e.touches[0].clientY);
-    draw();
+    throttledApplyMove(e.touches[0].clientX, e.touches[0].clientY);
   };
 
   const onTouchEnd = () => {

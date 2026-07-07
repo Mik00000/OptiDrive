@@ -1,6 +1,7 @@
 import { Response } from 'express';
 import { prisma } from '../config/prisma';
 import { AuthRequest } from '../middlewares/auth.middleware';
+import { validateUserName } from '../utils/validation';
 import { PutObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
 import { s3Client, BUCKET_NAME } from '../config/s3';
 import { extname } from 'path';
@@ -141,6 +142,14 @@ export const updateUserProfile = async (req: AuthRequest, res: Response): Promis
       return;
     }
 
+    let cleanName: string;
+    try {
+      cleanName = validateUserName(name);
+    } catch (err: any) {
+      res.status(400).json({ error: err.message });
+      return;
+    }
+
     const currentUser = await prisma.user.findUnique({
       where: { id: userId },
       select: { id: true, name: true, email: true, avatarUrl: true }
@@ -170,7 +179,7 @@ export const updateUserProfile = async (req: AuthRequest, res: Response): Promis
       await prisma.user.update({
         where: { id: userId },
         data: {
-          name: name.trim(),
+          name: cleanName,
           pendingEmail: email.toLowerCase(),
           pendingEmailCode: code,
           pendingEmailCodeExpiry: expiry
@@ -190,7 +199,7 @@ export const updateUserProfile = async (req: AuthRequest, res: Response): Promis
       // Email не змінився — просто оновлюємо ім'я
       const updatedUser = await prisma.user.update({
         where: { id: userId },
-        data: { name: name.trim() },
+        data: { name: cleanName },
         select: { id: true, name: true, email: true, avatarUrl: true }
       });
 

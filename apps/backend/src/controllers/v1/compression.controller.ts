@@ -5,6 +5,7 @@ import { prisma } from '../../config/prisma';
 import { triggerWebhooks } from '../../services/webhook.service';
 import { checkAndTriggerQuotaEmails } from '../../services/quota-alert.service';
 import fs from 'fs/promises';
+import { validateFileName, validateFolderName } from '../../utils/validation';
 
 export const compressImageController = async (req: Request & { workspaceId?: string; user?: { workspaceId: string } }, res: Response): Promise<void> => {
   const tempPath = req.file?.path;
@@ -41,6 +42,13 @@ export const compressImageController = async (req: Request & { workspaceId?: str
       } catch (e) {
         // Fallback
       }
+    }
+
+    try {
+      originalname = validateFileName(originalname);
+    } catch (err: any) {
+      res.status(400).json({ error: err.message });
+      return;
     }
 
     // Parse options from req.body (Multipart forms send strings)
@@ -120,7 +128,14 @@ export const compressImageController = async (req: Request & { workspaceId?: str
     let targetFolderId: string | null = folderId && folderId !== 'null' ? folderId : null;
 
     if (folderPath && typeof folderPath === 'string') {
-      const pathParts = folderPath.split('/').map((p: string) => p.trim()).filter(Boolean);
+      let pathParts: string[];
+      try {
+        pathParts = folderPath.split('/').map((p: string) => validateFolderName(p)).filter(Boolean);
+      } catch (err: any) {
+        res.status(400).json({ error: err.message });
+        return;
+      }
+
       let currentParentId: string | null = null;
       for (const part of pathParts) {
         let folderRecord: any = await prisma.folder.findFirst({

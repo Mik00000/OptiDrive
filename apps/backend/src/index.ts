@@ -8,7 +8,20 @@ import { s3Client, BUCKET_NAME } from './config/s3';
 import { DeleteObjectCommand, DeleteObjectsCommand } from '@aws-sdk/client-s3';
 import { detectCustomDomain } from './middlewares/domain.middleware';
 
+import helmet from 'helmet';
+import compression from 'compression';
+
 const app = express();
+app.set('trust proxy', 1); // Trust first proxy (Nginx, Cloudflare, AWS ALB, etc.)
+
+// Secure headers with Helmet (allow cross-origin media sharing)
+app.use(helmet({
+  crossOriginResourcePolicy: { policy: 'cross-origin' }
+}));
+
+// Enable Gzip/Brotli response compression for faster response delivery
+app.use(compression());
+
 app.use(cors({
   origin: process.env.FRONTEND_URL as string,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],

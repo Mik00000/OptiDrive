@@ -14,6 +14,15 @@ export const registerUser = async (email: string, passwordRaw: string, name: str
     throw new Error('Invalid email format');
   }
 
+  if (!passwordRaw || passwordRaw.length < 6) {
+    throw new Error('Password must be at least 6 characters long');
+  }
+
+  const trimmedName = name ? name.trim() : '';
+  if (!trimmedName || trimmedName.length < 1 || trimmedName.length > 50) {
+    throw new Error('Name must be between 1 and 50 characters long');
+  }
+
   const existingUser = await findUserByEmail(email);
   if (existingUser) {
     throw new Error('User with this email already exists');
@@ -25,7 +34,7 @@ export const registerUser = async (email: string, passwordRaw: string, name: str
   const verificationCode = generateVerificationCode();
   const verificationCodeExpiry = new Date(Date.now() + 15 * 60 * 1000); // 15 mins
 
-  const user = await createUserWithWorkspace(email, passwordHash, name, verificationCode, verificationCodeExpiry);
+  const user = await createUserWithWorkspace(email, passwordHash, trimmedName, verificationCode, verificationCodeExpiry);
 
   // Send verification email asynchronously
   sendVerificationEmail(email, verificationCode).catch(console.error);

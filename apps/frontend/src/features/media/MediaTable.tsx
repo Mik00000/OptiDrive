@@ -2,6 +2,7 @@
 
 import { useState, useMemo, useEffect, useRef } from 'react';
 import React from 'react';
+import { useDebounce } from '@/hooks/useDebounce';
 import { Icon } from '@iconify/react';
 import { Button } from '@/components/Button';
 import { Input } from '@/components/Inputs';
@@ -184,7 +185,7 @@ export const MediaTable = ({
   } | null>(null);
 
   // Debounced search query
-  const [debouncedSearch, setDebouncedSearch] = useState(searchQuery);
+  const debouncedSearch = useDebounce(searchQuery, 300);
 
   // Drag and drop state
   const [draggedIds, setDraggedIds] = useState<string[]>([]);
@@ -199,14 +200,6 @@ export const MediaTable = ({
   };
 
   const itemsPerPage = 7;
-
-  // Search debounce effect
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setDebouncedSearch(searchQuery);
-    }, 300);
-    return () => clearTimeout(timer);
-  }, [searchQuery]);
 
   // Drag and drop handlers
   const handleDragStart = (

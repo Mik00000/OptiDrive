@@ -1,6 +1,7 @@
 import { Response } from 'express';
 import { prisma } from '../config/prisma';
 import { AuthRequest } from '../middlewares/auth.middleware';
+import { validateFileName, validateTagName } from '../utils/validation';
 import { triggerWebhooks } from '../services/webhook.service';
 import { s3Client, BUCKET_NAME } from '../config/s3';
 import { DeleteObjectCommand } from '@aws-sdk/client-s3';
@@ -234,6 +235,26 @@ export const updateMediaFile = async (req: AuthRequest, res: Response): Promise<
       return;
     }
 
+    let cleanName: string | undefined = undefined;
+    if (name !== undefined) {
+      try {
+        cleanName = validateFileName(name);
+      } catch (err: any) {
+        res.status(400).json({ error: err.message });
+        return;
+      }
+    }
+
+    let cleanTags: string[] | undefined = undefined;
+    if (tags !== undefined && Array.isArray(tags)) {
+      try {
+        cleanTags = tags.map(t => validateTagName(t));
+      } catch (err: any) {
+        res.status(400).json({ error: err.message });
+        return;
+      }
+    }
+
     const mediaFile = await prisma.mediaFile.findFirst({
       where: { id: String(fileId), workspaceId: String(workspaceId) }
     });
@@ -243,7 +264,7 @@ export const updateMediaFile = async (req: AuthRequest, res: Response): Promise<
       return;
     }
 
-    if (tags !== undefined && Array.isArray(tags)) {
+    if (cleanTags !== undefined && Array.isArray(cleanTags)) {
       await prisma.$transaction(async (tx) => {
         // Disconnect all current tags first
         await tx.mediaFile.update({
@@ -254,28 +275,31 @@ export const updateMediaFile = async (req: AuthRequest, res: Response): Promise<
         });
         
         // Connect/create the new ones
-        await tx.mediaFile.update({
-          where: { id: String(fileId) },
-          data: {
-            name: name !== undefined ? name : undefined,
-            tags: {
-              connectOrCreate: tags.map((tagName: string) => {
-                const cleanTagName = tagName.trim();
-                return {
-                  where: {
-                    name_workspaceId: {
-                      name: cleanTagName,
-                      workspaceId: workspaceId
-                    }
-                  },
-                  create: {
-                    name: cleanTagName,
+        const updateData: any = {
+          tags: {
+            connectOrCreate: cleanTags.map((tagName: string) => {
+              return {
+                where: {
+                  name_workspaceId: {
+                    name: tagName,
                     workspaceId: workspaceId
                   }
-                };
-              })
-            }
+                },
+                create: {
+                  name: tagName,
+                  workspaceId: workspaceId
+                }
+              };
+            })
           }
+        };
+        if (cleanName !== undefined) {
+          updateData.name = cleanName;
+        }
+
+        await tx.mediaFile.update({
+          where: { id: String(fileId) },
+          data: updateData
         });
 
         // Clean up orphaned tags in the workspace
@@ -290,23 +314,23 @@ export const updateMediaFile = async (req: AuthRequest, res: Response): Promise<
       await prisma.activityLog.create({
         data: {
           type: 'SETTING_CHANGED',
-          description: name !== undefined && name !== mediaFile.name 
-            ? `Renamed file ${mediaFile.name} to ${name} and updated tags to [${tags.join(', ')}]`
-            : `Updated tags for file ${mediaFile.name} to [${tags.join(', ')}]`,
+          description: cleanName !== undefined && cleanName !== mediaFile.name 
+            ? `Renamed file ${mediaFile.name} to ${cleanName} and updated tags to [${cleanTags.join(', ')}]`
+            : `Updated tags for file ${mediaFile.name} to [${cleanTags.join(', ')}]`,
           workspaceId,
           userId: req.user?.userId || null,
         }
       });
-    } else if (name !== undefined) {
+    } else if (cleanName !== undefined) {
       await prisma.mediaFile.update({
         where: { id: String(fileId) },
-        data: { name }
+        data: { name: cleanName }
       });
 
       await prisma.activityLog.create({
         data: {
           type: 'SETTING_CHANGED',
-          description: `Renamed file ${mediaFile.name} to ${name}`,
+          description: `Renamed file ${mediaFile.name} to ${cleanName}`,
           workspaceId,
           userId: req.user?.userId || null,
         }
