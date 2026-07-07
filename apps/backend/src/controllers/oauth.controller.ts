@@ -134,6 +134,12 @@ export const googleCallback = async (req: Request, res: Response): Promise<void>
       avatarUrl: user.avatarUrl,
     };
     const userBase64 = Buffer.from(JSON.stringify(safeUser)).toString('base64');
+    res.cookie('optidrive_token', token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 30 * 24 * 60 * 60 * 1000,
+    });
     res.redirect(`${FRONTEND_URL}/login?token=${token}&user=${encodeURIComponent(userBase64)}`);
   } catch (error) {
     console.error(error);
@@ -219,6 +225,12 @@ export const githubCallback = async (req: Request, res: Response): Promise<void>
       avatarUrl: user.avatarUrl,
     };
     const userBase64 = Buffer.from(JSON.stringify(safeUser)).toString('base64');
+    res.cookie('optidrive_token', token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 30 * 24 * 60 * 60 * 1000,
+    });
     res.redirect(`${FRONTEND_URL}/login?token=${token}&user=${encodeURIComponent(userBase64)}`);
   } catch (error) {
     console.error(error);

@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { register, login, verifyEmailController, resendVerificationController, forgotPasswordController, resetPasswordController } from '../../controllers/auth.controller';
+import { register, login, logout, verifyEmailController, resendVerificationController, forgotPasswordController, resetPasswordController } from '../../controllers/auth.controller';
 import { loginLimiter, registerLimiter, verifyEmailLimiter, resendVerificationLimiter, globalApiLimiter } from '../../middleware/rate-limit';
 import apiKeysRoutes from './api-keys.routes';
 import oauthRoutes from './oauth.routes';
@@ -40,6 +40,7 @@ router.use((req, res, next) => {
 
 router.post('/register', registerLimiter, register);
 router.post('/login', loginLimiter, login);
+router.post('/logout', logout);
 router.post('/verify-email', verifyEmailLimiter, verifyEmailController);
 router.post('/resend-verification-email', resendVerificationLimiter, resendVerificationController);
 router.post('/forgot-password', resendVerificationLimiter, forgotPasswordController);

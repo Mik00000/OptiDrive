@@ -10,6 +10,7 @@ import { detectCustomDomain } from './middlewares/domain.middleware';
 
 import helmet from 'helmet';
 import compression from 'compression';
+import cookieParser from 'cookie-parser';
 
 const app = express();
 app.set('trust proxy', 1); // Trust first proxy (Nginx, Cloudflare, AWS ALB, etc.)
@@ -21,6 +22,9 @@ app.use(helmet({
 
 // Enable Gzip/Brotli response compression for faster response delivery
 app.use(compression());
+
+// Parse cookies from incoming requests
+app.use(cookieParser());
 
 app.use(cors({
   origin: process.env.FRONTEND_URL as string,

@@ -272,6 +272,13 @@ export const switchWorkspace = async (req: Request & { user?: any }, res: Respon
 
     const token = generateToken(userId, workspaceId);
 
+    res.cookie('optidrive_token', token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
+    });
+
     res.status(200).json({
       success: true,
       token,
@@ -681,6 +688,12 @@ export const deleteActiveWorkspace = async (req: Request & { user?: any }, res: 
       });
 
       const token = generateToken(userId, otherMembership.workspaceId);
+      res.cookie('optidrive_token', token, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        maxAge: 30 * 24 * 60 * 60 * 1000,
+      });
       res.status(200).json({ 
         success: true, 
         message: 'Workspace deleted successfully. Switched workspace.',
@@ -694,6 +707,12 @@ export const deleteActiveWorkspace = async (req: Request & { user?: any }, res: 
       });
 
       const token = generateToken(userId, null as any);
+      res.cookie('optidrive_token', token, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        maxAge: 30 * 24 * 60 * 60 * 1000,
+      });
       res.status(200).json({ 
         success: true, 
         message: 'Workspace deleted successfully. No other workspaces available.',

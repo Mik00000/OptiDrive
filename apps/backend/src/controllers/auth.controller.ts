@@ -49,6 +49,15 @@ export const login = async (req: Request, res: Response): Promise<void> => {
 
     const { user, token, requiresVerification } = await loginUser(email, password);
 
+    if (token) {
+      res.cookie('optidrive_token', token, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
+      });
+    }
+
     res.status(200).json({
       success: true,
       token,
@@ -77,6 +86,15 @@ export const verifyEmailController = async (req: Request, res: Response): Promis
     }
 
     const { user, token } = await verifyEmail(email, code);
+
+    if (token) {
+      res.cookie('optidrive_token', token, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
+      });
+    }
 
     res.status(200).json({
       success: true,
@@ -147,4 +165,13 @@ export const resetPasswordController = async (req: Request, res: Response): Prom
   } catch (error: unknown) {
     handleError(error, res, 400);
   }
+};
+
+export const logout = async (req: Request, res: Response): Promise<void> => {
+  res.clearCookie('optidrive_token', {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'lax',
+  });
+  res.status(200).json({ success: true, message: 'Logged out successfully' });
 };

@@ -56,6 +56,7 @@ class ApiClient {
   public async get<T>(url: string, options: RequestInit = {}): Promise<T> {
     const response = await fetch(url, {
       method: 'GET',
+      credentials: 'include',
       ...options,
       headers: this.getHeaders((options.headers as Record<string, string>) || {}),
     });
@@ -67,8 +68,8 @@ class ApiClient {
     const response = await fetch(url, {
       method: 'POST',
       body: isFormData ? body : (body ? JSON.stringify(body) : undefined),
+      credentials: 'include',
       ...options,
-      // Для FormData не виставляємо Content-Type — браузер сам додасть boundary
       headers: this.getHeaders((options.headers as Record<string, string>) || {}, isFormData),
     });
     return this.handleResponse<T>(response);
@@ -78,6 +79,7 @@ class ApiClient {
     const response = await fetch(url, {
       method: 'PUT',
       body: body ? JSON.stringify(body) : undefined,
+      credentials: 'include',
       ...options,
       headers: this.getHeaders((options.headers as Record<string, string>) || {}),
     });
@@ -88,6 +90,7 @@ class ApiClient {
     const response = await fetch(url, {
       method: 'PATCH',
       body: body ? JSON.stringify(body) : undefined,
+      credentials: 'include',
       ...options,
       headers: this.getHeaders((options.headers as Record<string, string>) || {}),
     });
@@ -97,6 +100,7 @@ class ApiClient {
   public async delete<T>(url: string, options: RequestInit = {}): Promise<T> {
     const response = await fetch(url, {
       method: 'DELETE',
+      credentials: 'include',
       ...options,
       headers: this.getHeaders((options.headers as Record<string, string>) || {}),
     });

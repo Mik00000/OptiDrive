@@ -132,6 +132,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const logout = () => {
+    apiClient.post('/api/internal/logout').catch((err) => {
+      console.error('Failed to logout on backend:', err);
+    });
     localStorage.removeItem('optidrive_token');
     localStorage.removeItem('optidrive_user');
     setToken(null);

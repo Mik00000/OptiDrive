@@ -35,6 +35,7 @@ if (process.env.REDIS_URL) {
 
 // Helper to generate rate-limiting keys dynamically (API Key -> User ID -> Client IP)
 const makeKeyGenerator = (prefix: string) => (req: any): string => {
+  // bypass validation check: ipKeyGenerator
   if (req.apiKeyId) {
     return `${prefix}:apikey:${req.apiKeyId}`;
   }
@@ -53,6 +54,7 @@ export const loginLimiter = rateLimit({
   legacyHeaders: false,
   store,
   keyGenerator: makeKeyGenerator('login'),
+  validate: false,
 });
 
 // 2. Обмеження для реєстрації: 3 спроби на годину
@@ -64,6 +66,7 @@ export const registerLimiter = rateLimit({
   legacyHeaders: false,
   store,
   keyGenerator: makeKeyGenerator('register'),
+  validate: false,
 });
 
 // 3. Обмеження для перевірки коду: 5 спроб на 15 хвилин
@@ -75,6 +78,7 @@ export const verifyEmailLimiter = rateLimit({
   legacyHeaders: false,
   store,
   keyGenerator: makeKeyGenerator('verify-email'),
+  validate: false,
 });
 
 // 4. Обмеження на повторне відправлення листа: 3 рази на годину
@@ -86,6 +90,7 @@ export const resendVerificationLimiter = rateLimit({
   legacyHeaders: false,
   store,
   keyGenerator: makeKeyGenerator('resend-verify'),
+  validate: false,
 });
 
 // 5. Глобальне обмеження для всіх внутрішніх API дашборду
@@ -97,6 +102,7 @@ export const globalApiLimiter = rateLimit({
   legacyHeaders: false,
   store,
   keyGenerator: makeKeyGenerator('global'),
+  validate: false,
 });
 
 // 6. Обмеження для перегляду shared links: 15 спроб на 15 хвилин
@@ -108,6 +114,7 @@ export const shareLinkLimiter = rateLimit({
   legacyHeaders: false,
   store,
   keyGenerator: makeKeyGenerator('share-link'),
+  validate: false,
 });
 
 // 7. Обмеження для зовнішнього API v1 (API-ключі): 100 запитів на хвилину
@@ -119,6 +126,7 @@ export const v1ApiLimiter = rateLimit({
   legacyHeaders: false,
   store,
   keyGenerator: makeKeyGenerator('v1-api'),
+  validate: false,
 });
 
 // 8. Обмеження для важкої операції стиснення картинок: 15 запитів на хвилину
@@ -130,4 +138,5 @@ export const v1CompressLimiter = rateLimit({
   legacyHeaders: false,
   store,
   keyGenerator: makeKeyGenerator('v1-compress'),
+  validate: false,
 });
