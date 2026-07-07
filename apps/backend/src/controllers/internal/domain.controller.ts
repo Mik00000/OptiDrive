@@ -73,6 +73,31 @@ export const createDomain = async (req: AuthRequest, res: Response): Promise<voi
       return;
     }
 
+    // Перевірка ліміту плану на кастомні домени
+    const workspace = await prisma.workspace.findUnique({
+      where: { id: workspaceId }
+    });
+    
+    if (!workspace) {
+      res.status(404).json({ success: false, error: 'Workspace not found' });
+      return;
+    }
+    
+    const { PLANS } = await import('@optidrive/shared');
+    const planLimits = PLANS[workspace.plan as keyof typeof PLANS] || PLANS.FREE;
+    
+    const domainsCount = await prisma.customDomain.count({
+      where: { workspaceId }
+    });
+    
+    if (domainsCount >= planLimits.maxCustomDomains) {
+      res.status(403).json({ 
+        success: false, 
+        error: `Custom domain limit reached for your ${workspace.plan} plan (${planLimits.maxCustomDomains} domain). Please upgrade your plan.` 
+      });
+      return;
+    }
+
     const cleanDomain = domain.trim().toLowerCase();
     
     // Проста валідація формату домену

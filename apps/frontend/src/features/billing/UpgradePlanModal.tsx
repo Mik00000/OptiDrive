@@ -128,9 +128,21 @@ export function UpgradePlanModal({ isOpen, onClose, stats, onPlanUpdated, isSubs
                   <Icon icon="lucide:check" className="text-emerald-500" width={14} />
                   <span>1 API key</span>
                 </li>
+                <li className="text-xs text-text-light flex items-center gap-2">
+                  <Icon icon="lucide:check" className="text-emerald-500" width={14} />
+                  <span>2 Team members</span>
+                </li>
                 <li className="text-xs text-text-muted/60 flex items-center gap-2 line-through">
                   <Icon icon="lucide:x" className="text-text-muted/40" width={14} />
-                  <span>Custom S3 storage</span>
+                  <span>Custom domains</span>
+                </li>
+                <li className="text-xs text-text-muted/60 flex items-center gap-2 line-through">
+                  <Icon icon="lucide:x" className="text-text-muted/40" width={14} />
+                  <span>Webhooks</span>
+                </li>
+                <li className="text-xs text-text-muted/60 flex items-center gap-2 line-through">
+                  <Icon icon="lucide:x" className="text-text-muted/40" width={14} />
+                  <span>Custom S3 storage (BYOS)</span>
                 </li>
               </ul>
 
@@ -178,7 +190,19 @@ export function UpgradePlanModal({ isOpen, onClose, stats, onPlanUpdated, isSubs
                 </li>
                 <li className="text-xs text-text-light flex items-center gap-2">
                   <Icon icon="lucide:check" className="text-emerald-500" width={14} />
-                  <span><strong>10</strong> API keys</span>
+                  <span><strong>10</strong> API keys & team members</span>
+                </li>
+                <li className="text-xs text-text-light flex items-center gap-2">
+                  <Icon icon="lucide:check" className="text-emerald-500" width={14} />
+                  <span><strong>1</strong> Custom domain</span>
+                </li>
+                <li className="text-xs text-text-light flex items-center gap-2">
+                  <Icon icon="lucide:check" className="text-emerald-500" width={14} />
+                  <span><strong>5</strong> Webhooks</span>
+                </li>
+                <li className="text-xs text-text-light flex items-center gap-2">
+                  <Icon icon="lucide:check" className="text-emerald-500" width={14} />
+                  <span>Watermarking, WebP & AVIF</span>
                 </li>
                 <li className="text-xs text-text-light flex items-center gap-2">
                   <Icon icon="lucide:check" className="text-emerald-500" width={14} />
@@ -276,7 +300,15 @@ export function UpgradePlanModal({ isOpen, onClose, stats, onPlanUpdated, isSubs
                 </li>
                 <li className="text-xs text-text-light flex items-center gap-2">
                   <Icon icon="lucide:check" className="text-emerald-500" width={14} />
-                  <span>Unlimited team members</span>
+                  <span>Unlimited members & API keys</span>
+                </li>
+                <li className="text-xs text-text-light flex items-center gap-2">
+                  <Icon icon="lucide:check" className="text-emerald-500" width={14} />
+                  <span>Unlimited custom domains & webhooks</span>
+                </li>
+                <li className="text-xs text-text-light flex items-center gap-2">
+                  <Icon icon="lucide:check" className="text-emerald-500" width={14} />
+                  <span>Audit logs & security compliance</span>
                 </li>
                 <li className="text-xs text-text-light flex items-center gap-2">
                   <Icon icon="lucide:check" className="text-emerald-500" width={14} />

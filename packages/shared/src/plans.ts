@@ -8,6 +8,8 @@ export interface PlanLimits {
   maxApiKeys: number;
   maxMembers: number;
   maxCustomRoles: number;
+  maxCustomDomains: number;
+  maxWebhooks: number;
 }
 
 const GB = 1024 * 1024 * 1024;
@@ -22,6 +24,8 @@ export const PLANS: Record<PlanType, PlanLimits> = {
     maxApiKeys: 1,
     maxMembers: 2,
     maxCustomRoles: 0,
+    maxCustomDomains: 0,
+    maxWebhooks: 0,
   },
   PRO: {
     storageBytes: 50 * GB,
@@ -31,6 +35,8 @@ export const PLANS: Record<PlanType, PlanLimits> = {
     maxApiKeys: 10,
     maxMembers: 10,
     maxCustomRoles: 5,
+    maxCustomDomains: 1,
+    maxWebhooks: 5,
   },
   ENTERPRISE: {
     storageBytes: 250 * GB,
@@ -40,5 +46,7 @@ export const PLANS: Record<PlanType, PlanLimits> = {
     maxApiKeys: 50,
     maxMembers: 999999, // practically unlimited
     maxCustomRoles: 999999,
+    maxCustomDomains: 999999,
+    maxWebhooks: 999999,
   },
 };

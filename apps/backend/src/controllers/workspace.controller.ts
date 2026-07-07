@@ -141,6 +141,10 @@ export const getWorkspaceStats = async (req: Request & { user?: any }, res: Resp
       optimizedSize: f._sum.optimizedSize?.toString() || '0'
     }));
 
+    // Перевіряємо чи воркспейс заморожено
+    const { isWorkspaceLocked } = await import('../utils/workspace-status');
+    const isLocked = await isWorkspaceLocked(workspaceId);
+
     res.status(200).json({
       success: true,
       data: {
@@ -148,6 +152,7 @@ export const getWorkspaceStats = async (req: Request & { user?: any }, res: Resp
         name: workspace.name,
         slug: workspace.slug,
         plan: workspace.plan,
+        isLocked,
         storageUsed: workspace.storageUsed.toString(),
         bandwidthUsed: workspace.bandwidthUsed.toString(),
         monthlyOptimizations: workspace.monthlyOptimizations,
@@ -164,6 +169,8 @@ export const getWorkspaceStats = async (req: Request & { user?: any }, res: Resp
           maxApiKeys: limits.maxApiKeys,
           maxMembers: limits.maxMembers,
           maxCustomRoles: limits.maxCustomRoles,
+          maxCustomDomains: limits.maxCustomDomains,
+          maxWebhooks: limits.maxWebhooks,
         },
         recentActivity,
         analytics,
@@ -217,21 +224,26 @@ export const getUserWorkspaces = async (req: Request & { user?: any }, res: Resp
       }
     });
 
-    const workspaces = members.map((m: any) => ({
-      id: m.workspace.id,
-      name: m.workspace.name,
-      slug: m.workspace.slug,
-      plan: m.workspace.plan,
-      customS3Enabled: m.workspace.customS3Enabled,
-      s3AccessKeyId: m.workspace.s3AccessKeyId,
-      s3Endpoint: m.workspace.s3Endpoint,
-      s3BucketName: m.workspace.s3BucketName,
-      s3Region: m.workspace.s3Region,
-      s3PublicUrl: m.workspace.s3PublicUrl,
-      migrationStatus: m.workspace.migrationStatus,
-      migrationProgress: m.workspace.migrationProgress,
-      membersCount: m.workspace._count.members,
-      role: m.role
+    const { isWorkspaceLocked } = await import('../utils/workspace-status');
+    const workspaces = await Promise.all(members.map(async (m: any) => {
+      const isLocked = await isWorkspaceLocked(m.workspace.id);
+      return {
+        id: m.workspace.id,
+        name: m.workspace.name,
+        slug: m.workspace.slug,
+        plan: m.workspace.plan,
+        isLocked,
+        customS3Enabled: m.workspace.customS3Enabled,
+        s3AccessKeyId: m.workspace.s3AccessKeyId,
+        s3Endpoint: m.workspace.s3Endpoint,
+        s3BucketName: m.workspace.s3BucketName,
+        s3Region: m.workspace.s3Region,
+        s3PublicUrl: m.workspace.s3PublicUrl,
+        migrationStatus: m.workspace.migrationStatus,
+        migrationProgress: m.workspace.migrationProgress,
+        membersCount: m.workspace._count.members,
+        role: m.role
+      };
     }));
 
     res.status(200).json({ success: true, data: workspaces });

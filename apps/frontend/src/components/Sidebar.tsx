@@ -138,8 +138,11 @@ export const Sidebar = ({ className }: SidebarProps) => {
                 {activeWorkspace ? activeWorkspace.name.charAt(0).toUpperCase() : 'W'}
               </div>
               <div className="flex flex-col min-w-0">
-                <span className="truncate text-sm font-semibold text-text-light">
+                <span className="truncate text-sm font-semibold text-text-light flex items-center gap-1.5">
                   {isLoading ? 'Loading...' : (activeWorkspace ? activeWorkspace.name : 'Unknown Workspace')}
+                  {activeWorkspace?.isLocked && (
+                    <Icon icon="lucide:lock" className="text-red-400 shrink-0" width={12} height={12} />
+                  )}
                 </span>
                 <span className="text-[10px] font-medium text-text-muted flex items-center gap-1">
                   <span className="truncate max-w-[80px]">
@@ -154,6 +157,11 @@ export const Sidebar = ({ className }: SidebarProps) => {
 )}>
   {activeWorkspace.plan}
 </span>
+                  )}
+                  {activeWorkspace?.isLocked && (
+                    <span className="inline-block rounded px-1.5 flex items-center pt-[2px] h-[11.5px] text-[8px] font-bold tracking-wide uppercase leading-none bg-red-500/20 text-red-400">
+                      Locked
+                    </span>
                   )}
                 </span>
               </div>
@@ -201,8 +209,18 @@ export const Sidebar = ({ className }: SidebarProps) => {
                           {ws.name.charAt(0).toUpperCase()}
                         </div>
                         <div className="flex flex-col min-w-0">
-                          <span className="truncate text-xs font-medium text-text-light">{ws.name}</span>
-                          <span className="text-[9px] text-text-muted">{ws.role?.name || 'Member'}</span>
+                          <span className="truncate text-xs font-medium text-text-light flex items-center gap-1">
+                            {ws.name}
+                            {ws.isLocked && (
+                              <Icon icon="lucide:lock" className="text-red-400 shrink-0" width={11} height={11} />
+                            )}
+                          </span>
+                          <span className="text-[9px] text-text-muted flex items-center gap-1">
+                            {ws.role?.name || 'Member'}
+                            {ws.isLocked && (
+                              <span className="text-[8px] font-bold text-red-400 bg-red-400/10 px-1 rounded uppercase">Locked</span>
+                            )}
+                          </span>
                         </div>
                       </div>
                       {isActive && (

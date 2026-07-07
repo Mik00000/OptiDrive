@@ -5,6 +5,7 @@ export interface WorkspaceStats {
   name: string;
   slug: string;
   plan: string;
+  isLocked?: boolean;
   storageUsed: string;
   bandwidthUsed: string;
   monthlyOptimizations: number;
@@ -19,6 +20,10 @@ export interface WorkspaceStats {
     monthlyOptimizations: number;
     maxFileSize: string;
     maxApiKeys: number;
+    maxMembers?: number;
+    maxCustomRoles?: number;
+    maxCustomDomains?: number;
+    maxWebhooks?: number;
   };
   recentActivity: any[];
   analytics: { date: string, bytesSaved: number, requests: number, successRequests?: number, errorRequests?: number }[];

@@ -34,6 +34,31 @@ export const createWebhook = async (req: AuthRequest, res: Response): Promise<vo
       return;
     }
 
+    // Перевірка ліміту плану на вебхуки
+    const workspace = await prisma.workspace.findUnique({
+      where: { id: workspaceId }
+    });
+    
+    if (!workspace) {
+      res.status(404).json({ success: false, error: 'Workspace not found' });
+      return;
+    }
+    
+    const { PLANS } = await import('@optidrive/shared');
+    const planLimits = PLANS[workspace.plan as keyof typeof PLANS] || PLANS.FREE;
+    
+    const webhooksCount = await prisma.webhook.count({
+      where: { workspaceId }
+    });
+    
+    if (webhooksCount >= planLimits.maxWebhooks) {
+      res.status(403).json({ 
+        success: false, 
+        error: `Webhook limit reached for your ${workspace.plan} plan (${planLimits.maxWebhooks} webhooks). Please upgrade your plan.` 
+      });
+      return;
+    }
+
     if (!url || typeof url !== 'string' || !url.startsWith('http')) {
       res.status(400).json({ success: false, error: 'A valid webhook URL starting with http/https is required' });
       return;

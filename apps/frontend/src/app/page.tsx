@@ -323,19 +323,19 @@ export default function LandingPage() {
               <ul className="flex flex-col gap-3 text-xs text-text-muted">
                 <li className="flex items-center gap-2.5">
                   <Icon icon="lucide:check" className="text-success" width={16} />
-                  <span>5 GB Storage</span>
+                  <span>1 GB Storage</span>
                 </li>
                 <li className="flex items-center gap-2.5">
                   <Icon icon="lucide:check" className="text-success" width={16} />
-                  <span>50 GB Bandwidth/mo</span>
+                  <span>10 GB Bandwidth/mo</span>
                 </li>
                 <li className="flex items-center gap-2.5">
                   <Icon icon="lucide:check" className="text-success" width={16} />
-                  <span>Basic Optimization</span>
+                  <span>500 Optimizations/mo</span>
                 </li>
                 <li className="flex items-center gap-2.5">
                   <Icon icon="lucide:check" className="text-success" width={16} />
-                  <span>1 API Key</span>
+                  <span>1 API Key & 2 Members</span>
                 </li>
               </ul>
             </div>
@@ -364,23 +364,27 @@ export default function LandingPage() {
               <ul className="flex flex-col gap-3 text-xs text-text-muted">
                 <li className="flex items-center gap-2.5">
                   <Icon icon="lucide:check" className="text-accent" width={16} />
-                  <span className="text-text-light">100 GB Storage</span>
+                  <span className="text-text-light"><strong>50 GB</strong> Storage</span>
                 </li>
                 <li className="flex items-center gap-2.5">
                   <Icon icon="lucide:check" className="text-accent" width={16} />
-                  <span className="text-text-light">1 TB Bandwidth/mo</span>
+                  <span className="text-text-light"><strong>500 GB</strong> Bandwidth/mo</span>
                 </li>
                 <li className="flex items-center gap-2.5">
                   <Icon icon="lucide:check" className="text-accent" width={16} />
-                  <span>Auto AVIF/WebP Conversion</span>
+                  <span className="text-text-light"><strong>10,000</strong> Optimizations/mo</span>
                 </li>
                 <li className="flex items-center gap-2.5">
                   <Icon icon="lucide:check" className="text-accent" width={16} />
-                  <span>Unlimited API Keys</span>
+                  <span>10 API Keys & 10 Members</span>
                 </li>
                 <li className="flex items-center gap-2.5">
                   <Icon icon="lucide:check" className="text-accent" width={16} />
-                  <span>Shared Team Workspace</span>
+                  <span>1 Custom Domain & 5 Webhooks</span>
+                </li>
+                <li className="flex items-center gap-2.5">
+                  <Icon icon="lucide:check" className="text-accent" width={16} />
+                  <span>Watermarking, WebP & AVIF</span>
                 </li>
               </ul>
             </div>
@@ -391,44 +395,48 @@ export default function LandingPage() {
             </Link>
           </div>
 
-          {/* Scale Plan */}
+          {/* Enterprise Plan */}
           <div className="bg-sidebar border border-border rounded-2xl p-8 flex flex-col justify-between hover:border-text-muted transition-colors duration-300">
             <div className="flex flex-col gap-5">
               <div>
-                <h3 className="text-lg font-bold text-text-light">Scale</h3>
-                <p className="text-xs text-text-muted mt-1">For large portals with millions of photos</p>
+                <h3 className="text-lg font-bold text-text-light">Enterprise</h3>
+                <p className="text-xs text-text-muted mt-1">For scale-ups and custom setups</p>
               </div>
               <div className="flex items-baseline gap-1">
-                <span className="text-4xl font-extrabold text-text-light">$99</span>
-                <span className="text-xs text-text-muted">/ month</span>
+                <span className="text-4xl font-extrabold text-text-light">Custom</span>
+                <span className="text-xs text-text-muted">/ from $99/mo</span>
               </div>
               <div className="my-2 border-t border-border" />
               <ul className="flex flex-col gap-3 text-xs text-text-muted">
                 <li className="flex items-center gap-2.5">
                   <Icon icon="lucide:check" className="text-success" width={16} />
-                  <span>500 GB Storage</span>
+                  <span><strong>250 GB+</strong> Storage (scalable)</span>
                 </li>
                 <li className="flex items-center gap-2.5">
                   <Icon icon="lucide:check" className="text-success" width={16} />
-                  <span>5 TB Bandwidth/mo</span>
+                  <span><strong>2 TB+</strong> Bandwidth/mo</span>
                 </li>
                 <li className="flex items-center gap-2.5">
                   <Icon icon="lucide:check" className="text-success" width={16} />
-                  <span>Priority Optimization Queue</span>
+                  <span className="text-indigo-400 font-semibold">Bring your own S3 storage (BYOS)</span>
                 </li>
                 <li className="flex items-center gap-2.5">
                   <Icon icon="lucide:check" className="text-success" width={16} />
-                  <span>24/7 Support (SLA)</span>
+                  <span>Unlimited Custom Domains & Webhooks</span>
                 </li>
                 <li className="flex items-center gap-2.5">
                   <Icon icon="lucide:check" className="text-success" width={16} />
-                  <span>Custom Watermarks</span>
+                  <span>Audit Logs & Custom RBAC Roles</span>
+                </li>
+                <li className="flex items-center gap-2.5">
+                  <Icon icon="lucide:check" className="text-success" width={16} />
+                  <span>Dedicated Support (SLA)</span>
                 </li>
               </ul>
             </div>
             <Link href={isAuthenticated ? "/dashboard" : "/register"} className="w-full mt-8">
               <button className="w-full py-3 px-4 rounded-xl border border-border hover:bg-slate-800 text-xs font-semibold text-text-light transition-colors cursor-pointer">
-                Contact Us
+                Contact Sales
               </button>
             </Link>
           </div>

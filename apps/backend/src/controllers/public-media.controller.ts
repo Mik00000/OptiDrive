@@ -24,6 +24,14 @@ export const viewMediaFileOnTheFly = async (req: Request, res: Response): Promis
       return;
     }
 
+    // Перевіряємо чи воркспейс заморожено
+    const { isWorkspaceLocked } = await import('../utils/workspace-status');
+    const locked = await isWorkspaceLocked(mediaFile.workspaceId);
+    if (locked) {
+      res.status(402).json({ error: 'Payment Required: Workspace is locked.' });
+      return;
+    }
+
     // Визначаємо S3 ключ
     const urlParts = mediaFile.cdnUrl.split('/');
     const fileKey = `${urlParts[urlParts.length - 2]}/${urlParts[urlParts.length - 1]}`;

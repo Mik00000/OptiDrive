@@ -24,6 +24,7 @@ interface Workspace {
   name: string;
   slug: string;
   plan: string;
+  isLocked?: boolean;
   membersCount?: number;
   role: WorkspaceRole;
   customS3Enabled?: boolean;

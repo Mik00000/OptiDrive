@@ -12,13 +12,15 @@ import { UpgradePlanModal } from '@/features/billing/UpgradePlanModal';
 import { WorkspaceStats } from '@/features/dashboard/api';
 import { BillingStatus } from '@/features/billing/api';
 import { Button } from '@/components/Button';
+import { twMerge } from 'tailwind-merge';
 
 export default function DashboardLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const { isAuthenticated, isLoading } = useAuth();
+  const { isAuthenticated, isLoading, workspaces, user } = useAuth();
+  const activeWorkspace = workspaces.find(w => w.id === user?.workspaceId) || workspaces[0];
   const router = useRouter();
   const pathname = usePathname();
 
@@ -111,6 +113,7 @@ export default function DashboardLayout({
 
   const isPastDue = billingStatus?.subscriptionStatus === 'past_due';
   const graceTimeLeft = getGracePeriodRemainingText();
+  const isLockedPage = activeWorkspace?.isLocked && pathname !== '/billing' && pathname !== '/settings/project';
 
   if (isLoading) {
     return (
@@ -131,9 +134,9 @@ export default function DashboardLayout({
     <SidebarProvider>
       <div className="flex min-h-screen xl:h-screen xl:overflow-hidden">
         <Sidebar />
-        <main className="flex flex-1 flex-col w-full min-w-0 xl:h-full xl:overflow-y-auto">
+        <main className="flex flex-1 flex-col w-full min-w-0 xl:h-full xl:overflow-y-auto relative">
           <Header className="md:hidden" />
-          
+
           {/* Banner: Payment Past Due */}
           {isPastDue && (
             <div className="mx-4 mt-4 flex items-start gap-3 rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 lg:mx-8">
@@ -166,7 +169,47 @@ export default function DashboardLayout({
             </div>
           )}
 
-          {children}
+          <div className={twMerge(
+            "flex-1 flex flex-col min-h-0",
+            isLockedPage && "blur-[6px] pointer-events-none select-none transition-all duration-200"
+          )}>
+            {children}
+          </div>
+
+          {isLockedPage && (
+            <div className="absolute inset-0 z-45 flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-md animate-in fade-in duration-200">
+              <div className="w-full max-w-md rounded-2xl border border-red-500/20 bg-slate-900/90 p-6 shadow-2xl backdrop-blur-xl animate-in zoom-in-95 duration-200 text-center">
+                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-red-500/10 text-red-400 mb-4 mx-auto shadow-inner">
+                  <Icon icon="lucide:lock" width={28} height={28} />
+                </div>
+                <h3 className="text-lg font-bold text-text-light">Workspace is Locked</h3>
+                <p className="text-sm text-text-muted mt-2.5 leading-relaxed">
+                  This workspace has been frozen because you have exceeded the limit of **1 active FREE workspace** per account.
+                </p>
+                <p className="text-xs text-text-muted/70 mt-1.5">
+                  To restore access, you can either upgrade this workspace or delete it/your other free workspace.
+                </p>
+                <div className="flex flex-col gap-2.5 mt-6">
+                  <Button
+                    variant="primary"
+                    className="bg-indigo-600 hover:bg-indigo-700 text-white w-full py-2.5 flex items-center justify-center"
+                    onClick={() => router.push('/billing')}
+                  >
+                    <Icon icon="lucide:credit-card" width={16} height={16} />
+                    <span className="ml-2 font-medium">Upgrade to PRO</span>
+                  </Button>
+                  <Button
+                    variant="bordered"
+                    className="border-slate-700 text-text-light hover:bg-slate-800 hover:border-slate-600 w-full py-2.5 flex items-center justify-center"
+                    onClick={() => router.push('/settings/project')}
+                  >
+                    <Icon icon="lucide:trash-2" width={16} height={16} />
+                    <span className="ml-2 font-medium">Delete Workspace</span>
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
           <InvitationManager />
         </main>
       </div>

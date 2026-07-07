@@ -30,9 +30,13 @@ router.use(authenticateApiKey);
 router.use(v1ApiLimiter);
 
 import { blockDuringMigration } from '../../middlewares/migration.middleware';
+import { blockIfWorkspaceLocked } from '../../middlewares/lock.middleware';
 router.use((req, res, next) => {
   if (req.method !== 'GET') {
-    blockDuringMigration(req, res, next);
+    blockDuringMigration(req, res, (err) => {
+      if (err) return next(err);
+      blockIfWorkspaceLocked(req, res, next);
+    });
   } else {
     next();
   }

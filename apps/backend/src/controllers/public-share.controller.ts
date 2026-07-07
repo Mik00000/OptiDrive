@@ -34,6 +34,14 @@ export const getShareLinkInfo = async (req: Request, res: Response): Promise<voi
       return;
     }
 
+    // Перевіряємо чи воркспейс заморожено
+    const { isWorkspaceLocked } = await import('../utils/workspace-status');
+    const locked = await isWorkspaceLocked(shareLink.workspaceId);
+    if (locked) {
+      res.status(403).json({ error: 'This share link is temporarily unavailable because the source workspace is locked.' });
+      return;
+    }
+
     if (shareLink.expiresAt && shareLink.expiresAt < new Date()) {
       res.status(410).json({ error: 'Link has expired' });
       return;
@@ -108,6 +116,14 @@ export const downloadShareLink = async (req: Request, res: Response): Promise<vo
     // Перевірка кастомного домену: лінк має належати тому ж воркспейсу, що й домен
     if ((req as any).customDomain && shareLink.workspaceId !== (req as any).customDomain.workspaceId) {
       res.status(404).json({ error: 'Link not found' });
+      return;
+    }
+
+    // Перевіряємо чи воркспейс заморожено
+    const { isWorkspaceLocked } = await import('../utils/workspace-status');
+    const locked = await isWorkspaceLocked(shareLink.workspaceId);
+    if (locked) {
+      res.status(403).json({ error: 'This share link is temporarily unavailable because the source workspace is locked.' });
       return;
     }
 
