@@ -12,6 +12,8 @@ import {
   BillingStatus,
   getInvoiceHistoryApi,
   InvoiceItem,
+  getEnterpriseRequestStatusApi,
+  EnterpriseRequestStatus,
 } from '@/features/billing/api';
 import { toast } from 'react-toastify';
 import { useSearchParams } from 'next/navigation';
@@ -22,6 +24,7 @@ const BillingAndSubscriptionsPage = () => {
   const [billingStatus, setBillingStatus] = useState<BillingStatus | null>(
     null,
   );
+  const [enterpriseStatus, setEnterpriseStatus] = useState<EnterpriseRequestStatus | null>(null);
   const [isPortalLoading, setIsPortalLoading] = useState(false);
   const [isCancelLoading, setIsCancelLoading] = useState(false);
   const [invoices, setInvoices] = useState<InvoiceItem[]>([]);
@@ -31,18 +34,15 @@ const BillingAndSubscriptionsPage = () => {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [statsData, billingData] = await Promise.all([
+        const [statsData, billingData, entStatus] = await Promise.all([
           getWorkspaceStatsApi(),
           getBillingStatusApi(),
+          getEnterpriseRequestStatusApi().catch(() => null),
         ]);
         setStats(statsData);
         setBillingStatus(billingData);
+        setEnterpriseStatus(entStatus);
 
-        // Перевіряємо статус останнього Enterprise запиту.
-        // Якщо його схвалено (APPROVED) — автоматично відкриваємо модалку тарифів,
-        // щоб показати юзеру схвалені ліміти та кнопку оплати.
-        const { getEnterpriseRequestStatusApi } = await import('@/features/billing/api');
-        const entStatus = await getEnterpriseRequestStatusApi();
         if (entStatus && entStatus.status === 'APPROVED') {
           setIsUpgradeModalOpen(true);
         }
@@ -74,14 +74,16 @@ const BillingAndSubscriptionsPage = () => {
       // Перезавантажуємо дані
       const refresh = async () => {
         try {
-          const [statsData, billingData, invoicesData] = await Promise.all([
+          const [statsData, billingData, invoicesData, entStatus] = await Promise.all([
             getWorkspaceStatsApi(),
             getBillingStatusApi(),
             getInvoiceHistoryApi().catch(() => []),
+            getEnterpriseRequestStatusApi().catch(() => null),
           ]);
           setStats(statsData);
           setBillingStatus(billingData);
           setInvoices(invoicesData);
+          setEnterpriseStatus(entStatus);
         } catch (e) {
           console.error(e);
         }
@@ -120,12 +122,14 @@ const BillingAndSubscriptionsPage = () => {
       if (response.success) {
         toast.success(response.message || "Reverted to FREE plan successfully!");
         // Re-fetch everything
-        const [statsData, billingData] = await Promise.all([
+        const [statsData, billingData, entStatus] = await Promise.all([
           getWorkspaceStatsApi(),
           getBillingStatusApi(),
+          getEnterpriseRequestStatusApi().catch(() => null),
         ]);
         setStats(statsData);
         setBillingStatus(billingData);
+        setEnterpriseStatus(entStatus);
       }
     } catch (error: any) {
       toast.error(error.message || "Failed to cancel request and revert to FREE plan");
@@ -179,6 +183,80 @@ const BillingAndSubscriptionsPage = () => {
   return (
     <section className="dashboard-page relative">
       <PageHeading title="Billing & Subscription" />
+
+      {/* Banner: Approved Enterprise Quote */}
+      {enterpriseStatus?.status === 'APPROVED' && enterpriseStatus.stripePaymentLink && (
+        <div className="mx-4 mt-2 flex flex-col md:flex-row items-start md:items-center gap-3 rounded-xl border border-purple-500/30 bg-gradient-to-r from-purple-500/10 to-indigo-500/10 p-4 lg:mx-8">
+          <Icon icon="lucide:party-popper" className="mt-0.5 shrink-0 text-purple-400" width={20} />
+          <div className="flex-1 flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between w-full">
+            <div>
+              <p className="text-sm font-semibold text-purple-300">Custom Enterprise Request Approved!</p>
+              <p className="text-xs text-purple-400/80">
+                Your custom Enterprise quote of <strong className="text-purple-300">${enterpriseStatus.approvedPrice}/mo</strong> is ready. Custom limits: <strong className="text-purple-300">{enterpriseStatus.approvedStorageGb} GB Storage</strong>.
+              </p>
+            </div>
+            <div className="flex gap-2 mt-2 sm:mt-0 shrink-0 font-semibold">
+              <Button
+                variant="accent"
+                className="bg-purple-600 hover:bg-purple-700 text-white border-transparent"
+                onClick={() => {
+                  if (enterpriseStatus.stripePaymentLink) {
+                    window.location.href = enterpriseStatus.stripePaymentLink;
+                  }
+                }}
+              >
+                <Icon icon="lucide:credit-card" width={14} />
+                <span className="ml-1.5 text-xs font-semibold">Pay & Activate</span>
+              </Button>
+              <Button
+                variant="bordered"
+                className="border-purple-500/40 text-purple-300 hover:border-purple-400 hover:bg-purple-400/10"
+                onClick={() => setIsUpgradeModalOpen(true)}
+              >
+                <span className="text-xs">View Details</span>
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Banner: Enterprise Inactive */}
+      {isEnterprise && !isActive && (
+        <div className="mx-4 mt-2 flex flex-col md:flex-row items-start md:items-center gap-3 rounded-xl border border-red-500/30 bg-red-500/10 p-4 lg:mx-8">
+          <Icon icon="lucide:alert-triangle" className="mt-0.5 shrink-0 text-red-400" width={20} />
+          <div className="flex-1 flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between w-full">
+            <div>
+              <p className="text-sm font-semibold text-red-300">Enterprise subscription inactive</p>
+              <p className="text-xs text-red-400/80">
+                Your custom Enterprise limits and BYOS access are currently suspended. Please complete your payment to restore full access.
+              </p>
+            </div>
+            {enterpriseStatus?.status === 'APPROVED' && enterpriseStatus.stripePaymentLink ? (
+              <Button
+                variant="accent"
+                className="mt-2 shrink-0 bg-purple-600 hover:bg-purple-700 text-white border-transparent sm:mt-0 font-semibold"
+                onClick={() => {
+                  if (enterpriseStatus.stripePaymentLink) {
+                    window.location.href = enterpriseStatus.stripePaymentLink;
+                  }
+                }}
+              >
+                <Icon icon="lucide:credit-card" width={14} />
+                <span className="ml-1.5 text-xs font-semibold">Pay & Reactivate</span>
+              </Button>
+            ) : (
+              <Button
+                variant="bordered"
+                className="mt-2 shrink-0 border-red-500/40 text-red-300 hover:border-red-400 hover:bg-red-400/10 sm:mt-0 font-semibold"
+                onClick={() => setIsUpgradeModalOpen(true)}
+              >
+                <Icon icon="lucide:mail" width={14} />
+                <span className="ml-1.5 text-xs font-semibold">Contact Sales</span>
+              </Button>
+            )}
+          </div>
+        </div>
+      )}
 
 
 
@@ -354,7 +432,45 @@ const BillingAndSubscriptionsPage = () => {
             </p>
           </div>
           <div className="border-border flex flex-col gap-4 p-5 md:flex-row md:items-center md:justify-between md:gap-2 md:p-6">
-            {isPremium && billingStatus?.hasStripeCustomer ? (
+            {enterpriseStatus?.status === 'APPROVED' && enterpriseStatus.stripePaymentLink ? (
+              <>
+                <div className="flex items-center gap-4">
+                  <div className="bg-purple-500/10 border-purple-500/20 flex h-10 w-16 shrink-0 items-center justify-center rounded-lg border">
+                    <Icon
+                      icon="lucide:credit-card"
+                      width="24"
+                      height="24px"
+                      className="text-purple-400"
+                    ></Icon>
+                  </div>
+                  <div className="flex flex-col gap-0.5">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="text-text-light text-sm font-medium">
+                        Payment Pending
+                      </span>
+                      <span className="rounded-md border border-purple-500/25 bg-purple-500/10 px-1.5 py-0.5 text-[10px] font-bold text-purple-400 uppercase tracking-wider">
+                        APPROVED QUOTE
+                      </span>
+                    </div>
+                    <span className="text-text-muted text-sm">
+                      An approved custom quote (${enterpriseStatus.approvedPrice}/mo) is ready for checkout.
+                    </span>
+                  </div>
+                </div>
+                <Button
+                  variant="accent"
+                  mobileBehavior="full-width"
+                  className="md:w-auto bg-purple-600 hover:bg-purple-700 text-white border-transparent font-semibold"
+                  onClick={() => {
+                    if (enterpriseStatus.stripePaymentLink) {
+                      window.location.href = enterpriseStatus.stripePaymentLink;
+                    }
+                  }}
+                >
+                  Pay Quote
+                </Button>
+              </>
+            ) : isPremium && billingStatus?.hasStripeCustomer ? (
               <>
                 <div className="flex items-center gap-4">
                   <div className="bg-bg border-border flex h-10 w-16 shrink-0 items-center justify-center rounded-lg border">
@@ -381,13 +497,42 @@ const BillingAndSubscriptionsPage = () => {
                 <Button
                   variant="bordered"
                   mobileBehavior="full-width"
-                  className="md:w-auto"
+                  className="md:w-auto font-semibold"
                   onClick={handleManageBilling}
                   disabled={isPortalLoading}
                 >
                   Manage
                 </Button>
               </>
+            ) : isEnterprise && !isActive ? (
+              <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 w-full">
+                <div className="flex items-center gap-4">
+                  <div className="bg-red-500/10 border-red-500/20 flex h-10 w-16 shrink-0 items-center justify-center rounded-lg border">
+                    <Icon
+                      icon="lucide:alert-circle"
+                      width="24"
+                      height="24px"
+                      className="text-red-400"
+                    ></Icon>
+                  </div>
+                  <div className="flex flex-col gap-0.5">
+                    <span className="text-text-light text-sm font-medium">
+                      Enterprise Subscription Inactive
+                    </span>
+                    <span className="text-text-muted text-sm">
+                      Your Enterprise plan payments are suspended. Please contact sales or reactivate to restore access.
+                    </span>
+                  </div>
+                </div>
+                <Button
+                  variant="accent"
+                  mobileBehavior="full-width"
+                  className="md:w-auto font-semibold"
+                  onClick={() => setIsUpgradeModalOpen(true)}
+                >
+                  Reactivate
+                </Button>
+              </div>
             ) : isEnterprise ? (
               <div className="flex items-center gap-4 w-full">
                 <div className="bg-bg border-border flex h-10 w-16 shrink-0 items-center justify-center rounded-lg border">
@@ -576,6 +721,20 @@ const BillingAndSubscriptionsPage = () => {
         onClose={() => setIsUpgradeModalOpen(false)}
         stats={stats}
         isSubscriptionActive={isActive}
+        onPlanUpdated={async () => {
+          try {
+            const [statsData, billingData, entStatus] = await Promise.all([
+              getWorkspaceStatsApi(),
+              getBillingStatusApi(),
+              getEnterpriseRequestStatusApi().catch(() => null),
+            ]);
+            setStats(statsData);
+            setBillingStatus(billingData);
+            setEnterpriseStatus(entStatus);
+          } catch (e) {
+            console.error("Failed to refresh billing page on plan update:", e);
+          }
+        }}
       />
     </section>
   );
