@@ -9,12 +9,16 @@ import { DOC_SECTIONS } from '@/features/api-docs/docsData';
 const getIconForSection = (id: string) => {
   switch (id) {
     case 'authentication': return 'lucide:key';
+    case 'system': return 'lucide:activity';
     case 'upload': return 'lucide:upload-cloud';
     case 'media': return 'lucide:image';
     case 'folders': return 'lucide:folder';
     case 'tags': return 'lucide:tag';
     case 'trash': return 'lucide:trash-2';
     case 'webhooks': return 'lucide:webhook';
+    case 'analytics': return 'lucide:bar-chart-3';
+    case 'dynamic-transformations': return 'lucide:crop';
+    case 'custom-domains': return 'lucide:globe';
     default: return 'lucide:book-open';
   }
 };

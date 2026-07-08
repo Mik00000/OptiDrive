@@ -49,34 +49,34 @@ export const DOC_SECTIONS: DocSection[] = [
     
     ### Base URL
     All API requests should be made to:
-    \`https://api.optidrive.com\` (or \`http://localhost:3001\` during local development).`,
+    \`https://api.optidrive.app\` (or \`http://localhost:3001\` during local development).`,
     headers: [
-      { name: 'x-api-key', type: 'string', required: true, description: 'Your workspace API Key (e.g. op_live_123456...)' },
+      { name: 'Authorization', type: 'string', required: true, description: 'Bearer <Your API Key> (e.g. Bearer opti_123456...)' },
       { name: 'Content-Type', type: 'string', required: false, description: 'Required as "application/json" for POST/PATCH requests, or "multipart/form-data" for file uploads.' }
     ],
     codeSnippets: {
       JavaScript: `// Global fetch configuration example
-const API_URL = 'https://api.optidrive.com';
+const API_URL = 'https://api.optidrive.app';
 const API_KEY = 'op_live_your_api_key_here';
 
 const apiRequest = async (endpoint, options = {}) => {
   const response = await fetch(\`\${API_URL}\${endpoint}\`, {
     ...options,
     headers: {
-      'x-api-key': API_KEY,
+      'Authorization': 'Bearer ' + API_KEY,
       'Content-Type': 'application/json',
       ...options.headers,
     },
   });
   return response.json();
 };`,
-      cURL: `curl -H "x-api-key: op_live_your_api_key_here" \\
-     https://api.optidrive.com/api/v1/media`,
+      cURL: `curl -H "Authorization: Bearer opti_your_api_key_here" \\
+     https://api.optidrive.app/api/v1/media`,
       Python: `import requests
 
-API_URL = "https://api.optidrive.com"
+API_URL = "https://api.optidrive.app"
 headers = {
-    "x-api-key": "op_live_your_api_key_here",
+    "Authorization": "Bearer opti_your_api_key_here",
     "Content-Type": "application/json"
 }
 
@@ -91,8 +91,8 @@ import (
 
 func main() {
 	client := &http.Client{}
-	req, _ := http.NewRequest("GET", "https://api.optidrive.com/api/v1/media", nil)
-	req.Header.Set("x-api-key", "op_live_your_api_key_here")
+	req, _ := http.NewRequest("GET", "https://api.optidrive.app/api/v1/media", nil)
+	req.Header.Set("Authorization", "Bearer opti_your_api_key_here")
 	req.Header.Set("Content-Type", "application/json")
 
 	resp, err := client.Do(req)
@@ -113,6 +113,115 @@ func main() {
     "totalPages": 0
   }
 }`
+  },
+  {
+    id: 'system',
+    title: 'System & Health',
+    description: 'Check platform availability, ping endpoints, default compression presets, and workspace limits/quotas.',
+    endpoints: [
+      {
+        method: 'GET',
+        path: '/api/v1/ping',
+        description: 'Public health-check endpoint. Accessible without API Key authentication. Rate-limited.',
+        codeSnippets: {
+          JavaScript: `fetch('https://api.optidrive.app/api/v1/ping').then(res => res.json());`,
+          cURL: `curl https://api.optidrive.app/api/v1/ping`,
+          Python: `import requests
+print(requests.get("https://api.optidrive.app/api/v1/ping").json())`,
+          Go: `package main
+import "net/http"
+func main() {
+	http.Get("https://api.optidrive.app/api/v1/ping")
+}`
+        },
+        jsonResponse: `{
+  "status": "ok",
+  "timestamp": "2026-07-08T07:10:00.000Z"
+}`
+      },
+      {
+        method: 'GET',
+        path: '/api/v1/health',
+        description: 'Validates API key health and checks database status.',
+        codeSnippets: {
+          JavaScript: `fetch('https://api.optidrive.app/api/v1/health', {
+  headers: { 'Authorization': 'Bearer opti_your_api_key_here' }
+}).then(res => res.json());`,
+          cURL: `curl -H "Authorization: Bearer opti_your_api_key_here" https://api.optidrive.app/api/v1/health`,
+          Python: `import requests
+print(requests.get("https://api.optidrive.app/api/v1/health", headers={"Authorization": "Bearer opti_your_api_key_here"}).json())`,
+          Go: `package main
+import "net/http"
+func main() {
+	req, _ := http.NewRequest("GET", "https://api.optidrive.app/api/v1/health", nil)
+	req.Header.Set("Authorization", "Bearer opti_your_api_key_here")
+	(&http.Client{}).Do(req)
+}`
+        },
+        jsonResponse: `{
+  "success": true,
+  "status": "healthy",
+  "timestamp": "2026-07-08T07:10:00.000Z",
+  "workspaceId": "ws_123"
+}`
+      },
+      {
+        method: 'GET',
+        path: '/api/v1/stats',
+        description: 'Returns workspace subscription plan details, monthly limits, and current usages.',
+        codeSnippets: {
+          JavaScript: `fetch('https://api.optidrive.app/api/v1/stats', {
+  headers: { 'Authorization': 'Bearer opti_your_api_key_here' }
+}).then(res => res.json());`,
+          cURL: `curl -H "Authorization: Bearer opti_your_api_key_here" https://api.optidrive.app/api/v1/stats`,
+          Python: `import requests
+print(requests.get("https://api.optidrive.app/api/v1/stats", headers={"Authorization": "Bearer opti_your_api_key_here"}).json())`,
+          Go: `package main
+import "net/http"
+func main() {
+	req, _ := http.NewRequest("GET", "https://api.optidrive.app/api/v1/stats", nil)
+	req.Header.Set("Authorization", "Bearer opti_your_api_key_here")
+	(&http.Client{}).Do(req)
+}`
+        },
+        jsonResponse: `{
+  "success": true,
+  "data": {
+    "workspace": { "id": "ws_123", "name": "Main Project", "slug": "main-project" },
+    "subscription": { "plan": "PRO", "effectivePlan": "PRO", "status": "active", "isPaid": true },
+    "usage": { "storageUsedBytes": "2504910", "bandwidthUsedBytes": "490120", "monthlyOptimizations": 45 },
+    "limits": { "storageLimitBytes": "53687091200", "bandwidthLimitBytes": "536870912000", "monthlyOptimizationsLimit": 10000, "maxWebhooks": 5 }
+  }
+}`
+      },
+      {
+        method: 'GET',
+        path: '/api/v1/presets',
+        description: 'Returns the workspace compression settings defaults and available options.',
+        codeSnippets: {
+          JavaScript: `fetch('https://api.optidrive.app/api/v1/presets', {
+  headers: { 'Authorization': 'Bearer opti_your_api_key_here' }
+}).then(res => res.json());`,
+          cURL: `curl -H "Authorization: Bearer opti_your_api_key_here" https://api.optidrive.app/api/v1/presets`,
+          Python: `import requests
+print(requests.get("https://api.optidrive.app/api/v1/presets", headers={"Authorization": "Bearer opti_your_api_key_here"}).json())`,
+          Go: `package main
+import "net/http"
+func main() {
+	req, _ := http.NewRequest("GET", "https://api.optidrive.app/api/v1/presets", nil)
+	req.Header.Set("Authorization", "Bearer opti_your_api_key_here")
+	(&http.Client{}).Do(req)
+}`
+        },
+        jsonResponse: `{
+  "success": true,
+  "data": {
+    "defaults": { "preset": "web_balanced", "format": "auto", "quality": 80 },
+    "availablePresets": [{ "id": "web_balanced", "name": "Web Balanced" }]
+  }
+}`
+      }
+    ]
   },
   {
     id: 'upload',
@@ -139,10 +248,10 @@ func main() {
   formData.append('folderPath', 'marketing/logos');
   formData.append('tags', 'logo,vector');
 
-  const response = await fetch('https://api.optidrive.com/api/v1/compress', {
+  const response = await fetch('https://api.optidrive.app/api/v1/compress', {
     method: 'POST',
     headers: {
-      'x-api-key': 'op_live_your_api_key_here'
+      'Authorization': 'Bearer opti_your_api_key_here'
       // Browser automatically sets Content-Type to multipart/form-data with boundary
     },
     body: formData
@@ -150,16 +259,16 @@ func main() {
 
   return await response.json();
 };`,
-          cURL: `curl -X POST https://api.optidrive.com/api/v1/compress \\
-  -H "x-api-key: op_live_your_api_key_here" \\
+          cURL: `curl -X POST https://api.optidrive.app/api/v1/compress \\
+  -H "Authorization: Bearer opti_your_api_key_here" \\
   -F "image=@/path/to/your/image.png" \\
   -F "format=webp" \\
   -F "folderPath=marketing/logos" \\
   -F "tags=logo,vector"`,
           Python: `import requests
 
-url = "https://api.optidrive.com/api/v1/compress"
-headers = {"x-api-key": "op_live_your_api_key_here"}
+url = "https://api.optidrive.app/api/v1/compress"
+headers = {"Authorization": "Bearer opti_your_api_key_here"}
 
 with open('image.png', 'rb') as f:
     files = {'image': f}
@@ -195,8 +304,8 @@ func uploadFile(filePath string) {
 	writer.WriteField("tags", "logo,vector")
 	writer.Close()
 
-	req, _ := http.NewRequest("POST", "https://api.optidrive.com/api/v1/compress", body)
-	req.Header.Add("x-api-key", "op_live_your_api_key_here")
+	req, _ := http.NewRequest("POST", "https://api.optidrive.app/api/v1/compress", body)
+	req.Header.Add("Authorization", "Bearer opti_your_api_key_here")
 	req.Header.Add("Content-Type", writer.FormDataContentType())
 
 	client := &http.Client{}
@@ -238,17 +347,17 @@ func uploadFile(filePath string) {
         ],
         codeSnippets: {
           JavaScript: `// Fetch paginated media files from root directory
-fetch('https://api.optidrive.com/api/v1/media?folderId=null&page=1&limit=10', {
-  headers: { 'x-api-key': 'op_live_your_api_key_here' }
+fetch('https://api.optidrive.app/api/v1/media?folderId=null&page=1&limit=10', {
+  headers: { 'Authorization': 'Bearer opti_your_api_key_here' }
 })
 .then(res => res.json())
 .then(data => console.log(data));`,
-          cURL: `curl -H "x-api-key: op_live_your_api_key_here" \\
-  "https://api.optidrive.com/api/v1/media?folderId=null&page=1&limit=10"`,
+          cURL: `curl -H "Authorization: Bearer opti_your_api_key_here" \\
+  "https://api.optidrive.app/api/v1/media?folderId=null&page=1&limit=10"`,
           Python: `import requests
 response = requests.get(
-    "https://api.optidrive.com/api/v1/media",
-    headers={"x-api-key": "op_live_your_api_key_here"},
+    "https://api.optidrive.app/api/v1/media",
+    headers={"Authorization": "Bearer opti_your_api_key_here"},
     params={"folderId": "null", "page": 1, "limit": 10}
 )
 print(response.json())`,
@@ -261,8 +370,8 @@ import (
 )
 
 func main() {
-	req, _ := http.NewRequest("GET", "https://api.optidrive.com/api/v1/media?folderId=null", nil)
-	req.Header.Set("x-api-key", "op_live_your_api_key_here")
+	req, _ := http.NewRequest("GET", "https://api.optidrive.app/api/v1/media?folderId=null", nil)
+	req.Header.Set("Authorization", "Bearer opti_your_api_key_here")
 
 	resp, _ := (&http.Client{}).Do(req)
 	defer resp.Body.Close()
@@ -302,17 +411,17 @@ func main() {
           { name: 'id', type: 'string', required: true, description: 'The unique ID of the media file to delete.' }
         ],
         codeSnippets: {
-          JavaScript: `fetch('https://api.optidrive.com/api/v1/media/file_cld8x9k2m', {
+          JavaScript: `fetch('https://api.optidrive.app/api/v1/media/file_cld8x9k2m', {
   method: 'DELETE',
-  headers: { 'x-api-key': 'op_live_your_api_key_here' }
+  headers: { 'Authorization': 'Bearer opti_your_api_key_here' }
 })
 .then(res => res.json());`,
-          cURL: `curl -X DELETE -H "x-api-key: op_live_your_api_key_here" \\
-  https://api.optidrive.com/api/v1/media/file_cld8x9k2m`,
+          cURL: `curl -X DELETE -H "Authorization: Bearer opti_your_api_key_here" \\
+  https://api.optidrive.app/api/v1/media/file_cld8x9k2m`,
           Python: `import requests
 response = requests.delete(
-    "https://api.optidrive.com/api/v1/media/file_cld8x9k2m",
-    headers={"x-api-key": "op_live_your_api_key_here"}
+    "https://api.optidrive.app/api/v1/media/file_cld8x9k2m",
+    headers={"Authorization": "Bearer opti_your_api_key_here"}
 )
 print(response.json())`,
           Go: `package main
@@ -322,8 +431,8 @@ import (
 )
 
 func main() {
-	req, _ := http.NewRequest("DELETE", "https://api.optidrive.com/api/v1/media/file_cld8x9k2m", nil)
-	req.Header.Set("x-api-key", "op_live_your_api_key_here")
+	req, _ := http.NewRequest("DELETE", "https://api.optidrive.app/api/v1/media/file_cld8x9k2m", nil)
+	req.Header.Set("Authorization", "Bearer opti_your_api_key_here")
 	(&http.Client{}).Do(req)
 }`
         },
@@ -344,21 +453,21 @@ func main() {
         path: '/api/v1/folders',
         description: 'Retrieves all folders in your workspace as a flat list with parent-child references.',
         codeSnippets: {
-          JavaScript: `fetch('https://api.optidrive.com/api/v1/folders', {
-  headers: { 'x-api-key': 'op_live_your_api_key_here' }
+          JavaScript: `fetch('https://api.optidrive.app/api/v1/folders', {
+  headers: { 'Authorization': 'Bearer opti_your_api_key_here' }
 })
 .then(res => res.json());`,
-          cURL: `curl -H "x-api-key: op_live_your_api_key_here" https://api.optidrive.com/api/v1/folders`,
+          cURL: `curl -H "Authorization: Bearer opti_your_api_key_here" https://api.optidrive.app/api/v1/folders`,
           Python: `import requests
-res = requests.get("https://api.optidrive.com/api/v1/folders", headers={"x-api-key": "op_live_your_api_key_here"})
+res = requests.get("https://api.optidrive.app/api/v1/folders", headers={"Authorization": "Bearer opti_your_api_key_here"})
 print(res.json())`,
           Go: `package main
 
 import "net/http"
 
 func main() {
-	req, _ := http.NewRequest("GET", "https://api.optidrive.com/api/v1/folders", nil)
-	req.Header.Set("x-api-key", "op_live_your_api_key_here")
+	req, _ := http.NewRequest("GET", "https://api.optidrive.app/api/v1/folders", nil)
+	req.Header.Set("Authorization", "Bearer opti_your_api_key_here")
 	(&http.Client{}).Do(req)
 }`
         },
@@ -385,10 +494,10 @@ func main() {
           { name: 'color', type: 'string', required: false, description: 'Hex color value for UI marks (default: #3b82f6).' }
         ],
         codeSnippets: {
-          JavaScript: `fetch('https://api.optidrive.com/api/v1/folders', {
+          JavaScript: `fetch('https://api.optidrive.app/api/v1/folders', {
   method: 'POST',
   headers: {
-    'x-api-key': 'op_live_your_api_key_here',
+    'Authorization': 'Bearer opti_your_api_key_here',
     'Content-Type': 'application/json'
   },
   body: JSON.stringify({
@@ -398,14 +507,14 @@ func main() {
   })
 })
 .then(res => res.json());`,
-          cURL: `curl -X POST https://api.optidrive.com/api/v1/folders \\
-  -H "x-api-key: op_live_your_api_key_here" \\
+          cURL: `curl -X POST https://api.optidrive.app/api/v1/folders \\
+  -H "Authorization: Bearer opti_your_api_key_here" \\
   -H "Content-Type: application/json" \\
   -d '{"name": "logos", "parentId": "folder_xyz", "color": "#3b82f6"}'`,
           Python: `import requests
 requests.post(
-    "https://api.optidrive.com/api/v1/folders",
-    headers={"x-api-key": "op_live_your_api_key_here", "Content-Type": "application/json"},
+    "https://api.optidrive.app/api/v1/folders",
+    headers={"Authorization": "Bearer opti_your_api_key_here", "Content-Type": "application/json"},
     json={"name": "logos", "parentId": "folder_xyz"}
 )`,
           Go: `package main
@@ -417,8 +526,8 @@ import (
 
 func main() {
 	payload := []byte(\`{"name": "logos", "parentId": "folder_xyz"}\`)
-	req, _ := http.NewRequest("POST", "https://api.optidrive.com/api/v1/folders", bytes.NewBuffer(payload))
-	req.Header.Set("x-api-key", "op_live_your_api_key_here")
+	req, _ := http.NewRequest("POST", "https://api.optidrive.app/api/v1/folders", bytes.NewBuffer(payload))
+	req.Header.Set("Authorization", "Bearer opti_your_api_key_here")
 	req.Header.Set("Content-Type", "application/json")
 	(&http.Client{}).Do(req)
 }`
@@ -442,25 +551,25 @@ func main() {
           { name: 'id', type: 'string', required: true, description: 'The unique ID of the folder to delete.' }
         ],
         codeSnippets: {
-          JavaScript: `fetch('https://api.optidrive.com/api/v1/folders/folder_xyz', {
+          JavaScript: `fetch('https://api.optidrive.app/api/v1/folders/folder_xyz', {
   method: 'DELETE',
-  headers: { 'x-api-key': 'op_live_your_api_key_here' }
+  headers: { 'Authorization': 'Bearer opti_your_api_key_here' }
 })
 .then(res => res.json());`,
-          cURL: `curl -X DELETE -H "x-api-key: op_live_your_api_key_here" \\
-  https://api.optidrive.com/api/v1/folders/folder_xyz`,
+          cURL: `curl -X DELETE -H "Authorization: Bearer opti_your_api_key_here" \\
+  https://api.optidrive.app/api/v1/folders/folder_xyz`,
           Python: `import requests
 requests.delete(
-    "https://api.optidrive.com/api/v1/folders/folder_xyz",
-    headers={"x-api-key": "op_live_your_api_key_here"}
+    "https://api.optidrive.app/api/v1/folders/folder_xyz",
+    headers={"Authorization": "Bearer opti_your_api_key_here"}
 )`,
           Go: `package main
 
 import "net/http"
 
 func main() {
-	req, _ := http.NewRequest("DELETE", "https://api.optidrive.com/api/v1/folders/folder_xyz", nil)
-	req.Header.Set("x-api-key", "op_live_your_api_key_here")
+	req, _ := http.NewRequest("DELETE", "https://api.optidrive.app/api/v1/folders/folder_xyz", nil)
+	req.Header.Set("Authorization", "Bearer opti_your_api_key_here")
 	(&http.Client{}).Do(req)
 }`
         },
@@ -477,25 +586,25 @@ func main() {
           { name: 'id', type: 'string', required: true, description: 'The unique ID of the folder to restore.' }
         ],
         codeSnippets: {
-          JavaScript: `fetch('https://api.optidrive.com/api/v1/folders/folder_xyz/restore', {
+          JavaScript: `fetch('https://api.optidrive.app/api/v1/folders/folder_xyz/restore', {
   method: 'POST',
-  headers: { 'x-api-key': 'op_live_your_api_key_here' }
+  headers: { 'Authorization': 'Bearer opti_your_api_key_here' }
 })
 .then(res => res.json());`,
-          cURL: `curl -X POST -H "x-api-key: op_live_your_api_key_here" \\
-  https://api.optidrive.com/api/v1/folders/folder_xyz/restore`,
+          cURL: `curl -X POST -H "Authorization: Bearer opti_your_api_key_here" \\
+  https://api.optidrive.app/api/v1/folders/folder_xyz/restore`,
           Python: `import requests
 requests.post(
-    "https://api.optidrive.com/api/v1/folders/folder_xyz/restore",
-    headers={"x-api-key": "op_live_your_api_key_here"}
+    "https://api.optidrive.app/api/v1/folders/folder_xyz/restore",
+    headers={"Authorization": "Bearer opti_your_api_key_here"}
 )`,
           Go: `package main
  
 import "net/http"
  
 func main() {
-	req, _ := http.NewRequest("POST", "https://api.optidrive.com/api/v1/folders/folder_xyz/restore", nil)
-	req.Header.Set("x-api-key", "op_live_your_api_key_here")
+	req, _ := http.NewRequest("POST", "https://api.optidrive.app/api/v1/folders/folder_xyz/restore", nil)
+	req.Header.Set("Authorization", "Bearer opti_your_api_key_here")
 	(&http.Client{}).Do(req)
 }`
         },
@@ -516,20 +625,20 @@ func main() {
         path: '/api/v1/tags',
         description: 'Lists all tags created in your workspace.',
         codeSnippets: {
-          JavaScript: `fetch('https://api.optidrive.com/api/v1/tags', {
-  headers: { 'x-api-key': 'op_live_your_api_key_here' }
+          JavaScript: `fetch('https://api.optidrive.app/api/v1/tags', {
+  headers: { 'Authorization': 'Bearer opti_your_api_key_here' }
 })
 .then(res => res.json());`,
-          cURL: `curl -H "x-api-key: op_live_your_api_key_here" https://api.optidrive.com/api/v1/tags`,
+          cURL: `curl -H "Authorization: Bearer opti_your_api_key_here" https://api.optidrive.app/api/v1/tags`,
           Python: `import requests
-requests.get("https://api.optidrive.com/api/v1/tags", headers={"x-api-key": "op_live_your_api_key_here"})`,
+requests.get("https://api.optidrive.app/api/v1/tags", headers={"Authorization": "Bearer opti_your_api_key_here"})`,
           Go: `package main
 
 import "net/http"
 
 func main() {
-	req, _ := http.NewRequest("GET", "https://api.optidrive.com/api/v1/tags", nil)
-	req.Header.Set("x-api-key", "op_live_your_api_key_here")
+	req, _ := http.NewRequest("GET", "https://api.optidrive.app/api/v1/tags", nil)
+	req.Header.Set("Authorization", "Bearer opti_your_api_key_here")
 	(&http.Client{}).Do(req)
 }`
         },
@@ -554,23 +663,23 @@ func main() {
           { name: 'color', type: 'string', required: false, description: 'Hex code for visual representations.' }
         ],
         codeSnippets: {
-          JavaScript: `fetch('https://api.optidrive.com/api/v1/tags', {
+          JavaScript: `fetch('https://api.optidrive.app/api/v1/tags', {
   method: 'POST',
   headers: {
-    'x-api-key': 'op_live_your_api_key_here',
+    'Authorization': 'Bearer opti_your_api_key_here',
     'Content-Type': 'application/json'
   },
   body: JSON.stringify({ name: 'banners', color: '#10b981' })
 })
 .then(res => res.json());`,
-          cURL: `curl -X POST https://api.optidrive.com/api/v1/tags \\
-  -H "x-api-key: op_live_your_api_key_here" \\
+          cURL: `curl -X POST https://api.optidrive.app/api/v1/tags \\
+  -H "Authorization: Bearer opti_your_api_key_here" \\
   -H "Content-Type: application/json" \\
   -d '{"name": "banners", "color": "#10b981"}'`,
           Python: `import requests
 requests.post(
-    "https://api.optidrive.com/api/v1/tags",
-    headers={"x-api-key": "op_live_your_api_key_here", "Content-Type": "application/json"},
+    "https://api.optidrive.app/api/v1/tags",
+    headers={"Authorization": "Bearer opti_your_api_key_here", "Content-Type": "application/json"},
     json={"name": "banners", "color": "#10b981"}
 )`,
           Go: `package main
@@ -582,8 +691,8 @@ import (
 
 func main() {
 	payload := []byte(\`{"name": "banners", "color": "#10b981"}\`)
-	req, _ := http.NewRequest("POST", "https://api.optidrive.com/api/v1/tags", bytes.NewBuffer(payload))
-	req.Header.Set("x-api-key", "op_live_your_api_key_here")
+	req, _ := http.NewRequest("POST", "https://api.optidrive.app/api/v1/tags", bytes.NewBuffer(payload))
+	req.Header.Set("Authorization", "Bearer opti_your_api_key_here")
 	req.Header.Set("Content-Type", "application/json")
 	(&http.Client{}).Do(req)
 }`
@@ -608,23 +717,23 @@ func main() {
           { name: 'color', type: 'string', required: false, description: 'New Hex code color.' }
         ],
         codeSnippets: {
-          JavaScript: `fetch('https://api.optidrive.com/api/v1/tags/tag_2', {
+          JavaScript: `fetch('https://api.optidrive.app/api/v1/tags/tag_2', {
   method: 'PATCH',
   headers: {
-    'x-api-key': 'op_live_your_api_key_here',
+    'Authorization': 'Bearer opti_your_api_key_here',
     'Content-Type': 'application/json'
   },
   body: JSON.stringify({ name: 'updated-banner', color: '#3b82f6' })
 })
 .then(res => res.json());`,
-          cURL: `curl -X PATCH https://api.optidrive.com/api/v1/tags/tag_2 \\
-  -H "x-api-key: op_live_your_api_key_here" \\
+          cURL: `curl -X PATCH https://api.optidrive.app/api/v1/tags/tag_2 \\
+  -H "Authorization: Bearer opti_your_api_key_here" \\
   -H "Content-Type: application/json" \\
   -d '{"name": "updated-banner", "color": "#3b82f6"}'`,
           Python: `import requests
 requests.patch(
-    "https://api.optidrive.com/api/v1/tags/tag_2",
-    headers={"x-api-key": "op_live_your_api_key_here", "Content-Type": "application/json"},
+    "https://api.optidrive.app/api/v1/tags/tag_2",
+    headers={"Authorization": "Bearer opti_your_api_key_here", "Content-Type": "application/json"},
     json={"name": "updated-banner"}
 )`,
           Go: `package main
@@ -636,8 +745,8 @@ import (
 
 func main() {
 	payload := []byte(\`{"name": "updated-banner"}\`)
-	req, _ := http.NewRequest("PATCH", "https://api.optidrive.com/api/v1/tags/tag_2", bytes.NewBuffer(payload))
-	req.Header.Set("x-api-key", "op_live_your_api_key_here")
+	req, _ := http.NewRequest("PATCH", "https://api.optidrive.app/api/v1/tags/tag_2", bytes.NewBuffer(payload))
+	req.Header.Set("Authorization", "Bearer opti_your_api_key_here")
 	req.Header.Set("Content-Type", "application/json")
 	(&http.Client{}).Do(req)
 }`
@@ -660,22 +769,22 @@ func main() {
           { name: 'id', type: 'string', required: true, description: 'The unique ID of the tag.' }
         ],
         codeSnippets: {
-          JavaScript: `fetch('https://api.optidrive.com/api/v1/tags/tag_2', {
+          JavaScript: `fetch('https://api.optidrive.app/api/v1/tags/tag_2', {
   method: 'DELETE',
-  headers: { 'x-api-key': 'op_live_your_api_key_here' }
+  headers: { 'Authorization': 'Bearer opti_your_api_key_here' }
 })
 .then(res => res.json());`,
-          cURL: `curl -X DELETE -H "x-api-key: op_live_your_api_key_here" \\
-  https://api.optidrive.com/api/v1/tags/tag_2`,
+          cURL: `curl -X DELETE -H "Authorization: Bearer opti_your_api_key_here" \\
+  https://api.optidrive.app/api/v1/tags/tag_2`,
           Python: `import requests
-requests.delete("https://api.optidrive.com/api/v1/tags/tag_2", headers={"x-api-key": "op_live_your_api_key_here"})`,
+requests.delete("https://api.optidrive.app/api/v1/tags/tag_2", headers={"Authorization": "Bearer opti_your_api_key_here"})`,
           Go: `package main
 
 import "net/http"
 
 func main() {
-	req, _ := http.NewRequest("DELETE", "https://api.optidrive.com/api/v1/tags/tag_2", nil)
-	req.Header.Set("x-api-key", "op_live_your_api_key_here")
+	req, _ := http.NewRequest("DELETE", "https://api.optidrive.app/api/v1/tags/tag_2", nil)
+	req.Header.Set("Authorization", "Bearer opti_your_api_key_here")
 	(&http.Client{}).Do(req)
 }`
         },
@@ -696,20 +805,20 @@ func main() {
         path: '/api/v1/trash',
         description: 'Returns all soft-deleted files and folders inside the workspace.',
         codeSnippets: {
-          JavaScript: `fetch('https://api.optidrive.com/api/v1/trash', {
-  headers: { 'x-api-key': 'op_live_your_api_key_here' }
+          JavaScript: `fetch('https://api.optidrive.app/api/v1/trash', {
+  headers: { 'Authorization': 'Bearer opti_your_api_key_here' }
 })
 .then(res => res.json());`,
-          cURL: `curl -H "x-api-key: op_live_your_api_key_here" https://api.optidrive.com/api/v1/trash`,
+          cURL: `curl -H "Authorization: Bearer opti_your_api_key_here" https://api.optidrive.app/api/v1/trash`,
           Python: `import requests
-requests.get("https://api.optidrive.com/api/v1/trash", headers={"x-api-key": "op_live_your_api_key_here"})`,
+requests.get("https://api.optidrive.app/api/v1/trash", headers={"Authorization": "Bearer opti_your_api_key_here"})`,
           Go: `package main
 
 import "net/http"
 
 func main() {
-	req, _ := http.NewRequest("GET", "https://api.optidrive.com/api/v1/trash", nil)
-	req.Header.Set("x-api-key", "op_live_your_api_key_here")
+	req, _ := http.NewRequest("GET", "https://api.optidrive.app/api/v1/trash", nil)
+	req.Header.Set("Authorization", "Bearer opti_your_api_key_here")
 	(&http.Client{}).Do(req)
 }`
         },
@@ -735,25 +844,25 @@ func main() {
           { name: 'id', type: 'string', required: true, description: 'The unique ID of the file to restore.' }
         ],
         codeSnippets: {
-          JavaScript: `fetch('https://api.optidrive.com/api/v1/media/file_deleted_1/restore', {
+          JavaScript: `fetch('https://api.optidrive.app/api/v1/media/file_deleted_1/restore', {
   method: 'POST',
-  headers: { 'x-api-key': 'op_live_your_api_key_here' }
+  headers: { 'Authorization': 'Bearer opti_your_api_key_here' }
 })
 .then(res => res.json());`,
-          cURL: `curl -X POST -H "x-api-key: op_live_your_api_key_here" \\
-  https://api.optidrive.com/api/v1/media/file_deleted_1/restore`,
+          cURL: `curl -X POST -H "Authorization: Bearer opti_your_api_key_here" \\
+  https://api.optidrive.app/api/v1/media/file_deleted_1/restore`,
           Python: `import requests
 requests.post(
-    "https://api.optidrive.com/api/v1/media/file_deleted_1/restore",
-    headers={"x-api-key": "op_live_your_api_key_here"}
+    "https://api.optidrive.app/api/v1/media/file_deleted_1/restore",
+    headers={"Authorization": "Bearer opti_your_api_key_here"}
 )`,
           Go: `package main
 
 import "net/http"
 
 func main() {
-	req, _ := http.NewRequest("POST", "https://api.optidrive.com/api/v1/media/file_deleted_1/restore", nil)
-	req.Header.Set("x-api-key", "op_live_your_api_key_here")
+	req, _ := http.NewRequest("POST", "https://api.optidrive.app/api/v1/media/file_deleted_1/restore", nil)
+	req.Header.Set("Authorization", "Bearer opti_your_api_key_here")
 	(&http.Client{}).Do(req)
 }`
         },
@@ -770,25 +879,25 @@ func main() {
           { name: 'id', type: 'string', required: true, description: 'The unique ID of the folder to restore.' }
         ],
         codeSnippets: {
-          JavaScript: `fetch('https://api.optidrive.com/api/v1/folders/folder_xyz/restore', {
+          JavaScript: `fetch('https://api.optidrive.app/api/v1/folders/folder_xyz/restore', {
   method: 'POST',
-  headers: { 'x-api-key': 'op_live_your_api_key_here' }
+  headers: { 'Authorization': 'Bearer opti_your_api_key_here' }
 })
 .then(res => res.json());`,
-          cURL: `curl -X POST -H "x-api-key: op_live_your_api_key_here" \\
-  https://api.optidrive.com/api/v1/folders/folder_xyz/restore`,
+          cURL: `curl -X POST -H "Authorization: Bearer opti_your_api_key_here" \\
+  https://api.optidrive.app/api/v1/folders/folder_xyz/restore`,
           Python: `import requests
 requests.post(
-    "https://api.optidrive.com/api/v1/folders/folder_xyz/restore",
-    headers={"x-api-key": "op_live_your_api_key_here"}
+    "https://api.optidrive.app/api/v1/folders/folder_xyz/restore",
+    headers={"Authorization": "Bearer opti_your_api_key_here"}
 )`,
           Go: `package main
  
 import "net/http"
  
 func main() {
-	req, _ := http.NewRequest("POST", "https://api.optidrive.com/api/v1/folders/folder_xyz/restore", nil)
-	req.Header.Set("x-api-key", "op_live_your_api_key_here")
+	req, _ := http.NewRequest("POST", "https://api.optidrive.app/api/v1/folders/folder_xyz/restore", nil)
+	req.Header.Set("Authorization", "Bearer opti_your_api_key_here")
 	(&http.Client{}).Do(req)
 }`
         },
@@ -802,22 +911,22 @@ func main() {
         path: '/api/v1/trash/empty',
         description: 'Permanently deletes all files and folders currently in the trash for your workspace.',
         codeSnippets: {
-          JavaScript: `fetch('https://api.optidrive.com/api/v1/trash/empty', {
+          JavaScript: `fetch('https://api.optidrive.app/api/v1/trash/empty', {
   method: 'DELETE',
-  headers: { 'x-api-key': 'op_live_your_api_key_here' }
+  headers: { 'Authorization': 'Bearer opti_your_api_key_here' }
 })
 .then(res => res.json());`,
-          cURL: `curl -X DELETE -H "x-api-key: op_live_your_api_key_here" \\
-  https://api.optidrive.com/api/v1/trash/empty`,
+          cURL: `curl -X DELETE -H "Authorization: Bearer opti_your_api_key_here" \\
+  https://api.optidrive.app/api/v1/trash/empty`,
           Python: `import requests
-requests.delete("https://api.optidrive.com/api/v1/trash/empty", headers={"x-api-key": "op_live_your_api_key_here"})`,
+requests.delete("https://api.optidrive.app/api/v1/trash/empty", headers={"Authorization": "Bearer opti_your_api_key_here"})`,
           Go: `package main
  
 import "net/http"
  
 func main() {
-	req, _ := http.NewRequest("DELETE", "https://api.optidrive.com/api/v1/trash/empty", nil)
-	req.Header.Set("x-api-key", "op_live_your_api_key_here")
+	req, _ := http.NewRequest("DELETE", "https://api.optidrive.app/api/v1/trash/empty", nil)
+	req.Header.Set("Authorization", "Bearer opti_your_api_key_here")
 	(&http.Client{}).Do(req)
 }`
         },
@@ -831,7 +940,134 @@ func main() {
   {
     id: 'webhooks',
     title: 'Webhooks Receiver',
-    description: 'Listen to real-time image optimization events and notify your system instantly.',
+    description: 'Listen to real-time image optimization events and manage webhook subscriptions programmatically.',
+    endpoints: [
+      {
+        method: 'GET',
+        path: '/api/v1/webhooks',
+        description: 'Lists all registered webhook endpoints for your workspace.',
+        codeSnippets: {
+          JavaScript: `fetch('https://api.optidrive.app/api/v1/webhooks', {
+  headers: { 'Authorization': 'Bearer opti_your_api_key_here' }
+})
+.then(res => res.json());`,
+          cURL: `curl -H "Authorization: Bearer opti_your_api_key_here" \\
+  https://api.optidrive.app/api/v1/webhooks`,
+          Python: `import requests
+res = requests.get("https://api.optidrive.app/api/v1/webhooks", headers={"Authorization": "Bearer opti_your_api_key_here"})
+print(res.json())`,
+          Go: `package main
+import "net/http"
+func main() {
+	req, _ := http.NewRequest("GET", "https://api.optidrive.app/api/v1/webhooks", nil)
+	req.Header.Set("Authorization", "Bearer opti_your_api_key_here")
+	(&http.Client{}).Do(req)
+}`
+        },
+        jsonResponse: `{
+  "success": true,
+  "data": [
+    {
+      "id": "wh_123456",
+      "name": "Production Webhook",
+      "url": "https://example.com/webhooks",
+      "secret": "whsec_...",
+      "events": ["file.optimized"],
+      "isActive": true
+    }
+  ]
+}`
+      },
+      {
+        method: 'POST',
+        path: '/api/v1/webhooks',
+        description: 'Registers a new webhook URL and event list. Checks workspace plan limits before creation.',
+        params: [
+          { name: 'name', type: 'string', required: true, description: 'Display name for the webhook.' },
+          { name: 'url', type: 'string', required: true, description: 'Target POST URL for payloads (must start with http/https).' },
+          { name: 'events', type: 'string[]', required: true, description: 'Array of subscribed events: file.optimized, file.deleted, file.restored, folder.created, folder.deleted.' }
+        ],
+        codeSnippets: {
+          JavaScript: `fetch('https://api.optidrive.app/api/v1/webhooks', {
+  method: 'POST',
+  headers: {
+    'Authorization': 'Bearer opti_your_api_key_here',
+    'Content-Type': 'application/json'
+  },
+  body: JSON.stringify({
+    name: 'Production Webhook',
+    url: 'https://example.com/webhooks',
+    events: ['file.optimized']
+  })
+})
+.then(res => res.json());`,
+          cURL: `curl -X POST https://api.optidrive.app/api/v1/webhooks \\
+  -H "Authorization: Bearer opti_your_api_key_here" \\
+  -H "Content-Type: application/json" \\
+  -d '{"name": "Production Webhook", "url": "https://example.com/webhooks", "events": ["file.optimized"]}'`,
+          Python: `import requests
+res = requests.post("https://api.optidrive.app/api/v1/webhooks", 
+  headers={"Authorization": "Bearer opti_your_api_key_here", "Content-Type": "application/json"},
+  json={"name": "Production Webhook", "url": "https://example.com/webhooks", "events": ["file.optimized"]}
+)
+print(res.json())`,
+          Go: `package main
+import (
+	"bytes"
+	"net/http"
+)
+func main() {
+	payload := []byte(\`{"name": "Production Webhook", "url": "https://example.com/webhooks", "events": ["file.optimized"]}\`)
+	req, _ := http.NewRequest("POST", "https://api.optidrive.app/api/v1/webhooks", bytes.NewBuffer(payload))
+	req.Header.Set("Authorization", "Bearer opti_your_api_key_here")
+	req.Header.Set("Content-Type", "application/json")
+	(&http.Client{}).Do(req)
+}`
+        },
+        jsonResponse: `{
+  "success": true,
+  "data": {
+    "id": "wh_123456",
+    "name": "Production Webhook",
+    "url": "https://example.com/webhooks",
+    "secret": "whsec_abcd1234...",
+    "events": ["file.optimized"],
+    "isActive": true
+  }
+}`
+      },
+      {
+        method: 'DELETE',
+        path: '/api/v1/webhooks/:id',
+        description: 'Permanently deletes a registered webhook configuration.',
+        params: [
+          { name: 'id', type: 'string', required: true, description: 'The unique ID of the webhook configuration.' }
+        ],
+        codeSnippets: {
+          JavaScript: `fetch('https://api.optidrive.app/api/v1/webhooks/wh_123456', {
+  method: 'DELETE',
+  headers: { 'Authorization': 'Bearer opti_your_api_key_here' }
+})
+.then(res => res.json());`,
+          cURL: `curl -X DELETE -H "Authorization: Bearer opti_your_api_key_here" \\
+  https://api.optidrive.app/api/v1/webhooks/wh_123456`,
+          Python: `import requests
+res = requests.delete("https://api.optidrive.app/api/v1/webhooks/wh_123456", headers={"Authorization": "Bearer opti_your_api_key_here"})
+print(res.json())`,
+          Go: `package main
+import "net/http"
+func main() {
+	req, _ := http.NewRequest("DELETE", "https://api.optidrive.app/api/v1/webhooks/wh_123456", nil)
+	req.Header.Set("Authorization", "Bearer opti_your_api_key_here")
+	(&http.Client{}).Do(req)
+}`
+        },
+        jsonResponse: `{
+  "success": true,
+  "message": "Webhook deleted successfully"
+}`
+      }
+    ],
     generalGuide: `Webhooks allow OptiDrive to ping your server whenever certain actions happen in your workspace.
     
     ### Supported Events
@@ -961,6 +1197,41 @@ func verifyWebhook(w http.ResponseWriter, r *http.Request) {
 }`
   },
   {
+    id: 'analytics',
+    title: 'Analytics Data',
+    description: 'Query aggregated daily traffic and optimization savings statistics for custom metrics integration.',
+    endpoints: [
+      {
+        method: 'GET',
+        path: '/api/v1/analytics',
+        description: 'Fetches aggregated daily request and traffic analytics over the last 30 days.',
+        codeSnippets: {
+          JavaScript: `fetch('https://api.optidrive.app/api/v1/analytics', {
+  headers: { 'Authorization': 'Bearer opti_your_api_key_here' }
+}).then(res => res.json());`,
+          cURL: `curl -H "Authorization: Bearer opti_your_api_key_here" https://api.optidrive.app/api/v1/analytics`,
+          Python: `import requests
+print(requests.get("https://api.optidrive.app/api/v1/analytics", headers={"Authorization": "Bearer opti_your_api_key_here"}).json())`,
+          Go: `package main
+import "net/http"
+func main() {
+	req, _ := http.NewRequest("GET", "https://api.optidrive.app/api/v1/analytics", nil)
+	req.Header.Set("Authorization", "Bearer opti_your_api_key_here")
+	(&http.Client{}).Do(req)
+}`
+        },
+        jsonResponse: `{
+  "success": true,
+  "data": {
+    "periodDays": 30,
+    "totals": { "successRequests": 140, "errorRequests": 2, "totalRequests": 142, "bytesSaved": "2504910" },
+    "daily": [{ "date": "2026-07-01", "bytesSaved": 89410, "successCount": 10, "errorCount": 0 }]
+  }
+}`
+      }
+    ]
+  },
+  {
     id: 'dynamic-transformations',
     title: 'Transformations',
     description: 'Transform, resize, crop, and convert image formats on-the-fly using URL parameters.',
@@ -979,19 +1250,19 @@ func verifyWebhook(w http.ResponseWriter, r *http.Request) {
     ### How to Request
     You can request optimized media through public view paths:
     1. **Public View URL:** Global view URL:
-       \`https://api.optidrive.com/api/public/media/view/:fileId?w=300\`
+       \`https://api.optidrive.app/api/public/media/view/:fileId?w=300\`
     2. **Developer API CDN URL:** Raw view path using workspace scope:
-       \`https://api.optidrive.com/api/v1/media/:workspaceId/:filename?w=300\``,
+       \`https://api.optidrive.app/api/v1/media/:workspaceId/:filename?w=300\``,
     codeSnippets: {
       JavaScript: `// Fetching a dynamically resized WebP image at 150px
-const imageUrl = 'https://api.optidrive.com/api/public/media/view/file_avatar_123?w=150&h=150&fit=cover&f=webp&q=85';
+const imageUrl = 'https://api.optidrive.app/api/public/media/view/file_avatar_123?w=150&h=150&fit=cover&f=webp&q=85';
 
 const imgElement = document.createElement('img');
 imgElement.src = imageUrl;
 imgElement.alt = 'Optimized Image';
 document.body.appendChild(imgElement);`,
       cURL: `# Get optimized image in AVIF format with width 400px
-curl -I "https://api.optidrive.com/api/public/media/view/file_cld8x9k2m?w=400&f=avif"`,
+curl -I "https://api.optidrive.app/api/public/media/view/file_cld8x9k2m?w=400&f=avif"`,
       Python: `# Constructing and checking an optimized image URL
 import requests
 
@@ -1016,7 +1287,7 @@ import (
 
 func main() {
 	// Construct optimized media URL
-	url := "https://api.optidrive.com/api/public/media/view/file_cld8x9k2m?w=600&h=400&fit=contain"
+	url := "https://api.optidrive.app/api/public/media/view/file_cld8x9k2m?w=600&h=400&fit=contain"
 	
 	resp, err := http.Head(url)
 	if err != nil {

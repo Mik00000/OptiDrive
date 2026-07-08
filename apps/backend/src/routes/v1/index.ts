@@ -2,11 +2,14 @@ import { Router } from 'express';
 import multer from 'multer';
 import { authenticateApiKey } from '../../middlewares/apiKey.middleware';
 import { v1ApiLimiter, v1CompressLimiter } from '../../middleware/rate-limit';
-import { compressImageController } from '../../controllers/v1/compression.controller';
+import { compressImageController, compressImageUrlController } from '../../controllers/v1/compression.controller';
 import { viewMediaController, viewAvatarController, viewWatermarkController } from '../../controllers/v1/view.controller';
-import { listMediaController, deleteMediaController } from '../../controllers/v1/media.controller';
+import { listMediaController, deleteMediaController, getMediaDetailV1Controller, purgeMediaCacheV1Controller } from '../../controllers/v1/media.controller';
+import { getWorkspaceAnalyticsV1Controller } from '../../controllers/v1/analytics.controller';
 import { listFoldersController, createFolderController, deleteFolderController } from '../../controllers/v1/folders.controller';
 import { listTagsController, createTagController, updateTagController, deleteTagController } from '../../controllers/v1/tags.controller';
+import { getWorkspaceStatsV1Controller, getWorkspacePresetsV1Controller, getApiHealthV1Controller } from '../../controllers/v1/workspace.controller';
+import { listWebhooksV1Controller, createWebhookV1Controller, deleteWebhookV1Controller } from '../../controllers/v1/webhook.controller';
 
 const router: Router = Router();
 
@@ -25,6 +28,7 @@ const upload = multer({
 router.get('/media/avatars/:filename', viewAvatarController);
 router.get('/media/watermarks/:filename', viewWatermarkController);
 router.get('/media/:workspaceId/:filename', viewMediaController);
+router.get('/ping', v1ApiLimiter, (req, res) => { res.json({ status: 'ok', timestamp: new Date().toISOString() }); });
 
 // Protect all v1 routes below with API Key authentication
 router.use(authenticateApiKey);
@@ -43,13 +47,27 @@ router.use((req, res, next) => {
   }
 });
 
+// Workspace Stats, Presets, Health and Analytics Endpoints
+router.get('/stats', getWorkspaceStatsV1Controller);
+router.get('/presets', getWorkspacePresetsV1Controller);
+router.get('/health', getApiHealthV1Controller);
+router.get('/analytics', getWorkspaceAnalyticsV1Controller);
+
+// Webhook Management Endpoints
+router.get('/webhooks', listWebhooksV1Controller);
+router.post('/webhooks', createWebhookV1Controller);
+router.delete('/webhooks/:id', deleteWebhookV1Controller);
+
 // Compression Endpoint
 // The user sends an image via multipart/form-data with the field name 'image'
 import { checkQuota } from '../../middlewares/quota.middleware';
 router.post('/compress', v1CompressLimiter, upload.single('image'), checkQuota, compressImageController);
+router.post('/compress/url', v1CompressLimiter, checkQuota, compressImageUrlController);
 
 // Media Management Endpoints
 router.get('/media', listMediaController);
+router.get('/media/:id', getMediaDetailV1Controller);
+router.post('/media/:id/purge', purgeMediaCacheV1Controller);
 router.delete('/media/:id', deleteMediaController);
 
 // Folders Management Endpoints

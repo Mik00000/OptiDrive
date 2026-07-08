@@ -5,6 +5,7 @@ import { prisma } from '../../config/prisma';
 import { triggerWebhooks } from '../../services/webhook.service';
 import { checkAndTriggerQuotaEmails } from '../../services/quota-alert.service';
 import fs from 'fs/promises';
+import path from 'path';
 import { validateFileName, validateFolderName } from '../../utils/validation';
 
 export const compressImageController = async (req: Request & { workspaceId?: string; user?: { workspaceId: string } }, res: Response): Promise<void> => {
@@ -63,6 +64,8 @@ export const compressImageController = async (req: Request & { workspaceId?: str
       where: { id: workspaceId },
       select: {
         plan: true,
+        subscriptionStatus: true,
+        gracePeriodStartedAt: true,
         defaultPreset: true,
         defaultFormat: true,
         defaultQuality: true,
@@ -72,6 +75,14 @@ export const compressImageController = async (req: Request & { workspaceId?: str
         defaultFit: true
       }
     });
+
+    const hasActiveGracePeriod = workspace && (
+      (workspace.subscriptionStatus === 'past_due' || workspace.subscriptionStatus === 'unpaid') &&
+      workspace.gracePeriodStartedAt &&
+      (Date.now() - new Date(workspace.gracePeriodStartedAt).getTime() < 3 * 24 * 60 * 60 * 1000)
+    );
+    const isSubscriptionPaid = workspace && (workspace.plan === 'FREE' || workspace.subscriptionStatus === 'active' || !!hasActiveGracePeriod);
+    const effectivePlan = isSubscriptionPaid ? (workspace?.plan || 'FREE') : 'FREE';
 
     const activePreset = req.body.preset || workspace?.defaultPreset || "web_balanced";
 
@@ -117,7 +128,7 @@ export const compressImageController = async (req: Request & { workspaceId?: str
       }
     }
 
-    if (workspace?.plan === 'FREE') {
+    if (effectivePlan === 'FREE') {
       if (resolvedFormat === 'avif' || mimetype === 'image/svg+xml') {
         res.status(403).json({ error: 'AVIF format and SVG optimization are only available on PRO and ENTERPRISE plans' });
         return;
@@ -333,5 +344,328 @@ export const compressImageController = async (req: Request & { workspaceId?: str
     if (tempPath) {
       await fs.unlink(tempPath).catch(() => {});
     }
+  }
+};
+
+export const compressImageUrlController = async (req: Request & { workspaceId?: string; user?: { workspaceId: string } }, res: Response): Promise<void> => {
+  try {
+    const workspaceId = req.workspaceId || req.user?.workspaceId;
+    if (!workspaceId) {
+      res.status(401).json({ error: 'Unauthorized: No workspace context' });
+      return;
+    }
+
+    const { url } = req.body;
+    if (!url || typeof url !== 'string' || !url.startsWith('http')) {
+      res.status(400).json({ error: 'A valid image URL starting with http/https is required' });
+      return;
+    }
+
+    const axios = (await import('axios')).default;
+    let downloadRes;
+    try {
+      downloadRes = await axios.get(url, { responseType: 'arraybuffer', timeout: 15000, maxContentLength: 15 * 1024 * 1024 });
+    } catch (downloadErr: any) {
+      res.status(400).json({ error: `Failed to download image from URL: ${downloadErr.message}` });
+      return;
+    }
+
+    const buffer = Buffer.from(downloadRes.data);
+    const mimetype = String(downloadRes.headers['content-type'] || 'image/jpeg');
+    const size = buffer.length;
+
+    const planLimits = (req as any).planLimits;
+    if (planLimits && size > planLimits.maxFileSize) {
+      const maxMb = planLimits.maxFileSize / (1024 * 1024);
+      res.status(413).json({ error: `File size exceeds the limit for your plan (${maxMb} MB). Please upgrade your plan.` });
+      return;
+    }
+
+    // Determine filename
+    const urlPath = new URL(url).pathname;
+    let originalname = path.basename(urlPath) || 'downloaded_image';
+    if (!path.extname(originalname)) {
+      const ext = mimetype.split('/')[1]?.split('+')[0] || 'jpg';
+      originalname = `${originalname}.${ext}`;
+    }
+
+    try {
+      originalname = validateFileName(originalname);
+    } catch (err: any) {
+      res.status(400).json({ error: err.message });
+      return;
+    }
+
+    const {
+      preset, format, quality, lossless, width, height, fit, stripMetadata, effort,
+      sanitize, removeViewBox, multipass, floatPrecision,
+      pages, colors, folderId, folderPath, tags
+    } = req.body;
+
+    // Check workspace plan and default compression settings
+    const workspace = await prisma.workspace.findUnique({
+      where: { id: workspaceId },
+      select: {
+        plan: true,
+        subscriptionStatus: true,
+        gracePeriodStartedAt: true,
+        defaultPreset: true,
+        defaultFormat: true,
+        defaultQuality: true,
+        defaultStripMetadata: true,
+        defaultMaxWidth: true,
+        defaultMaxHeight: true,
+        defaultFit: true
+      }
+    });
+
+    const hasActiveGracePeriod = workspace && (
+      (workspace.subscriptionStatus === 'past_due' || workspace.subscriptionStatus === 'unpaid') &&
+      workspace.gracePeriodStartedAt &&
+      (Date.now() - new Date(workspace.gracePeriodStartedAt).getTime() < 3 * 24 * 60 * 60 * 1000)
+    );
+    const isSubscriptionPaid = workspace && (workspace.plan === 'FREE' || workspace.subscriptionStatus === 'active' || !!hasActiveGracePeriod);
+    const effectivePlan = isSubscriptionPaid ? (workspace?.plan || 'FREE') : 'FREE';
+
+    const activePreset = preset || workspace?.defaultPreset || "web_balanced";
+
+    let finalFormat = format;
+    if (!finalFormat) {
+      finalFormat = workspace?.defaultFormat || "auto";
+    }
+
+    let finalQuality = quality;
+    if (!finalQuality) {
+      if (activePreset === 'web_balanced') finalQuality = '80';
+      else if (activePreset === 'ultra_light') finalQuality = '60';
+      else if (activePreset === 'lossless') finalQuality = '100';
+      else finalQuality = String(workspace?.defaultQuality || 80);
+    }
+
+    let finalStripMetadata = stripMetadata;
+    if (finalStripMetadata === undefined || finalStripMetadata === null) {
+      if (activePreset === 'lossless') finalStripMetadata = 'false';
+      else if (workspace) finalStripMetadata = String(workspace.defaultStripMetadata);
+      else finalStripMetadata = 'true';
+    }
+
+    let finalWidth = width;
+    if (!finalWidth) {
+      if (activePreset === 'ultra_light') finalWidth = '1080';
+      else if (workspace?.defaultMaxWidth) finalWidth = String(workspace.defaultMaxWidth);
+    }
+
+    let finalHeight = height || (workspace?.defaultMaxHeight ? String(workspace.defaultMaxHeight) : undefined);
+    let finalFit = fit || workspace?.defaultFit || "cover";
+
+    let resolvedFormat = finalFormat;
+    if (finalFormat === 'auto') {
+      const accepts = req.headers.accept || '';
+      if (accepts.includes('image/avif')) {
+        resolvedFormat = 'avif';
+      } else if (accepts.includes('image/webp')) {
+        resolvedFormat = 'webp';
+      } else {
+        resolvedFormat = 'jpeg';
+      }
+    }
+
+    if (effectivePlan === 'FREE') {
+      if (resolvedFormat === 'avif' || mimetype === 'image/svg+xml') {
+        res.status(403).json({ error: 'AVIF format and SVG optimization are only available on PRO and ENTERPRISE plans' });
+        return;
+      }
+    }
+
+    let targetFolderId: string | null = folderId && folderId !== 'null' ? folderId : null;
+
+    if (folderPath && typeof folderPath === 'string') {
+      let pathParts: string[];
+      try {
+        pathParts = folderPath.split('/').map((p: string) => validateFolderName(p)).filter(Boolean);
+      } catch (err: any) {
+        res.status(400).json({ error: err.message });
+        return;
+      }
+
+      let currentParentId: string | null = null;
+      for (const part of pathParts) {
+        let folderRecord: any = await prisma.folder.findFirst({
+          where: {
+            name: part,
+            parentId: currentParentId,
+            workspaceId
+          }
+        });
+        
+        if (!folderRecord) {
+          folderRecord = await prisma.folder.create({
+            data: {
+              name: part,
+              parentId: currentParentId,
+              workspaceId
+            }
+          });
+        }
+        currentParentId = folderRecord.id;
+      }
+      targetFolderId = currentParentId;
+    } else if (targetFolderId) {
+      const folderExists = await prisma.folder.findFirst({
+        where: { id: targetFolderId, workspaceId }
+      });
+      if (!folderExists) {
+        res.status(400).json({ error: 'Invalid folderId' });
+        return;
+      }
+    }
+
+    const options = {
+      raster: {
+        ...(finalFormat ? { format: finalFormat } : {}),
+        resolvedFormat: resolvedFormat as 'avif' | 'webp' | 'jpeg' | 'png',
+        ...(finalQuality ? { quality: parseInt(finalQuality, 10) } : {}),
+        lossless: lossless === 'true' || activePreset === 'lossless',
+        ...(finalWidth ? { width: parseInt(finalWidth, 10) } : {}),
+        ...(finalHeight ? { height: parseInt(finalHeight, 10) } : {}),
+        ...(finalFit ? { fit: finalFit as 'cover' | 'contain' | 'inside' } : {}),
+        stripMetadata: finalStripMetadata !== 'false',
+        ...(effort ? { effort: parseInt(effort, 10) } : {}),
+      },
+      vector: {
+        sanitize: true,
+        removeViewBox: removeViewBox === 'true',
+        multipass: multipass === 'true',
+        ...(floatPrecision ? { floatPrecision: parseInt(floatPrecision, 10) } : {}),
+      },
+      animation: {
+        ...(finalFormat ? { format: finalFormat as 'webp' | 'gif' } : {}),
+        ...(pages ? { pages: parseInt(pages, 10) } : {}),
+        ...(colors ? { colors: parseInt(colors, 10) } : {}),
+      }
+    };
+
+    const result = await compressImage({
+      buffer,
+      originalFilename: originalname,
+      mimetype,
+      workspaceId,
+      options,
+    });
+
+    const originalSizeBigInt = BigInt(result.originalSize);
+    const optimizedSizeBigInt = BigInt(result.optimizedSize);
+    const savingsBytes = originalSizeBigInt - optimizedSizeBigInt;
+    const savingsPercent = result.originalSize > 0 
+      ? (Number(savingsBytes) / result.originalSize * 100) 
+      : 0;
+
+    let tagNames: string[] = [];
+    if (tags && typeof tags === 'string') {
+      try {
+        const parsed = JSON.parse(tags);
+        if (Array.isArray(parsed)) {
+          tagNames = parsed.map((t) => String(t).trim()).filter(Boolean);
+        } else {
+          tagNames = tags.split(',').map((t) => t.trim()).filter(Boolean);
+        }
+      } catch (e) {
+        tagNames = tags.split(',').map((t) => t.trim()).filter(Boolean);
+      }
+    }
+
+    const mediaFile = await prisma.mediaFile.create({
+      data: {
+        name: originalname,
+        format: result.format,
+        originalSize: originalSizeBigInt,
+        optimizedSize: optimizedSizeBigInt,
+        savings: savingsPercent,
+        cdnUrl: result.cdnUrl,
+        workspaceId,
+        folderId: targetFolderId,
+        ...(tagNames.length > 0 ? {
+          tags: {
+            connectOrCreate: tagNames.map((tagName) => ({
+              where: {
+                name_workspaceId: {
+                  name: tagName,
+                  workspaceId
+                }
+              },
+              create: {
+                name: tagName,
+                workspaceId
+              }
+            }))
+          }
+        } : {})
+      }
+    });
+
+    await prisma.analyticsLog.create({
+      data: {
+        statusCode: 200,
+        bytesSaved: savingsBytes,
+        workspaceId,
+      }
+    });
+
+    await prisma.activityLog.create({
+      data: {
+        type: 'FILE_UPLOADED',
+        description: `Compressed from URL: ${originalname} (${savingsPercent.toFixed(1)}% saved) via API`,
+        workspaceId,
+        userId: (req as any).user?.userId || null,
+      }
+    });
+
+    await prisma.workspace.update({
+      where: { id: workspaceId },
+      data: {
+        storageUsed: { increment: optimizedSizeBigInt },
+        monthlyOptimizations: { increment: 1 }
+      }
+    });
+
+    checkAndTriggerQuotaEmails(workspaceId).catch((err) => 
+      console.error('[Quota Warning] Failed to check quota:', err)
+    );
+
+    triggerWebhooks(workspaceId, 'file.optimized', {
+      id: mediaFile.id,
+      name: originalname,
+      format: result.format,
+      originalSize: result.originalSize,
+      optimizedSize: result.optimizedSize,
+      savings: Number(savingsPercent.toFixed(2)),
+      cdnUrl: result.cdnUrl,
+      createdAt: mediaFile.createdAt,
+    });
+
+    res.status(200).json({
+      success: true,
+      message: 'Image compressed successfully from URL',
+      data: {
+        id: mediaFile.id,
+        originalSize: result.originalSize,
+        optimizedSize: result.optimizedSize,
+        savingsPercent: savingsPercent.toFixed(2),
+        cdnUrl: result.cdnUrl,
+        format: result.format,
+      }
+    });
+  } catch (error: unknown) {
+    console.error('Compression URL Controller Error:', error);
+    if (req.workspaceId) {
+      prisma.analyticsLog.create({
+        data: {
+          statusCode: 500,
+          bytesSaved: 0,
+          workspaceId: req.workspaceId,
+        }
+      }).catch((err: any) => console.error('Failed to log analytics error', err));
+    }
+    res.status(500).json({ error: error instanceof Error ? error.message : 'Failed to compress image from URL' });
   }
 };

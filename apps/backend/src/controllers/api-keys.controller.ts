@@ -27,18 +27,14 @@ export const createApiKey = async (
 
     const { prisma } = await import('../config/prisma');
 
-    const workspace = await prisma.workspace.findUnique({
-      where: { id: workspaceId },
-      select: { plan: true, _count: { select: { apiKeys: true } } }
+    const { getWorkspacePlanLimits } = await import('../utils/workspace-status');
+    const { limits: planLimits } = await getWorkspacePlanLimits(workspaceId);
+
+    const keysCount = await prisma.apiKey.count({
+      where: { workspaceId }
     });
 
-    if (!workspace) {
-      res.status(404).json({ error: 'Workspace not found' });
-      return;
-    }
-
-    const planLimits = PLANS[workspace.plan as PlanType] || PLANS.FREE;
-    if (workspace._count.apiKeys >= planLimits.maxApiKeys) {
+    if (keysCount >= planLimits.maxApiKeys) {
       res.status(403).json({ error: `API Key limit reached for your plan (${planLimits.maxApiKeys}). Please upgrade to add more keys.` });
       return;
     }

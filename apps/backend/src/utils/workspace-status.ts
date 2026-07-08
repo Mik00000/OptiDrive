@@ -1,4 +1,5 @@
 import { prisma } from '../config/prisma';
+import { PLANS, PlanType } from '@optidrive/shared';
 
 /**
  * Перевіряє, чи є робочий простір замороженим (Locked) через перевищення ліміту безкоштовних слотів.
@@ -53,14 +54,69 @@ export async function isWorkspaceLocked(workspaceId: string): Promise<boolean> {
       return false;
     }
 
-    // Активним безкоштовним вважається найстаріший (перший у списку)
+    // Active FREE workspace is the oldest one (first in the list)
     const activeFreeWorkspaceId = ownedFreeWorkspaces[0]?.workspaceId;
 
-    // Всі інші FREE воркспейси є замороженими (Locked)
+    // All other FREE workspaces are locked
     return workspaceId !== activeFreeWorkspaceId;
   } catch (error) {
     console.error(`[isWorkspaceLocked] Error checking status for workspace ${workspaceId}:`, error);
-    // У разі помилки бази даних краще не блокувати користувача
     return false;
   }
+}
+
+/**
+ * Отримує дійсні ліміти воркспейсу з урахуванням сплати підписки,
+ * Enterprise кастомізацій та пільгового періоду (grace period).
+ */
+export async function getWorkspacePlanLimits(workspaceId: string) {
+  const workspace = await prisma.workspace.findUnique({
+    where: { id: workspaceId },
+    select: {
+      plan: true,
+      subscriptionStatus: true,
+      gracePeriodStartedAt: true,
+      enterpriseStorageBytes: true,
+      enterpriseBandwidthBytes: true,
+      enterpriseOptimizations: true,
+    }
+  });
+
+  if (!workspace) {
+    return {
+      limits: PLANS.FREE,
+      isPaid: false,
+      plan: 'FREE' as PlanType,
+    };
+  }
+
+  const hasActiveGracePeriod = (
+    (workspace.subscriptionStatus === 'past_due' || workspace.subscriptionStatus === 'unpaid') &&
+    workspace.gracePeriodStartedAt &&
+    (Date.now() - new Date(workspace.gracePeriodStartedAt).getTime() < 3 * 24 * 60 * 60 * 1000)
+  );
+
+  const isSubscriptionPaid = workspace.plan === 'FREE' || workspace.subscriptionStatus === 'active' || !!hasActiveGracePeriod;
+  const effectivePlanLimits = isSubscriptionPaid ? (PLANS[workspace.plan as PlanType] || PLANS.FREE) : PLANS.FREE;
+
+  const limits = { ...effectivePlanLimits };
+
+  // Add custom limits for Enterprise if subscription is paid/valid
+  if (workspace.plan === 'ENTERPRISE' && isSubscriptionPaid) {
+    if (workspace.enterpriseStorageBytes !== null) {
+      limits.storageBytes = Number(workspace.enterpriseStorageBytes);
+    }
+    if (workspace.enterpriseBandwidthBytes !== null) {
+      limits.bandwidthBytes = Number(workspace.enterpriseBandwidthBytes);
+    }
+    if (workspace.enterpriseOptimizations !== null) {
+      limits.monthlyOptimizations = workspace.enterpriseOptimizations;
+    }
+  }
+
+  return {
+    limits,
+    isPaid: isSubscriptionPaid,
+    plan: (isSubscriptionPaid ? workspace.plan : 'FREE') as PlanType,
+  };
 }

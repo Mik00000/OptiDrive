@@ -28,6 +28,32 @@ export const viewMediaController = async (req: Request, res: Response): Promise<
       return;
     }
 
+    // Check if workspace is locked
+    const { isWorkspaceLocked, getWorkspacePlanLimits } = await import('../../utils/workspace-status');
+    const isLocked = await isWorkspaceLocked(workspaceId);
+    if (isLocked) {
+      res.status(402).json({ error: 'Payment Required: Workspace is locked.' });
+      return;
+    }
+
+    // Resolve plan limits and check bandwidth/S3 status
+    const { limits: planLimits, isPaid } = await getWorkspacePlanLimits(workspaceId);
+
+    const workspaceData = await prisma.workspace.findUnique({
+      where: { id: workspaceId },
+      select: { bandwidthUsed: true, customS3Enabled: true }
+    });
+
+    if (workspaceData && workspaceData.bandwidthUsed >= BigInt(planLimits.bandwidthBytes)) {
+      res.status(402).json({ error: 'Payment Required: Bandwidth limit reached for this workspace.' });
+      return;
+    }
+
+    if (workspaceData?.customS3Enabled && !isPaid) {
+      res.status(402).json({ error: 'Payment Required: Custom S3 Storage access is suspended due to unpaid subscription.' });
+      return;
+    }
+
     // Check if the file exists in the database and is not soft-deleted
     const mediaFile = await prisma.mediaFile.findFirst({
       where: {
@@ -162,7 +188,7 @@ export const viewMediaController = async (req: Request, res: Response): Promise<
           where: { id: workspaceId },
           select: { plan: true, defaultWatermarkText: true, defaultWatermarkUrl: true }
         });
-        const workspacePlan = workspace?.plan || 'FREE';
+        const workspacePlan = isPaid ? (workspace?.plan || 'FREE') : 'FREE';
         if (workspace && (workspacePlan === 'PRO' || workspacePlan === 'ENTERPRISE')) {
           const opacity = parseFloat(String(req.query.wmOpacity || req.query.watermarkOpacity || '0.3')) || 0.3;
 

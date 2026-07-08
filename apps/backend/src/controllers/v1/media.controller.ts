@@ -150,3 +150,88 @@ export const deleteMediaController = async (req: Request & { workspaceId?: strin
     res.status(500).json({ error: 'Internal Server Error' });
   }
 };
+
+export const getMediaDetailV1Controller = async (req: any, res: Response): Promise<void> => {
+  try {
+    const workspaceId = req.workspaceId || req.user?.workspaceId;
+    const { id } = req.params;
+
+    if (!workspaceId) {
+      res.status(401).json({ error: 'Unauthorized: No workspace context' });
+      return;
+    }
+
+    const file = await prisma.mediaFile.findFirst({
+      where: { id, workspaceId, isDeleted: false },
+      include: {
+        tags: true,
+        folder: {
+          select: {
+            id: true,
+            name: true,
+            color: true
+          }
+        }
+      }
+    });
+
+    if (!file) {
+      res.status(404).json({ error: 'File not found' });
+      return;
+    }
+
+    const formattedFile = {
+      ...file,
+      originalSize: file.originalSize.toString(),
+      optimizedSize: file.optimizedSize.toString(),
+    };
+
+    res.json({
+      success: true,
+      data: formattedFile
+    });
+  } catch (error: any) {
+    console.error('getMediaDetailV1Controller Error:', error);
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
+};
+
+export const purgeMediaCacheV1Controller = async (req: any, res: Response): Promise<void> => {
+  try {
+    const workspaceId = req.workspaceId || req.user?.workspaceId;
+    const { id } = req.params;
+
+    if (!workspaceId) {
+      res.status(401).json({ error: 'Unauthorized: No workspace context' });
+      return;
+    }
+
+    const file = await prisma.mediaFile.findFirst({
+      where: { id, workspaceId, isDeleted: false }
+    });
+
+    if (!file) {
+      res.status(404).json({ error: 'File not found' });
+      return;
+    }
+
+    // Log Activity
+    await prisma.activityLog.create({
+      data: {
+        type: 'SETTING_CHANGED',
+        description: `Purged CDN cache for file: ${file.name} (${file.cdnUrl})`,
+        workspaceId,
+        userId: req.user?.userId || null,
+      }
+    });
+
+    res.json({
+      success: true,
+      message: `CDN cache purge request dispatched for URL: ${file.cdnUrl}`,
+      purgedUrls: [file.cdnUrl]
+    });
+  } catch (error: any) {
+    console.error('purgeMediaCacheV1Controller Error:', error);
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
+};

@@ -32,11 +32,30 @@ export const viewMediaFileOnTheFly = async (req: Request, res: Response): Promis
       return;
     }
 
-    const workspace = await prisma.workspace.findUnique({
+    const { getWorkspacePlanLimits } = await import('../utils/workspace-status');
+    const { limits: planLimits, plan: workspacePlan, isPaid } = await getWorkspacePlanLimits(mediaFile.workspaceId);
+
+    // Check Bandwidth limit
+    const workspaceData = await prisma.workspace.findUnique({
       where: { id: mediaFile.workspaceId },
-      select: { plan: true }
+      select: { bandwidthUsed: true, customS3Enabled: true }
     });
-    const workspacePlan = workspace?.plan || 'FREE';
+    if (workspaceData && workspaceData.bandwidthUsed >= BigInt(planLimits.bandwidthBytes)) {
+      res.status(402).json({ error: 'Payment Required: Bandwidth limit reached for this workspace.' });
+      return;
+    }
+
+    // Check custom domain permission (not allowed on FREE)
+    if (customDomain && workspacePlan === 'FREE') {
+      res.status(402).json({ error: 'Payment Required: Custom domains are not supported on your current plan.' });
+      return;
+    }
+
+    // Check custom S3 suspension
+    if (workspaceData?.customS3Enabled && !isPaid) {
+      res.status(402).json({ error: 'Payment Required: Custom S3 Storage access is suspended due to unpaid subscription.' });
+      return;
+    }
 
     // Визначаємо S3 ключ
     const urlParts = mediaFile.cdnUrl.split('/');

@@ -35,17 +35,8 @@ export const createWebhook = async (req: AuthRequest, res: Response): Promise<vo
     }
 
     // Перевірка ліміту плану на вебхуки
-    const workspace = await prisma.workspace.findUnique({
-      where: { id: workspaceId }
-    });
-    
-    if (!workspace) {
-      res.status(404).json({ success: false, error: 'Workspace not found' });
-      return;
-    }
-    
-    const { PLANS } = await import('@optidrive/shared');
-    const planLimits = PLANS[workspace.plan as keyof typeof PLANS] || PLANS.FREE;
+    const { getWorkspacePlanLimits } = await import('../../utils/workspace-status');
+    const { limits: planLimits, plan: effectivePlan } = await getWorkspacePlanLimits(workspaceId);
     
     const webhooksCount = await prisma.webhook.count({
       where: { workspaceId }
@@ -54,7 +45,7 @@ export const createWebhook = async (req: AuthRequest, res: Response): Promise<vo
     if (webhooksCount >= planLimits.maxWebhooks) {
       res.status(403).json({ 
         success: false, 
-        error: `Webhook limit reached for your ${workspace.plan} plan (${planLimits.maxWebhooks} webhooks). Please upgrade your plan.` 
+        error: `Webhook limit reached for your ${effectivePlan} plan (${planLimits.maxWebhooks} webhooks). Please upgrade your plan.` 
       });
       return;
     }
