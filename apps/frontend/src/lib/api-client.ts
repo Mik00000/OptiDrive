@@ -43,7 +43,7 @@ class ApiClient {
       // Якщо сервер повернув об'єкт помилки, використовуємо його повідомлення
       const errorMessage = data && typeof data === 'object' && 'error' in data && typeof (data as Record<string, unknown>).error === 'string'
         ? (data as Record<string, string>).error 
-        : `Помилка запиту: ${response.status} ${response.statusText}`;
+        : `Request error: ${response.status} ${response.statusText}`;
       
       const errorObj = new Error(errorMessage);
       (errorObj as any).data = data;

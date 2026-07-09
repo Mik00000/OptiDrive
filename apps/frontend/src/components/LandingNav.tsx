@@ -16,12 +16,11 @@ export default function LandingNav() {
         <span className="font-headings font-bold text-lg text-text-light tracking-tight">OptiDrive</span>
       </Link>
 
-      {/* Центральні посилання (для мобільних приховуємо) */}
       <div className="hidden md:flex items-center gap-8">
-        <a href="#features" className="text-sm text-text-muted hover:text-text-light transition-colors font-medium">Features</a>
-        <a href="#pricing" className="text-sm text-text-muted hover:text-text-light transition-colors font-medium">Pricing</a>
+        <Link href="/#features" className="text-sm text-text-muted hover:text-text-light transition-colors font-medium">Features</Link>
+        <Link href="/pricing" className="text-sm text-text-muted hover:text-text-light transition-colors font-medium">Pricing</Link>
         <Link href="/api-docs" className="text-sm text-text-muted hover:text-text-light transition-colors font-medium">Documentation</Link>
-        <a href="#developer" className="text-sm text-text-muted hover:text-text-light transition-colors font-medium">API</a>
+        <Link href="/#developer" className="text-sm text-text-muted hover:text-text-light transition-colors font-medium">API</Link>
       </div>
 
       {/* Кнопки дій */}

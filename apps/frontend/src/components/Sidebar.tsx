@@ -313,7 +313,7 @@ export const Sidebar = ({ className }: SidebarProps) => {
 
           <div className="flex flex-col overflow-hidden text-left flex-1">
             <span className="truncate text-sm font-medium text-text-light">
-              {user?.name || 'Гість'}
+              {user?.name || 'Guest'}
             </span>
             <span className="truncate text-xs text-text-muted">
               {user?.email || ''}

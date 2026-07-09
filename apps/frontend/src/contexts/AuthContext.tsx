@@ -72,7 +72,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   // Відновлення сесії з localStorage при першому рендері
   useEffect(() => {
-    setTimeout(async () => {
+    const restoreSession = async () => {
       try {
         const storedToken = localStorage.getItem('optidrive_token');
         const storedUser = localStorage.getItem('optidrive_user');
@@ -110,7 +110,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       } finally {
         setIsLoading(false);
       }
-    }, 0);
+    };
+
+    restoreSession();
+  }, []);
+
+  // Handle Safari/Chrome bfcache back-navigation freezing
+  useEffect(() => {
+    const handlePageShow = (e: PageTransitionEvent) => {
+      if (e.persisted) {
+        setIsLoading(false);
+      }
+    };
+    window.addEventListener('pageshow', handlePageShow);
+    return () => window.removeEventListener('pageshow', handlePageShow);
   }, []);
 
   const login = (newToken: string, newUser: User, skipRedirect = false) => {

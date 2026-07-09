@@ -47,3 +47,53 @@ export const rejectEnterpriseRequestApi = async (id: string): Promise<{ success:
   const response = await apiClient.post<{ success: boolean; message: string }>(`/api/internal/admin/enterprise-requests/${id}/reject`);
   return response;
 };
+
+export interface AdminIncident {
+  id: string;
+  createdAt: string;
+  updatedAt: string;
+  title: string;
+  status: 'RESOLVED' | 'INVESTIGATING' | 'MONITORING';
+  description: string;
+  isActive: boolean;
+}
+
+/**
+ * Отримати список усіх інцидентів
+ */
+export const getAdminIncidentsApi = async (): Promise<AdminIncident[]> => {
+  const response = await apiClient.get<{ success: boolean; data: AdminIncident[] }>('/api/internal/admin/incidents');
+  return response.data;
+};
+
+/**
+ * Створити інцидент
+ */
+export const createIncidentApi = async (incident: {
+  title: string;
+  status: string;
+  description: string;
+  isActive?: boolean;
+}): Promise<{ success: boolean; data: AdminIncident }> => {
+  const response = await apiClient.post<{ success: boolean; data: AdminIncident }>('/api/internal/admin/incidents', incident);
+  return response;
+};
+
+/**
+ * Оновити інцидент
+ */
+export const updateIncidentApi = async (
+  id: string,
+  incident: { title?: string; status?: string; description?: string; isActive?: boolean }
+): Promise<{ success: boolean; data: AdminIncident }> => {
+  const response = await apiClient.patch<{ success: boolean; data: AdminIncident }>(`/api/internal/admin/incidents/${id}`, incident);
+  return response;
+};
+
+/**
+ * Видалити інцидент
+ */
+export const deleteIncidentApi = async (id: string): Promise<{ success: boolean; message: string }> => {
+  const response = await apiClient.delete<{ success: boolean; message: string }>(`/api/internal/admin/incidents/${id}`);
+  return response;
+};

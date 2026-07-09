@@ -391,3 +391,155 @@ export const rejectEnterpriseRequest = async (req: AuthRequest, res: Response): 
     res.status(500).json({ error: error.message || 'Failed to reject enterprise request' });
   }
 };
+
+/**
+ * GET /api/internal/admin/incidents
+ * Отримати список усіх івентів / інцидентів
+ */
+export const getAdminIncidents = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const user = await prisma.user.findUnique({
+      where: { id: req.user!.userId },
+      select: { email: true },
+    });
+
+    if (!user || !isUserAdmin(user.email)) {
+      res.status(403).json({ error: 'Access denied: Admin only' });
+      return;
+    }
+
+    const incidents = await prisma.incident.findMany({
+      orderBy: { createdAt: 'desc' },
+    });
+
+    res.json({
+      success: true,
+      data: incidents,
+    });
+  } catch (error: any) {
+    console.error('[Admin] Error getting incidents:', error);
+    res.status(500).json({ error: error.message || 'Failed to fetch incidents' });
+  }
+};
+
+/**
+ * POST /api/internal/admin/incidents
+ * Створити новий інцидент
+ */
+export const createIncident = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const user = await prisma.user.findUnique({
+      where: { id: req.user!.userId },
+      select: { email: true },
+    });
+
+    if (!user || !isUserAdmin(user.email)) {
+      res.status(403).json({ error: 'Access denied: Admin only' });
+      return;
+    }
+
+    const { title, status, description, isActive } = req.body;
+
+    if (!title || !status || !description) {
+      res.status(400).json({ error: 'Title, status, and description are required' });
+      return;
+    }
+
+    const newIncident = await prisma.incident.create({
+      data: {
+        title,
+        status,
+        description,
+        isActive: isActive !== undefined ? Boolean(isActive) : true,
+      },
+    });
+
+    res.json({
+      success: true,
+      data: newIncident,
+    });
+  } catch (error: any) {
+    console.error('[Admin] Error creating incident:', error);
+    res.status(500).json({ error: error.message || 'Failed to create incident' });
+  }
+};
+
+/**
+ * PATCH /api/internal/admin/incidents/:id
+ * Оновити інцидент
+ */
+export const updateIncident = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const user = await prisma.user.findUnique({
+      where: { id: req.user!.userId },
+      select: { email: true },
+    });
+
+    if (!user || !isUserAdmin(user.email)) {
+      res.status(403).json({ error: 'Access denied: Admin only' });
+      return;
+    }
+
+    const { id } = req.params;
+    const { title, status, description, isActive } = req.body;
+
+    const incident = await prisma.incident.findUnique({
+      where: { id: String(id) },
+    });
+
+    if (!incident) {
+      res.status(404).json({ error: 'Incident not found' });
+      return;
+    }
+
+    const updated = await prisma.incident.update({
+      where: { id: String(id) },
+      data: {
+        title: title !== undefined ? title : incident.title,
+        status: status !== undefined ? status : incident.status,
+        description: description !== undefined ? description : incident.description,
+        isActive: isActive !== undefined ? Boolean(isActive) : incident.isActive,
+      },
+    });
+
+    res.json({
+      success: true,
+      data: updated,
+    });
+  } catch (error: any) {
+    console.error('[Admin] Error updating incident:', error);
+    res.status(500).json({ error: error.message || 'Failed to update incident' });
+  }
+};
+
+/**
+ * DELETE /api/internal/admin/incidents/:id
+ * Видалити інцидент
+ */
+export const deleteIncident = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const user = await prisma.user.findUnique({
+      where: { id: req.user!.userId },
+      select: { email: true },
+    });
+
+    if (!user || !isUserAdmin(user.email)) {
+      res.status(403).json({ error: 'Access denied: Admin only' });
+      return;
+    }
+
+    const { id } = req.params;
+
+    await prisma.incident.delete({
+      where: { id: String(id) },
+    });
+
+    res.json({
+      success: true,
+      message: 'Incident deleted successfully',
+    });
+  } catch (error: any) {
+    console.error('[Admin] Error deleting incident:', error);
+    res.status(500).json({ error: error.message || 'Failed to delete incident' });
+  }
+};

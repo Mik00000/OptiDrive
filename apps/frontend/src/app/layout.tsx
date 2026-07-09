@@ -2,6 +2,11 @@ import type { Metadata } from 'next';
 import { IBM_Plex_Mono, Inter } from 'next/font/google';
 import './globals.css';
 import { AuthProvider } from '@/contexts/AuthContext';
+import { registerStaticIcons } from '@/lib/icons';
+
+if (typeof window !== 'undefined') {
+  registerStaticIcons();
+}
 
 const inter = Inter({
   subsets: ['latin'],

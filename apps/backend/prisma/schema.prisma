@@ -471,3 +471,27 @@ model EnterpriseRequest {
   @@index([workspaceId])
   @@index([status])
 }
+
+// 14. Інциденти та події для сторінки статусу
+model Incident {
+  id          String   @id @default(cuid())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  title       String
+  status      String   // e.g. "RESOLVED", "INVESTIGATING", "MONITORING"
+  description String
+  isActive    Boolean  @default(true)
+}
+
+// 15. Логи аптайму сервісів для статус-сторінки
+model UptimeMetric {
+  id              String   @id @default(cuid())
+  date            DateTime // Зберігається тільки дата (без часу, YYYY-MM-DD)
+  service         String   // e.g. "api_gateway", "compression_engine", "asset_cdn"
+  uptimePercent   Float    @default(100.0)
+  totalPings      Int      @default(0)
+  successfulPings Int      @default(0)
+
+  @@unique([date, service])
+  @@index([date])
+}

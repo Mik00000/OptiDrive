@@ -28,6 +28,7 @@ interface SelectInputProps extends Omit<BaseInputProps, 'children'> {
   placeholder?: string;
   icon?: string;
   prefix?: string;
+  direction?: 'top' | 'bottom' | 'auto';
 }
 
 type InputProps = TextInputProps | SelectInputProps;
@@ -36,7 +37,7 @@ const baseStyles =
   'px-3 py-2 bg-bg text-text-light border border-slate-700 rounded-xl focus:border-accent focus:bg-white/5 outline-none placeholder:text-text-muted text-sm transition-all duration-200';
 
 function SelectInput(props: SelectInputProps) {
-  const { options, value, onChange, placeholder, icon, prefix, className: selectClass } = props;
+  const { options, value, onChange, placeholder, icon, prefix, className: selectClass, direction = 'auto' } = props;
   const [isOpen, setIsOpen] = useState(false);
   const [dropdownPosition, setDropdownPosition] = useState<'bottom' | 'top'>('bottom');
   
@@ -62,6 +63,10 @@ function SelectInput(props: SelectInputProps) {
 
   // Розрахунок позиції випадаючого списку
   useEffect(() => {
+    if (direction && direction !== 'auto') {
+      setDropdownPosition(direction);
+      return;
+    }
     if (isOpen && buttonRef.current) {
       const rect = buttonRef.current.getBoundingClientRect();
       const spaceBelow = window.innerHeight - rect.bottom;
@@ -76,7 +81,7 @@ function SelectInput(props: SelectInputProps) {
         setDropdownPosition('bottom');
       }
     }
-  }, [isOpen]);
+  }, [isOpen, direction]);
 
   return (
     <div className={twMerge('relative w-fit', selectClass)} ref={dropdownRef}>

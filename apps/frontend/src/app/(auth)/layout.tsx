@@ -5,6 +5,7 @@ import { useRouter, usePathname } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import Image from 'next/image';
 import { Icon } from '@iconify/react';
+import { PageLoader } from '@/components/PageLoader';
 
 export default function AuthLayout({
   children,
@@ -22,14 +23,7 @@ export default function AuthLayout({
   }, [isLoading, isAuthenticated, router, pathname]);
 
   if (isLoading) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-bg text-text-light">
-        <div className="flex flex-col items-center gap-3">
-          <Icon icon="lucide:loader-2" className="animate-spin text-accent" width={40} height={40} />
-          <span className="text-sm font-medium text-text-muted">Loading...</span>
-        </div>
-      </div>
-    );
+    return <PageLoader />;
   }
 
   if (isAuthenticated && pathname !== '/invite') {

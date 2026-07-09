@@ -75,7 +75,7 @@ export const ProjectTab = () => {
   // Migration finished notification
   useEffect(() => {
     if (prevStatusRef.current === 'MIGRATING' && activeWorkspace?.migrationStatus === 'COMPLETED') {
-      showFeedback('Міграція завершена! Усі файли перенесені у ваше безпечне сховище.', 'success');
+      showFeedback('Migration complete! All files have been moved to your secure storage.', 'success');
     }
     prevStatusRef.current = activeWorkspace?.migrationStatus;
   }, [activeWorkspace?.migrationStatus]);

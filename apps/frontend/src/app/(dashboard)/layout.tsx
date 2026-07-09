@@ -13,6 +13,7 @@ import { WorkspaceStats } from '@/features/dashboard/api';
 import { BillingStatus } from '@/features/billing/api';
 import { Button } from '@/components/Button';
 import { twMerge } from 'tailwind-merge';
+import { PageLoader } from '@/components/PageLoader';
 
 export default function DashboardLayout({
   children,
@@ -116,14 +117,7 @@ export default function DashboardLayout({
   const isLockedPage = activeWorkspace?.isLocked && pathname !== '/billing' && pathname !== '/settings/project';
 
   if (isLoading) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-background text-text-light">
-        <div className="flex flex-col items-center gap-3">
-          <Icon icon="lucide:loader-2" className="animate-spin text-accent" width={40} height={40} />
-          <span className="text-sm font-medium text-text-muted">Loading...</span>
-        </div>
-      </div>
-    );
+    return <PageLoader />;
   }
 
   if (!isAuthenticated) {

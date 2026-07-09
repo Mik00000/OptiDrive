@@ -13,6 +13,8 @@ const SYSTEM_DOMAINS = [
   'localhost',
   'optidrive.com',
   'api.optidrive.com',
+  'optidrive.app',
+  'api.optidrive.app',
   'localhost:3001',
   'localhost:3000'
 ];

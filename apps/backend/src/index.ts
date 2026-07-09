@@ -3,6 +3,8 @@ import express from 'express';
 import cors from 'cors';
 import internalRoutes from './routes/internal';
 import v1Routes from './routes/v1';
+import { getPublicSystemStatus } from './controllers/status.controller';
+import { startUptimeMonitor } from './services/uptime.service';
 import { prisma } from './config/prisma';
 import { s3Client, BUCKET_NAME } from './config/s3';
 import { DeleteObjectCommand, DeleteObjectsCommand } from '@aws-sdk/client-s3';
@@ -51,6 +53,7 @@ import publicShareRoutes from './routes/public/share.routes';
 import { viewMediaFileOnTheFly } from './controllers/public-media.controller';
 
 app.use('/api/public/share', publicShareRoutes);
+app.get('/api/public/status', getPublicSystemStatus);
 app.get('/api/public/media/view/:id', viewMediaFileOnTheFly);
 app.get('/view/:id', viewMediaFileOnTheFly); // Для використання з кастомними доменами
 
@@ -279,4 +282,5 @@ app.listen(3001, () => {
   keepNeonAwake(); // Запускаємо пінгування після старту сервера
   startRecycleBinAutoPurge(); // Запускаємо очищення кошика
   startSystemCleanup(); // Запускаємо очищення системи
+  startUptimeMonitor(); // Запускаємо монітор аптайму сервісів
 });

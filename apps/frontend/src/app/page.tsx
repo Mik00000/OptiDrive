@@ -5,6 +5,8 @@ import { Icon } from '@iconify/react';
 import LandingNav from '@/components/LandingNav';
 import FeatureCard from '@/components/FeatureCard';
 import { useAuth } from '@/contexts/AuthContext';
+import Footer from '@/components/Footer';
+import { Button } from '@/components/Button';
 
 export default function LandingPage() {
   const { isAuthenticated } = useAuth();
@@ -23,7 +25,7 @@ export default function LandingPage() {
         <div className="flex-1 flex flex-col gap-6 md:gap-7 z-10 text-center xl:text-left items-center xl:items-start">
           <div className="inline-flex items-center gap-2 bg-accent/10 border border-accent/25 rounded-full px-4 py-1.5 w-fit animate-fade-in">
             <div className="size-1.5 rounded-full bg-accent animate-pulse"></div>
-            <span className="text-xs font-semibold text-accent">Over 10 billion images monthly</span>
+            <span className="text-xs font-semibold text-accent">Over 10k images monthly</span>
           </div>
 
           <h1 className="font-headings font-bold text-4xl sm:text-5xl md:text-[56px] leading-[1.1] text-text-light tracking-tight">
@@ -40,16 +42,16 @@ export default function LandingPage() {
 
           <div className="flex flex-col sm:flex-row items-center gap-4 w-full sm:w-auto">
             <Link href={isAuthenticated ? "/dashboard" : "/register"} className="w-full sm:w-auto">
-              <button className="flex w-full items-center justify-center gap-2 bg-accent hover:brightness-110 active:scale-95 text-white font-semibold px-7 py-3.5 rounded-xl text-sm transition-all shadow-lg shadow-accent/20 cursor-pointer">
+              <Button variant="accent" className="w-full sm:w-auto px-7 py-3.5 rounded-xl shadow-lg shadow-accent/20">
                 <span>{isAuthenticated ? 'Dashboard' : 'Start for Free'}</span>
                 <Icon icon="lucide:arrow-right" width={16} height={16} />
-              </button>
+              </Button>
             </Link>
             <Link href="/api-docs" className="w-full sm:w-auto">
-              <button className="flex w-full items-center justify-center gap-2 border border-border text-text-light font-semibold px-7 py-3.5 rounded-xl text-sm bg-sidebar hover:bg-slate-800/50 hover:border-text-muted active:scale-95 transition-all cursor-pointer">
+              <Button variant="bordered" className="w-full sm:w-auto px-7 py-3.5 rounded-xl bg-sidebar hover:bg-slate-800/50 hover:border-text-muted">
                 <Icon icon="lucide:book" width={16} height={16} className="text-text-muted" />
                 <span>Documentation</span>
-              </button>
+              </Button>
             </Link>
           </div>
 
@@ -75,7 +77,7 @@ export default function LandingPage() {
                 <div className="size-3 rounded-full bg-success opacity-70"></div>
               </div>
               <div className="flex-1 mx-4 bg-[#111827] border border-border rounded-md px-3 py-1 text-xs text-text-muted text-center select-none font-mono">
-                app.optidrive.com/media
+                optidrive.app/media
               </div>
             </div>
 
@@ -240,11 +242,11 @@ export default function LandingPage() {
             </div>
             <div className="pt-2">
               <Link href="/api-docs">
-                <button className="flex items-center gap-2 border border-border text-text-light font-semibold px-5 py-3 rounded-xl text-sm bg-bg hover:bg-slate-800/50 hover:border-text-muted active:scale-95 transition-all cursor-pointer">
+                <Button variant="bordered" className="flex items-center gap-2 px-5 py-3 rounded-xl">
                   <Icon icon="lucide:book-open" width={15} className="text-text-muted" />
                   <span>Explore API Reference</span>
                   <Icon icon="lucide:arrow-right" width={14} className="text-text-muted" />
-                </button>
+                </Button>
               </Link>
             </div>
           </div>
@@ -266,20 +268,20 @@ export default function LandingPage() {
             
             {/* Тіло коду */}
             <div className="p-6 flex flex-col gap-1 text-xs md:text-[13px] font-mono leading-6 overflow-x-auto text-left select-none">
-              <div><span className="text-purple-400">import</span><span className="text-gray-300"> {"{ OptiDrive }"} </span><span className="text-purple-400">from</span><span className="text-green-400"> {"'optidrive'"}</span><span className="text-gray-300">;</span></div>
+              <div><span className="text-blue-400">const</span><span className="text-gray-300"> formData </span><span className="text-blue-300">=</span><span className="text-blue-400"> new</span><span className="text-yellow-300"> FormData</span><span className="text-gray-300">();</span></div>
+              <div><span className="text-gray-300">formData.</span><span className="text-yellow-300">append</span><span className="text-gray-300">{"("}</span><span className="text-green-400">{"'image'"}</span><span className="text-gray-300">, file);</span></div>
               <div className="h-1"></div>
-              <div><span className="text-blue-400">const</span><span className="text-gray-300"> client </span><span className="text-blue-300">=</span><span className="text-blue-400"> new</span><span className="text-yellow-300"> OptiDrive</span><span className="text-gray-300">{"({"}</span></div>
-              <div><span className="text-gray-300">{"  "}</span><span className="text-sky-300">apiKey</span><span className="text-gray-300">: </span><span className="text-green-400">process.env.OPTIDRIVE_KEY</span></div>
+              <div><span className="text-blue-400">const</span><span className="text-gray-300"> res </span><span className="text-blue-300">=</span><span className="text-purple-400"> await</span><span className="text-yellow-300"> fetch</span><span className="text-gray-300">{"("}</span><span className="text-green-400">{"'https://api.optidrive.app/api/v1/compress'"}</span><span className="text-gray-300">, {"{"}</span></div>
+              <div><span className="text-gray-300">{"  "}</span><span className="text-sky-300">method</span><span className="text-gray-300">: </span><span className="text-green-400">{"'POST'"}</span><span className="text-gray-300">,</span></div>
+              <div><span className="text-gray-300">{"  "}</span><span className="text-sky-300">headers</span><span className="text-gray-300">: {"{"}</span></div>
+              <div><span className="text-gray-300">{"    "}</span><span className="text-green-400">{"'Authorization'"}</span><span className="text-gray-300">: </span><span className="text-green-400">{"`Bearer ${API_KEY}`"}</span></div>
+              <div><span className="text-gray-300">{"  },"}</span></div>
+              <div><span className="text-gray-300">{"  "}</span><span className="text-sky-300">body</span><span className="text-gray-300">: formData</span></div>
               <div><span className="text-gray-300">{"});"}</span></div>
               <div className="h-1"></div>
-              <div><span className="text-blue-400">const</span><span className="text-gray-300"> result </span><span className="text-blue-300">=</span><span className="text-purple-400"> await</span><span className="text-gray-300"> client.</span><span className="text-yellow-300">upload</span><span className="text-gray-300">{"({"}</span></div>
-              <div><span className="text-gray-300">{"  "}</span><span className="text-sky-300">file</span><span className="text-gray-300">: imagePath,</span></div>
-              <div><span className="text-gray-300">{"  "}</span><span className="text-sky-300">format</span><span className="text-gray-300">: </span><span className="text-green-400">{"'webp'"}</span><span className="text-gray-300">,</span></div>
-              <div><span className="text-gray-300">{"  "}</span><span className="text-sky-300">quality</span><span className="text-gray-300">: </span><span className="text-orange-400">85</span></div>
-              <div><span className="text-gray-300">{"});"}</span></div>
+              <div><span className="text-blue-400">const</span><span className="text-gray-300"> result </span><span className="text-blue-300">=</span><span className="text-purple-400"> await</span><span className="text-gray-300"> res.</span><span className="text-yellow-300">json</span><span className="text-gray-300">();</span></div>
               <div className="h-2"></div>
-              <div><span className="text-gray-500">{"// → { url: 'https://cdn.optidrive.com/img_9x2.webp',"}</span></div>
-              <div><span className="text-gray-500">{"//     savings: '81%', width: 1200, height: 628 }"}</span></div>
+              <div><span className="text-gray-500">{"// → { success: true, data: { cdnUrl: 'https://pub-...' } }"}</span></div>
             </div>
 
             {/* Результат завантаження */}
@@ -344,9 +346,9 @@ export default function LandingPage() {
               </ul>
             </div>
             <Link href={isAuthenticated ? "/dashboard" : "/register"} className="w-full mt-8">
-              <button className="w-full py-3 px-4 rounded-xl border border-border hover:bg-slate-800 text-xs font-semibold text-text-light transition-colors cursor-pointer">
+              <Button variant="bordered" className="w-full py-3 px-4 rounded-xl text-xs font-semibold">
                 Get Started
-              </button>
+              </Button>
             </Link>
           </div>
 
@@ -393,9 +395,9 @@ export default function LandingPage() {
               </ul>
             </div>
             <Link href={isAuthenticated ? "/dashboard" : "/register"} className="w-full mt-8">
-              <button className="w-full py-3 px-4 rounded-xl bg-accent hover:brightness-110 active:scale-95 text-xs font-semibold text-white transition-all shadow-md shadow-accent/20 cursor-pointer">
+              <Button variant="accent" className="w-full py-3 px-4 rounded-xl text-xs font-semibold shadow-md shadow-accent/20">
                 Try Pro
-              </button>
+              </Button>
             </Link>
           </div>
 
@@ -439,9 +441,9 @@ export default function LandingPage() {
               </ul>
             </div>
             <Link href={isAuthenticated ? "/dashboard" : "/register"} className="w-full mt-8">
-              <button className="w-full py-3 px-4 rounded-xl border border-border hover:bg-slate-800 text-xs font-semibold text-text-light transition-colors cursor-pointer">
+              <Button variant="bordered" className="w-full py-3 px-4 rounded-xl text-xs font-semibold">
                 Contact Sales
-              </button>
+              </Button>
             </Link>
           </div>
         </div>
@@ -477,10 +479,10 @@ export default function LandingPage() {
             Join thousands of developers and companies who trust OptiDrive for fast and reliable image delivery.
           </p>
           <Link href={isAuthenticated ? "/dashboard" : "/register"} className="mt-2 w-full sm:w-auto">
-            <button className="flex w-full items-center justify-center gap-2 bg-accent hover:brightness-110 active:scale-95 text-white font-semibold px-8 py-4 rounded-xl text-sm sm:text-base transition-all shadow-lg shadow-accent/25 cursor-pointer">
+            <Button variant="accent" className="flex w-full items-center justify-center gap-2 px-8 py-4 rounded-xl text-sm sm:text-base shadow-lg shadow-accent/25">
               <span>Create a Free Account</span>
               <Icon icon="lucide:arrow-right" width={18} height={18} />
-            </button>
+            </Button>
           </Link>
           <span className="text-[11px] text-text-muted font-medium">
             No credit card required · Free plan includes 5 GB storage and 50 GB bandwidth
@@ -489,53 +491,7 @@ export default function LandingPage() {
       </section>
 
       {/* ─── ФУТЕР (FOOTER) ─────────────────────────────────────────── */}
-      <footer className="bg-sidebar border-t border-border px-6 md:px-16 pt-14 pb-8 w-full mt-auto">
-        <div className="max-w-7xl mx-auto w-full">
-          <div className="flex flex-col lg:flex-row gap-12 lg:gap-16 mb-14">
-            {/* Опис компанії */}
-            <div className="flex-[2] flex flex-col gap-4">
-              <Link href="/" className="flex items-center gap-2.5">
-                <div className="size-8 bg-accent rounded-md flex items-center justify-center shadow-md shadow-accent/20">
-                  <Icon icon="lucide:zap" width={15} height={15} className="text-white" />
-                </div>
-                <span className="font-headings font-bold text-base text-text-light">OptiDrive</span>
-              </Link>
-              <p className="text-sm text-text-muted leading-relaxed max-w-xs">
-                The modern platform for optimizing, compressing, and globally delivering media for developers and businesses.
-              </p>
-              <div className="flex items-center gap-3 pt-2">
-                {['github', 'twitter', 'linkedin'].map((sn, i) => (
-                  <a key={i} href="#" className="size-8 rounded-lg border border-border flex items-center justify-center text-text-muted hover:text-text-light hover:border-text-muted transition-colors cursor-pointer">
-                    <Icon icon={`lucide:${sn}`} width={16} height={16} />
-                  </a>
-                ))}
-              </div>
-            </div>
-
-            {/* Списки посилань */}
-            {[
-              { heading: 'Product', links: ['Features', 'Pricing', 'Changelog', 'Roadmap'] },
-              { heading: 'Resources', links: ['Documentation', 'API Reference', 'System Status', 'SDK Libraries'] },
-              { heading: 'Company', links: ['About Us', 'Blog', 'Careers', 'Contact'] },
-              { heading: 'Legal', links: ['Privacy Policy', 'Terms of Service', 'DPA', 'Security'] },
-            ].map((col, i) => (
-              <div key={i} className="flex-1 flex flex-col gap-4">
-                <span className="text-sm font-semibold text-text-light">{col.heading}</span>
-                <div className="flex flex-col gap-3">
-                  {col.links.map((link, j) => (
-                    <a key={j} href="#" className="text-sm text-text-muted hover:text-text-light transition-colors cursor-pointer">{link}</a>
-                  ))}
-                </div>
-              </div>
-            ))}
-          </div>
-
-          <div className="border-t border-border pt-6 flex flex-col sm:flex-row items-center justify-between gap-4">
-            <span className="text-xs text-text-muted">© 2026 OptiDrive, Inc. All rights reserved.</span>
-            <span className="text-xs text-text-muted">Made with ♥ for developers worldwide</span>
-          </div>
-        </div>
-      </footer>
+      <Footer />
     </div>
   );
 }
