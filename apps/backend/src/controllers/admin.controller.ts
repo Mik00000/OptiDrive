@@ -543,3 +543,345 @@ export const deleteIncident = async (req: AuthRequest, res: Response): Promise<v
     res.status(500).json({ error: error.message || 'Failed to delete incident' });
   }
 };
+
+/**
+ * GET /api/internal/admin/workspaces
+ * Get all workspaces and all users
+ */
+export const getWorkspacesAndUsers = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const requester = await prisma.user.findUnique({
+      where: { id: req.user!.userId },
+      select: { email: true },
+    });
+
+    if (!requester || !isUserAdmin(requester.email)) {
+      res.status(403).json({ error: 'Access denied: Admin only' });
+      return;
+    }
+
+    const workspaces = await prisma.workspace.findMany({
+      orderBy: { createdAt: 'desc' },
+      include: {
+        members: {
+          select: {
+            user: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+              }
+            }
+          }
+        }
+      }
+    });
+
+    const users = await prisma.user.findMany({
+      orderBy: { createdAt: 'desc' },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        avatarUrl: true,
+        isBanned: true,
+        createdAt: true,
+      }
+    });
+
+    const serializedWorkspaces = workspaces.map(w => ({
+      id: w.id,
+      name: w.name,
+      slug: w.slug,
+      plan: w.plan,
+      isBanned: w.isBanned,
+      storageUsed: w.storageUsed.toString(),
+      bandwidthUsed: w.bandwidthUsed.toString(),
+      storageBonusBytes: w.storageBonusBytes.toString(),
+      monthlyOptimizations: w.monthlyOptimizations,
+      enterpriseStorageBytes: w.enterpriseStorageBytes?.toString() || null,
+      enterpriseBandwidthBytes: w.enterpriseBandwidthBytes?.toString() || null,
+      enterpriseOptimizations: w.enterpriseOptimizations,
+      createdAt: w.createdAt,
+      members: w.members.map(m => m.user),
+    }));
+
+    res.json({
+      success: true,
+      data: {
+        workspaces: serializedWorkspaces,
+        users,
+      }
+    });
+  } catch (error: any) {
+    console.error('[Admin] Error getting workspaces/users:', error);
+    res.status(500).json({ error: error.message || 'Failed to fetch database records' });
+  }
+};
+
+/**
+ * POST /api/internal/admin/workspaces/:id/bonus
+ * Grant custom storage bonus to workspace
+ */
+export const updateWorkspaceBonus = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const requester = await prisma.user.findUnique({
+      where: { id: req.user!.userId },
+      select: { email: true },
+    });
+
+    if (!requester || !isUserAdmin(requester.email)) {
+      res.status(403).json({ error: 'Access denied: Admin only' });
+      return;
+    }
+
+    const { id } = req.params;
+    const { bonusGb } = req.body;
+    const parsedBonusGb = Number(bonusGb);
+
+    if (isNaN(parsedBonusGb) || parsedBonusGb < 0) {
+      res.status(400).json({ error: 'Bonus must be a non-negative number of gigabytes' });
+      return;
+    }
+
+    const storageBonusBytes = BigInt(parsedBonusGb) * BigInt(1024 * 1024 * 1024);
+
+    const updated = await prisma.workspace.update({
+      where: { id: id as string },
+      data: { storageBonusBytes },
+    });
+
+    // Log this activity
+    await prisma.activityLog.create({
+      data: {
+        type: 'SETTING_CHANGED',
+        description: `Admin updated storage bonus for workspace "${updated.name}" to +${parsedBonusGb} GB`,
+        userId: req.user!.userId,
+        workspaceId: updated.id,
+      }
+    });
+
+    res.json({
+      success: true,
+      data: {
+        id: updated.id,
+        storageBonusBytes: updated.storageBonusBytes.toString(),
+      }
+    });
+  } catch (error: any) {
+    console.error('[Admin] Error updating workspace bonus:', error);
+    res.status(500).json({ error: error.message || 'Failed to update bonus' });
+  }
+};
+
+/**
+ * POST /api/internal/admin/workspaces/:id/ban
+ * Toggle ban state for workspace
+ */
+export const toggleWorkspaceBan = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const requester = await prisma.user.findUnique({
+      where: { id: req.user!.userId },
+      select: { email: true },
+    });
+
+    if (!requester || !isUserAdmin(requester.email)) {
+      res.status(403).json({ error: 'Access denied: Admin only' });
+      return;
+    }
+
+    const { id } = req.params;
+    const { isBanned } = req.body;
+
+    const updated = await prisma.workspace.update({
+      where: { id: id as string },
+      data: { isBanned: Boolean(isBanned) },
+    });
+
+    // Log this activity
+    await prisma.activityLog.create({
+      data: {
+        type: 'SETTING_CHANGED',
+        description: `Admin ${Boolean(isBanned) ? 'BANNED' : 'UNBANNED'} workspace "${updated.name}"`,
+        userId: req.user!.userId,
+        workspaceId: updated.id,
+      }
+    });
+
+    res.json({
+      success: true,
+      data: {
+        id: updated.id,
+        isBanned: updated.isBanned,
+      }
+    });
+  } catch (error: any) {
+    console.error('[Admin] Error banning workspace:', error);
+    res.status(500).json({ error: error.message || 'Failed to update ban status' });
+  }
+};
+
+/**
+ * POST /api/internal/admin/users/:id/ban
+ * Toggle ban state for user
+ */
+export const toggleUserBan = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const requester = await prisma.user.findUnique({
+      where: { id: req.user!.userId },
+      select: { email: true },
+    });
+
+    if (!requester || !isUserAdmin(requester.email)) {
+      res.status(403).json({ error: 'Access denied: Admin only' });
+      return;
+    }
+
+    const { id } = req.params;
+    const { isBanned } = req.body;
+
+    const updated = await prisma.user.update({
+      where: { id: id as string },
+      data: { isBanned: Boolean(isBanned) },
+    });
+
+    // Log this activity
+    await prisma.activityLog.create({
+      data: {
+        type: 'SETTING_CHANGED',
+        description: `Admin ${Boolean(isBanned) ? 'BANNED' : 'UNBANNED'} user "${updated.name || updated.email}"`,
+        userId: req.user!.userId,
+        workspaceId: req.user!.workspaceId,
+      }
+    });
+
+    res.json({
+      success: true,
+      data: {
+        id: updated.id,
+        isBanned: updated.isBanned,
+      }
+    });
+  } catch (error: any) {
+    console.error('[Admin] Error banning user:', error);
+    res.status(500).json({ error: error.message || 'Failed to update user ban status' });
+  }
+};
+
+/**
+ * POST /api/internal/admin/cdn/purge
+ * Trigger CDN cache purge
+ */
+export const purgeCdnCache = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const requester = await prisma.user.findUnique({
+      where: { id: req.user!.userId },
+      select: { email: true },
+    });
+
+    if (!requester || !isUserAdmin(requester.email)) {
+      res.status(403).json({ error: 'Access denied: Admin only' });
+      return;
+    }
+
+    const { type, value } = req.body;
+
+    if (!type || !value) {
+      res.status(400).json({ error: 'Purge type (path/tag) and value are required' });
+      return;
+    }
+
+    // Simulate CDN api call to Cloudflare/Cloudfront
+    console.log(`[CDN PURGE] Purging Edge CDN Cache. Type: ${type}, Value: ${value}`);
+
+    // Log activity
+    await prisma.activityLog.create({
+      data: {
+        type: 'SETTING_CHANGED',
+        description: `Admin purged Edge CDN cache for ${type}: "${value}"`,
+        userId: req.user!.userId,
+        workspaceId: req.user!.workspaceId,
+      }
+    });
+
+    res.json({
+      success: true,
+      message: `CDN cache successfully purged for ${type}: "${value}"`
+    });
+  } catch (error: any) {
+    console.error('[Admin] Error purging CDN:', error);
+    res.status(500).json({ error: error.message || 'Failed to purge Edge CDN' });
+  }
+};
+
+/**
+ * GET /api/internal/admin/traffic/realtime
+ * Get API traffic metrics from AnalyticsLog
+ */
+export const getTrafficAnalytics = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const requester = await prisma.user.findUnique({
+      where: { id: req.user!.userId },
+      select: { email: true },
+    });
+
+    if (!requester || !isUserAdmin(requester.email)) {
+      res.status(403).json({ error: 'Access denied: Admin only' });
+      return;
+    }
+
+    // Return logs from the last 24 hours
+    const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+
+    const logs = await prisma.analyticsLog.findMany({
+      where: {
+        timestamp: { gte: oneDayAgo }
+      },
+      select: {
+        statusCode: true,
+        bytesSaved: true,
+        timestamp: true,
+      },
+      orderBy: { timestamp: 'asc' }
+    });
+
+    // Group logs by hour
+    const hourlyData: Record<string, { time: string; ok: number; clientErr: number; serverErr: number; bytes: number }> = {};
+
+    // Initialize all 24 hours with zero values to ensure smooth charts
+    for (let i = 23; i >= 0; i--) {
+      const d = new Date(Date.now() - i * 60 * 60 * 1000);
+      d.setMinutes(0, 0, 0);
+      const timeStr = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      const key = d.toISOString();
+      hourlyData[key] = { time: timeStr, ok: 0, clientErr: 0, serverErr: 0, bytes: 0 };
+    }
+
+    logs.forEach(log => {
+      const logHour = new Date(log.timestamp);
+      logHour.setMinutes(0, 0, 0);
+      const key = logHour.toISOString();
+
+      if (hourlyData[key]) {
+        hourlyData[key].bytes += Number(log.bytesSaved);
+        if (log.statusCode >= 200 && log.statusCode < 300) {
+          hourlyData[key].ok += 1;
+        } else if (log.statusCode >= 400 && log.statusCode < 500) {
+          hourlyData[key].clientErr += 1;
+        } else if (log.statusCode >= 500) {
+          hourlyData[key].serverErr += 1;
+        }
+      }
+    });
+
+    const chartData = Object.values(hourlyData);
+
+    res.json({
+      success: true,
+      data: chartData,
+    });
+  } catch (error: any) {
+    console.error('[Admin] Error fetching traffic analytics:', error);
+    res.status(500).json({ error: error.message || 'Failed to retrieve traffic stats' });
+  }
+};

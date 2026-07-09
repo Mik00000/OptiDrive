@@ -97,3 +97,89 @@ export const deleteIncidentApi = async (id: string): Promise<{ success: boolean;
   const response = await apiClient.delete<{ success: boolean; message: string }>(`/api/internal/admin/incidents/${id}`);
   return response;
 };
+
+export interface AdminWorkspace {
+  id: string;
+  name: string;
+  slug: string;
+  plan: string;
+  isBanned: boolean;
+  storageUsed: string;
+  bandwidthUsed: string;
+  storageBonusBytes: string;
+  monthlyOptimizations: number;
+  enterpriseStorageBytes: string | null;
+  enterpriseBandwidthBytes: string | null;
+  enterpriseOptimizations: number | null;
+  createdAt: string;
+  members: {
+    id: string;
+    name: string | null;
+    email: string;
+  }[];
+}
+
+export interface AdminUser {
+  id: string;
+  name: string | null;
+  email: string;
+  avatarUrl: string | null;
+  isBanned: boolean;
+  createdAt: string;
+}
+
+export interface AdminTrafficMetric {
+  time: string;
+  ok: number;
+  clientErr: number;
+  serverErr: number;
+  bytes: number;
+}
+
+/**
+ * Отримати список усіх воркспейсів та користувачів
+ */
+export const getAdminWorkspacesAndUsersApi = async (): Promise<{ workspaces: AdminWorkspace[]; users: AdminUser[] }> => {
+  const response = await apiClient.get<{ success: boolean; data: { workspaces: AdminWorkspace[]; users: AdminUser[] } }>('/api/internal/admin/workspaces');
+  return response.data;
+};
+
+/**
+ * Оновити обсяг бонусного сховища для воркспейсу
+ */
+export const updateWorkspaceBonusApi = async (id: string, bonusGb: number): Promise<{ success: boolean; data: { id: string; storageBonusBytes: string } }> => {
+  const response = await apiClient.post<{ success: boolean; data: { id: string; storageBonusBytes: string } }>(`/api/internal/admin/workspaces/${id}/bonus`, { bonusGb });
+  return response;
+};
+
+/**
+ * Заблокувати або розблокувати воркспейс
+ */
+export const toggleWorkspaceBanApi = async (id: string, isBanned: boolean): Promise<{ success: boolean; data: { id: string; isBanned: boolean } }> => {
+  const response = await apiClient.post<{ success: boolean; data: { id: string; isBanned: boolean } }>(`/api/internal/admin/workspaces/${id}/ban`, { isBanned });
+  return response;
+};
+
+/**
+ * Заблокувати або розблокувати користувача
+ */
+export const toggleUserBanApi = async (id: string, isBanned: boolean): Promise<{ success: boolean; data: { id: string; isBanned: boolean } }> => {
+  const response = await apiClient.post<{ success: boolean; data: { id: string; isBanned: boolean } }>(`/api/internal/admin/users/${id}/ban`, { isBanned });
+  return response;
+};
+
+/**
+ * Очистити кеш CDN
+ */
+export const purgeCdnCacheApi = async (purgeRequest: { type: 'path' | 'tag'; value: string }): Promise<{ success: boolean; message: string }> => {
+  const response = await apiClient.post<{ success: boolean; message: string }>('/api/internal/admin/cdn/purge', purgeRequest);
+  return response;
+};
+
+/**
+ * Отримати аналітику трафіку
+ */
+export const getAdminTrafficAnalyticsApi = async (): Promise<AdminTrafficMetric[]> => {
+  const response = await apiClient.get<{ success: boolean; data: AdminTrafficMetric[] }>('/api/internal/admin/traffic/realtime');
+  return response.data;
+};

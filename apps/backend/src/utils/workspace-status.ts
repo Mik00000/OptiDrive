@@ -79,6 +79,7 @@ export async function getWorkspacePlanLimits(workspaceId: string) {
       enterpriseStorageBytes: true,
       enterpriseBandwidthBytes: true,
       enterpriseOptimizations: true,
+      storageBonusBytes: true,
     }
   });
 
@@ -112,6 +113,11 @@ export async function getWorkspacePlanLimits(workspaceId: string) {
     if (workspace.enterpriseOptimizations !== null) {
       limits.monthlyOptimizations = workspace.enterpriseOptimizations;
     }
+  }
+
+  // Add admin storage bonus if any
+  if (workspace.storageBonusBytes) {
+    limits.storageBytes += Number(workspace.storageBonusBytes);
   }
 
   return {

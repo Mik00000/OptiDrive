@@ -106,6 +106,8 @@ model User {
   emailSecurityAlerts Boolean  @default(true)
   emailBillingAlerts  Boolean  @default(true)
 
+  isBanned            Boolean  @default(false)
+
   // Зв'язок із логами дій (якщо користувача видалять, логи залишаються, але поле userId стане null)
   activityLogs ActivityLog[]
 }
@@ -117,6 +119,9 @@ model Workspace {
   slug           String   @unique
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
+
+  isBanned             Boolean  @default(false)
+  storageBonusBytes    BigInt   @default(0)
 
   // Ліміти та поточне використання в BigInt
   plan                 PlanType @default(FREE)
