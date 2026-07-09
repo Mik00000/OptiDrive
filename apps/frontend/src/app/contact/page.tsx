@@ -7,6 +7,8 @@ import { Icon } from '@iconify/react';
 import { Button } from '@/components/Button';
 import { Input } from '@/components/Inputs';
 
+import { toast } from 'react-toastify';
+
 export default function ContactPage() {
   const [formData, setFormData] = useState({
     name: '',
@@ -17,14 +19,32 @@ export default function ContactPage() {
   const [submitted, setSubmitted] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    setTimeout(() => {
+    try {
+      const response = await fetch('/api/public/contact', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(formData),
+      });
+
+      const data = await response.json();
+
+      if (response.ok && data.success) {
+        setSubmitted(true);
+        setFormData({ name: '', email: '', topic: 'Support', message: '' });
+      } else {
+        toast.error(data.error || 'Failed to send message. Please try again.');
+      }
+    } catch (err) {
+      console.error(err);
+      toast.error('An error occurred. Please check your connection and try again.');
+    } finally {
       setLoading(false);
-      setSubmitted(true);
-      setFormData({ name: '', email: '', topic: 'Support', message: '' });
-    }, 1200);
+    }
   };
 
   return (

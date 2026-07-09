@@ -4,6 +4,7 @@ import cors from 'cors';
 import internalRoutes from './routes/internal';
 import v1Routes from './routes/v1';
 import { getPublicSystemStatus } from './controllers/status.controller';
+import { handlePublicContactForm } from './controllers/contact.controller';
 import { startUptimeMonitor } from './services/uptime.service';
 import { prisma } from './config/prisma';
 import { s3Client, BUCKET_NAME } from './config/s3';
@@ -54,6 +55,7 @@ import { viewMediaFileOnTheFly } from './controllers/public-media.controller';
 
 app.use('/api/public/share', publicShareRoutes);
 app.get('/api/public/status', getPublicSystemStatus);
+app.post('/api/public/contact', handlePublicContactForm);
 app.get('/api/public/media/view/:id', viewMediaFileOnTheFly);
 app.get('/view/:id', viewMediaFileOnTheFly); // Для використання з кастомними доменами
 

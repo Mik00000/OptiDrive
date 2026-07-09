@@ -65,6 +65,7 @@ export default function Footer() {
               links: [
                 { name: 'Privacy Policy', href: '/privacy' },
                 { name: 'Terms of Service', href: '/terms' },
+                { name: 'DPA', href: '/dpa' },
               ]
             },
           ].map((col, i) => (

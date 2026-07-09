@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import PageHeading from "@/components/PageHeading";
 import { Icon } from "@iconify/react";
 import { Button } from "@/components/Button";
 import { Input } from "@/components/Inputs";
@@ -19,6 +18,16 @@ import {
   AdminIncident,
 } from "@/features/admin/api";
 import { toast } from "react-toastify";
+
+// Helper to format Storage/Traffic metrics cleanly
+const formatQuotaText = (text: string | null | undefined): string => {
+  if (!text) return '—';
+  let cleaned = text.replace(/about/gi, '').trim().toUpperCase();
+  cleaned = cleaned.replace(/ГБ/gi, 'GB').replace(/ТБ/gi, 'TB');
+  // Ensure space between numbers and units (e.g. 500GB -> 500 GB)
+  cleaned = cleaned.replace(/(\d+)\s*(GB|TB|MB|KB|GB\/MONTH|TB\/MONTH)/gi, '$1 $2');
+  return cleaned;
+};
 
 export default function AdminConsolePage() {
   const [activeTab, setActiveTab] = useState<'requests' | 'incidents'>('requests');
@@ -218,34 +227,42 @@ export default function AdminConsolePage() {
 
   return (
     <div className="p-6 lg:p-8 flex flex-col gap-8 w-full max-w-7xl mx-auto">
-      {/* Page Heading & Tabs selector */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-slate-800 pb-5">
-        <div>
-          <h1 className="font-headings font-bold text-2xl text-text-light">Admin Control Console</h1>
-          <p className="text-text-muted text-xs mt-1">Manage global enterprise contracts and platform status events</p>
-        </div>
+      {/* Page Heading */}
+      <div className="flex flex-col gap-1">
+        <h1 className="font-headings font-bold text-2xl text-text-light">Admin Control Console</h1>
+        <p className="text-text-muted text-xs mt-1">Manage global enterprise contracts and platform status events</p>
+      </div>
 
-        {/* Tab Controls */}
-        <div className="flex items-center gap-2 bg-[#0c1220] border border-slate-850 p-1.5 rounded-xl shrink-0">
-          <button
-            onClick={() => setActiveTab('requests')}
-            className={`flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-lg transition-all cursor-pointer ${
-              activeTab === 'requests' ? 'bg-indigo-650 text-white shadow-md shadow-indigo-650/15' : 'text-text-muted hover:text-text-light'
-            }`}
-          >
-            <Icon icon="lucide:building-2" width={14} />
-            <span>Enterprise Requests ({requests.length})</span>
-          </button>
-          <button
-            onClick={() => setActiveTab('incidents')}
-            className={`flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-lg transition-all cursor-pointer ${
-              activeTab === 'incidents' ? 'bg-indigo-650 text-white shadow-md shadow-indigo-650/15' : 'text-text-muted hover:text-text-light'
-            }`}
-          >
-            <Icon icon="lucide:activity" width={14} />
-            <span>Status Incidents ({incidents.length})</span>
-          </button>
-        </div>
+      {/* Tab Navigation Controls (Vercel Style) */}
+      <div className="flex border-b border-slate-800 gap-6 w-full -mt-2">
+        <button
+          onClick={() => setActiveTab('requests')}
+          className={`pb-4 text-sm font-semibold tracking-wide transition-all relative cursor-pointer ${
+            activeTab === 'requests' ? 'text-indigo-400 font-bold' : 'text-text-muted hover:text-text-light'
+          }`}
+        >
+          <span>Enterprise Requests</span>
+          <span className="ml-1.5 px-2 py-0.5 rounded-full bg-slate-900 border border-slate-800 text-[10px] font-semibold text-text-muted">
+            {requests.length}
+          </span>
+          {activeTab === 'requests' && (
+            <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-indigo-500 rounded-full animate-in fade-in duration-200" />
+          )}
+        </button>
+        <button
+          onClick={() => setActiveTab('incidents')}
+          className={`pb-4 text-sm font-semibold tracking-wide transition-all relative cursor-pointer ${
+            activeTab === 'incidents' ? 'text-indigo-400 font-bold' : 'text-text-muted hover:text-text-light'
+          }`}
+        >
+          <span>Status Incidents</span>
+          <span className="ml-1.5 px-2 py-0.5 rounded-full bg-slate-900 border border-slate-800 text-[10px] font-semibold text-text-muted">
+            {incidents.length}
+          </span>
+          {activeTab === 'incidents' && (
+            <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-indigo-500 rounded-full animate-in fade-in duration-200" />
+          )}
+        </button>
       </div>
 
       {/* Tab Contents: Enterprise Requests */}
@@ -267,16 +284,16 @@ export default function AdminConsolePage() {
               <Icon icon="lucide:loader-2" className="animate-spin text-accent" width={36} />
             </div>
           ) : requests.length === 0 ? (
-            <div className="border border-slate-800 bg-[#0c1220] rounded-2xl p-12 text-center text-text-muted">
+            <div className="border border-slate-800 bg-[#111827] rounded-2xl p-12 text-center text-text-muted">
               <Icon icon="lucide:building-2" className="mx-auto text-text-muted/20 mb-3" width={40} />
               <p className="text-sm">No Enterprise requests found.</p>
             </div>
           ) : (
-            <div className="border border-slate-800 bg-[#0c1220] rounded-2xl overflow-hidden shadow-xl shadow-black/20">
+            <div className="border border-slate-800 bg-[#111827] rounded-2xl overflow-hidden shadow-xl shadow-black/30">
               <div className="overflow-x-auto">
                 <table className="w-full text-left border-collapse">
                   <thead>
-                    <tr className="border-b border-slate-800 bg-slate-900/40 text-text-muted text-xs font-semibold uppercase tracking-wider">
+                    <tr className="border-b border-slate-800 bg-slate-900/40 text-text-muted/70 text-[10px] sm:text-xs font-semibold uppercase tracking-wider">
                       <th className="px-6 py-4">Client Info</th>
                       <th className="px-6 py-4">Workspace</th>
                       <th className="px-6 py-4">Required Storage</th>
@@ -285,79 +302,118 @@ export default function AdminConsolePage() {
                       <th className="px-6 py-4 text-right">Actions</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-850 text-sm text-text-light">
+                  <tbody className="divide-y divide-slate-800 text-sm text-text-light">
                     {requests.map((req) => (
                       <tr key={req.id} className="hover:bg-slate-900/10 transition-colors">
+                        {/* Client Info Column */}
                         <td className="px-6 py-4">
-                          <div className="font-semibold text-text-light flex items-center gap-1.5">
-                            <span>{req.contactName}</span>
-                            <a
-                              href={`mailto:${req.contactEmail}?subject=OptiDrive Enterprise Offer Details`}
-                              className="text-text-muted hover:text-indigo-400 transition-colors"
-                            >
-                              <Icon icon="lucide:mail" width={14} />
-                            </a>
-                          </div>
-                          <div className="text-xs text-text-muted">{req.contactEmail}</div>
-                          {req.companyName && (
-                            <div className="text-[10px] text-indigo-400 font-semibold uppercase mt-1">
-                              {req.companyName}
+                          <div className="flex items-center gap-3">
+                            <div className="size-9 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 flex items-center justify-center font-bold text-sm tracking-wide shrink-0">
+                              {req.contactName ? req.contactName[0].toUpperCase() : '?'}
                             </div>
-                          )}
-                          {req.status === "APPROVED" && req.stripePaymentLink && (
-                            <a
-                              href={req.stripePaymentLink}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="text-indigo-400 hover:text-indigo-300 text-[10px] flex items-center gap-1 mt-1 font-semibold"
-                            >
-                              <Icon icon="lucide:external-link" width={11} />
-                              <span>Stripe Payment Link</span>
-                            </a>
-                          )}
-                        </td>
-                        <td className="px-6 py-4">
-                          <div className="font-medium text-xs sm:text-sm">{req.workspace?.name || "—"}</div>
-                          <div className="text-[10px] text-text-muted uppercase">
-                            Plan: {req.workspace?.plan || "UNKNOWN"}
+                            <div className="flex flex-col text-left min-w-0">
+                              <div className="flex items-center gap-1.5">
+                                <span className="font-semibold text-text-light text-sm truncate">{req.contactName}</span>
+                                <a
+                                  href={`mailto:${req.contactEmail}?subject=OptiDrive Enterprise Offer Details`}
+                                  className="text-text-muted hover:text-indigo-400 transition-colors shrink-0"
+                                  title={`Send email to ${req.contactName}`}
+                                >
+                                  <Icon icon="lucide:mail" width={13} />
+                                </a>
+                              </div>
+                              <span className="text-xs text-text-muted mt-0.5 truncate">{req.contactEmail}</span>
+                              {req.companyName && (
+                                <span className="text-[10px] text-indigo-400/80 font-medium uppercase tracking-wider mt-0.5 truncate">
+                                  {req.companyName}
+                                </span>
+                              )}
+                            </div>
                           </div>
                         </td>
-                        <td className="px-6 py-4 font-mono font-semibold text-xs">{req.expectedStorage}</td>
-                        <td className="px-6 py-4 font-mono font-semibold text-xs">{req.expectedTraffic}</td>
+
+                        {/* Workspace Column */}
                         <td className="px-6 py-4">
-                          <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider border ${
+                          <span className="font-medium text-xs sm:text-sm text-text-light">{req.workspace?.name || "—"}</span>
+                        </td>
+
+                        {/* Quota storage */}
+                        <td className="px-6 py-4 font-mono font-semibold text-xs text-text-light">
+                          {formatQuotaText(req.expectedStorage)}
+                        </td>
+
+                        {/* Quota bandwidth */}
+                        <td className="px-6 py-4 font-mono font-semibold text-xs text-text-light">
+                          {formatQuotaText(req.expectedTraffic)}
+                        </td>
+
+                        {/* Status Column */}
+                        <td className="px-6 py-4">
+                          <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider border ${
                             req.status === 'PENDING' 
-                              ? 'bg-yellow-500/10 border-yellow-500/20 text-yellow-500'
+                              ? 'bg-amber-500/10 border-amber-500/20 text-amber-500 animate-pulse'
                               : req.status === 'APPROVED'
-                              ? 'bg-purple-500/10 border-purple-500/20 text-purple-500'
+                              ? 'bg-indigo-500/10 border-indigo-500/25 text-indigo-400'
                               : req.status === 'CONVERTED'
-                              ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-500'
-                              : 'bg-red-500/10 border-red-500/20 text-red-500'
+                              ? 'bg-slate-800/40 border-slate-700/50 text-text-muted'
+                              : req.status === 'CONTACTED'
+                              ? 'bg-sky-500/10 border-sky-500/25 text-sky-400'
+                              : 'bg-red-500/10 border-red-500/20 text-red-400'
                           }`}>
                             {req.status === 'APPROVED' ? 'Offer Sent' : req.status}
                           </span>
                         </td>
+
+                        {/* Actions Column */}
                         <td className="px-6 py-4 text-right">
-                          {req.status === "PENDING" || req.status === "APPROVED" ? (
-                            <div className="flex gap-2 justify-end">
-                              <Button
-                                variant="bordered"
-                                className="text-red-400 border-red-500/10 hover:bg-red-500/5 px-2.5 py-1.5 rounded-lg text-xs"
-                                onClick={() => handleRejectRequest(req.id)}
+                          <div className="flex items-center justify-end gap-3.5">
+                            {/* Primary quote actions */}
+                            {(req.status === "PENDING" || req.status === "APPROVED" || req.status === "CONTACTED") && (
+                              <>
+                                <button
+                                  className="text-red-500 hover:text-red-400 bg-transparent border-0 hover:underline px-1 py-0.5 font-semibold text-xs cursor-pointer"
+                                  onClick={() => handleRejectRequest(req.id)}
+                                >
+                                  Reject
+                                </button>
+                                <Button
+                                  variant="accent"
+                                  className="bg-indigo-650 hover:bg-indigo-700 text-white px-3 py-1.5 rounded-lg text-xs font-semibold"
+                                  onClick={() => handleOpenApproveModal(req)}
+                                >
+                                  {req.status === "APPROVED" ? "Update Quote" : "Send Quote"}
+                                </Button>
+                              </>
+                            )}
+
+                            {/* Stripe Payment link (If offer sent/approved) */}
+                            {req.status === "APPROVED" && req.stripePaymentLink && (
+                              <a
+                                href={req.stripePaymentLink}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="inline-flex items-center gap-1 text-xs font-semibold text-indigo-400 hover:text-indigo-350 transition-colors bg-indigo-500/10 border border-indigo-500/25 px-2.5 py-1.5 rounded-lg"
+                                title="Click to view client checkout payment link"
                               >
-                                Reject
-                              </Button>
-                              <Button
-                                variant="accent"
-                                className="bg-indigo-650 hover:bg-indigo-700 text-white px-3 py-1.5 rounded-lg text-xs"
-                                onClick={() => handleOpenApproveModal(req)}
-                              >
-                                {req.status === "APPROVED" ? "Update Quote" : "Send Quote"}
-                              </Button>
-                            </div>
-                          ) : (
-                            <span className="text-text-muted text-xs font-semibold">—</span>
-                          )}
+                                <Icon icon="lucide:external-link" width={12} />
+                                <span>Pay Link</span>
+                              </a>
+                            )}
+
+                            {/* Icons for completed states */}
+                            {req.status === "CONVERTED" && (
+                              <span className="text-text-muted/40 flex items-center gap-1 text-xs" title="Workspace upgraded to Enterprise successfully.">
+                                <Icon icon="lucide:check-circle-2" className="text-emerald-500/70" width={16} />
+                                <span className="font-semibold text-[11px] text-emerald-500/80">Completed</span>
+                              </span>
+                            )}
+                            {req.status === "DECLINED" && (
+                              <span className="text-text-muted/40 flex items-center gap-1 text-xs" title="Request rejected by administration.">
+                                <Icon icon="lucide:ban" className="text-red-500/60" width={15} />
+                                <span className="font-semibold text-[11px] text-red-500/70">Rejected</span>
+                              </span>
+                            )}
+                          </div>
                         </td>
                       </tr>
                     ))}
@@ -377,11 +433,11 @@ export default function AdminConsolePage() {
               <h2 className="text-text-light font-bold text-lg">System Events & Incidents</h2>
               <p className="text-text-muted text-xs">Announce outages, updates, and maintenance status</p>
             </div>
-            <div className="flex gap-3">
+            <div className="flex gap-3 items-center">
               <Button variant="bordered" onClick={fetchIncidents} disabled={incidentsLoading} className="border-slate-800 hover:bg-slate-900">
                 <Icon icon="lucide:refresh-cw" className={incidentsLoading ? "animate-spin" : ""} width={14} />
               </Button>
-              <Button variant="accent" onClick={() => handleOpenIncidentModal(null)} className="bg-indigo-650 hover:bg-indigo-700 text-white">
+              <Button variant="primary" onClick={() => handleOpenIncidentModal(null)} className="bg-indigo-650 hover:bg-indigo-700 text-white">
                 <Icon icon="lucide:plus" width={14} />
                 <span>New Incident</span>
               </Button>
@@ -393,16 +449,16 @@ export default function AdminConsolePage() {
               <Icon icon="lucide:loader-2" className="animate-spin text-accent" width={36} />
             </div>
           ) : incidents.length === 0 ? (
-            <div className="border border-slate-800 bg-[#0c1220] rounded-2xl p-12 text-center text-text-muted">
+            <div className="border border-slate-800 bg-[#111827] rounded-2xl p-12 text-center text-text-muted">
               <Icon icon="lucide:check-circle" className="mx-auto text-success/20 mb-3" width={40} />
               <p className="text-sm">All systems clear. No incidents reported.</p>
             </div>
           ) : (
-            <div className="border border-slate-800 bg-[#0c1220] rounded-2xl overflow-hidden shadow-xl shadow-black/20">
+            <div className="border border-slate-800 bg-[#111827] rounded-2xl overflow-hidden shadow-xl shadow-black/30">
               <div className="overflow-x-auto">
                 <table className="w-full text-left border-collapse">
                   <thead>
-                    <tr className="border-b border-slate-800 bg-slate-900/40 text-text-muted text-xs font-semibold uppercase tracking-wider">
+                    <tr className="border-b border-slate-800 bg-slate-900/40 text-text-muted/70 text-[10px] sm:text-xs font-semibold uppercase tracking-wider">
                       <th className="px-6 py-4">Title</th>
                       <th className="px-6 py-4">Status</th>
                       <th className="px-6 py-4">Description</th>
@@ -429,7 +485,7 @@ export default function AdminConsolePage() {
                           {inc.description}
                         </td>
                         <td className="px-6 py-4">
-                          <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${inc.isActive ? 'bg-error/20 text-error animate-pulse' : 'bg-slate-800 text-text-muted'}`}>
+                          <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${inc.isActive ? 'bg-error/20 text-error animate-pulse' : 'bg-slate-850 text-text-muted border border-slate-800'}`}>
                             {inc.isActive ? 'Active Outage' : 'Closed Event'}
                           </span>
                         </td>
@@ -474,7 +530,7 @@ export default function AdminConsolePage() {
               Approved limits for {selectedRequest?.workspace?.name}
             </h4>
             <p className="text-text-muted text-xs mt-1">
-              Client requested: <strong>{selectedRequest?.expectedStorage}</strong> and <strong>{selectedRequest?.expectedTraffic}</strong>.
+              Client requested: <strong>{formatQuotaText(selectedRequest?.expectedStorage)}</strong> and <strong>{formatQuotaText(selectedRequest?.expectedTraffic)}</strong>.
             </p>
           </div>
 
@@ -608,7 +664,7 @@ export default function AdminConsolePage() {
             <Button type="button" variant="bordered" onClick={() => setIsIncidentModalOpen(false)} className="flex-1">
               Cancel
             </Button>
-            <Button type="submit" variant="accent" className="flex-1 bg-indigo-650 hover:bg-indigo-700" disabled={incidentSubmitLoading}>
+            <Button type="submit" variant="accent" className="flex-1 hover:bg-indigo-700" disabled={incidentSubmitLoading}>
               {incidentSubmitLoading ? "Processing..." : "Save Incident"}
             </Button>
           </div>

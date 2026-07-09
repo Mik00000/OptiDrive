@@ -659,3 +659,66 @@ export const sendEnterpriseApprovalEmail = async (options: EnterpriseApprovalEma
     return false;
   }
 };
+
+interface ContactFormEmailOptions {
+  name: string;
+  email: string;
+  topic: string;
+  message: string;
+}
+
+export const sendContactFormEmail = async (options: ContactFormEmailOptions) => {
+  const adminEmail = process.env.ADMIN_EMAIL || process.env.RESEND_FROM_EMAIL || 'admin@optidrive.app';
+  
+  const { name, email, topic, message } = options;
+  const safeName = escapeHtml(name);
+  const safeEmail = escapeHtml(email);
+  const safeTopic = escapeHtml(topic);
+  const safeMessage = escapeHtml(message);
+
+  try {
+    const { data, error } = await sendEmail({
+      to: adminEmail,
+      subject: `✉️ New Contact Form: [${safeTopic}] from ${safeName}`,
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background: #f9fafb;">
+          <div style="background: white; border-radius: 12px; padding: 32px; border: 1px solid #e5e7eb; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+            <div style="margin-bottom: 24px; padding-bottom: 20px; border-bottom: 2px solid #f3f4f6;">
+              <h1 style="margin: 0 0 4px; font-size: 20px; font-weight: 700; color: #111827;">✉️ Contact Form Submission</h1>
+            </div>
+            
+            <table style="width: 100%; border-collapse: collapse; margin-bottom: 24px;">
+              <tr style="border-bottom: 1px solid #f3f4f6;">
+                <td style="padding: 10px 0; font-size: 13px; color: #6b7280; width: 120px; font-weight: 500;">Sender Name</td>
+                <td style="padding: 10px 0; font-size: 14px; color: #111827; font-weight: 600;">${safeName}</td>
+              </tr>
+              <tr style="border-bottom: 1px solid #f3f4f6;">
+                <td style="padding: 10px 0; font-size: 13px; color: #6b7280; font-weight: 500;">Sender Email</td>
+                <td style="padding: 10px 0; font-size: 14px;"><a href="mailto:${safeEmail}" style="color: #6366f1; text-decoration: none;">${safeEmail}</a></td>
+              </tr>
+              <tr style="border-bottom: 1px solid #f3f4f6;">
+                <td style="padding: 10px 0; font-size: 13px; color: #6b7280; font-weight: 500;">Inquiry Topic</td>
+                <td style="padding: 10px 0; font-size: 14px; color: #4b5563; font-weight: 600;">${safeTopic}</td>
+              </tr>
+            </table>
+
+            <h3 style="font-size: 13px; font-weight: 700; color: #6b7280; text-transform: uppercase; letter-spacing: 0.5px; margin: 0 0 12px;">Message</h3>
+            <div style="background-color: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px; padding: 16px; font-size: 14px; color: #374151; line-height: 1.6; white-space: pre-wrap;">
+              ${safeMessage}
+            </div>
+          </div>
+          <p style="text-align: center; font-size: 12px; color: #9ca3af; margin-top: 16px;">OptiDrive Developer Platform</p>
+        </div>
+      `
+    });
+
+    if (error) {
+      console.error('Email API Error (Contact Form):', error);
+      return false;
+    }
+    return true;
+  } catch (error) {
+    console.error('Error sending contact form email:', error);
+    return false;
+  }
+};
