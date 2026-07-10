@@ -154,7 +154,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setToken(null);
     setUser(null);
     setWorkspaces([]);
-    router.push('/login');
+    window.location.href = '/login';
   };
 
   const switchWorkspace = async (workspaceId: string) => {
