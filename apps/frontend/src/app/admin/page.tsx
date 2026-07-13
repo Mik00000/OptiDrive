@@ -1293,7 +1293,7 @@ export default function AdminConsolePage() {
         <form onSubmit={handleBonusSubmit} className="flex flex-col gap-4 text-left">
           <div>
             <h4 className="text-text-light font-semibold text-sm">
-              Grant Storage Bonus for workspace "{selectedBonusWorkspace?.name}"
+              Grant Storage Bonus for workspace &quot;{selectedBonusWorkspace?.name}&quot;
             </h4>
             <p className="text-text-muted text-xs mt-1">
               Bonuses add directly to the workspace storage limits, active for any plan.

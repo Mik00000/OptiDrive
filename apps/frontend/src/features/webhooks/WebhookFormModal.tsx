@@ -11,7 +11,7 @@ import { Webhook } from './types';
 interface WebhookFormModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSubmit: (name: string, url: string, events: string[], isActive?: boolean) => Promise<any>;
+  onSubmit: (name: string, url: string, events: string[], isActive?: boolean) => Promise<void>;
   webhook?: Webhook | null;
 }
 

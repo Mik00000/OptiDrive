@@ -144,7 +144,7 @@ export const CompressionTab = () => {
               ]}
             />
             <p className="text-xs text-text-muted mt-1 leading-normal">
-              Presets optimize compression rules automatically. Select "Custom Settings Profiles" to fine-tune format, quality, and sizing below.
+              Presets optimize compression rules automatically. Select &quot;Custom Settings Profiles&quot; to fine-tune format, quality, and sizing below.
             </p>
           </div>
 

@@ -99,21 +99,29 @@ export default function DashboardLayout({
     }
   };
 
-  const getGracePeriodRemainingText = () => {
-    if (!billingStatus?.gracePeriodStartedAt) return '';
+  const [graceTimeLeft, setGraceTimeLeft] = useState('');
+
+  useEffect(() => {
+    if (!billingStatus?.gracePeriodStartedAt) {
+      setGraceTimeLeft('');
+      return;
+    }
     const startedAt = new Date(billingStatus.gracePeriodStartedAt).getTime();
     const limit = 3 * 24 * 60 * 60 * 1000; // 3 days
     const timeLeft = startedAt + limit - Date.now();
-    if (timeLeft <= 0) return 'Expired';
-    const hoursLeft = Math.ceil(timeLeft / (1000 * 60 * 60));
-    if (hoursLeft > 24) {
-      return `${Math.ceil(hoursLeft / 24)} days`;
+    if (timeLeft <= 0) {
+      setGraceTimeLeft('Expired');
+    } else {
+      const hoursLeft = Math.ceil(timeLeft / (1000 * 60 * 60));
+      if (hoursLeft > 24) {
+        setGraceTimeLeft(`${Math.ceil(hoursLeft / 24)} days`);
+      } else {
+        setGraceTimeLeft(`${hoursLeft} hours`);
+      }
     }
-    return `${hoursLeft} hours`;
-  };
+  }, [billingStatus?.gracePeriodStartedAt]);
 
   const isPastDue = billingStatus?.subscriptionStatus === 'past_due';
-  const graceTimeLeft = getGracePeriodRemainingText();
   const isLockedPage = activeWorkspace?.isLocked && pathname !== '/billing' && pathname !== '/settings/project';
 
   if (isLoading) {

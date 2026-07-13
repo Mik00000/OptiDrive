@@ -106,7 +106,7 @@ export default function StatusPage() {
 
     return history.map((day, idx) => {
       let barColor = 'bg-success';
-      let formattedPercent = `${day.uptimePercent.toFixed(2)}%`;
+      const formattedPercent = `${day.uptimePercent.toFixed(2)}%`;
       let tooltip = `${day.date}: ${formattedPercent} uptime`;
 
       if (day.uptimePercent < 95.0) {

@@ -51,6 +51,17 @@ export const ProjectTab = () => {
   const prevStatusRef = useRef(activeWorkspace?.migrationStatus);
   const feedbackTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
+  const showFeedback = (message: string, type: 'success' | 'error' = 'success') => {
+    if (feedbackTimeoutRef.current) {
+      clearTimeout(feedbackTimeoutRef.current);
+    }
+    setFeedback({ message, type });
+    feedbackTimeoutRef.current = setTimeout(() => {
+      setFeedback(null);
+      feedbackTimeoutRef.current = null;
+    }, 5000);
+  };
+
   useEffect(() => {
     if (activeWorkspace) {
       setName(activeWorkspace.name);
@@ -118,12 +129,12 @@ export const ProjectTab = () => {
     setTestResult(null);
     try {
       const res = await testS3ConnectionApi({
-        s3BucketName: s3BucketName.trim() || undefined,
-        s3AccessKeyId: s3AccessKeyId.trim() || undefined,
-        s3SecretAccessKey: s3SecretAccessKey.trim() || undefined,
+        s3BucketName: s3BucketName.trim(),
+        s3AccessKeyId: s3AccessKeyId.trim(),
+        s3SecretAccessKey: s3SecretAccessKey.trim(),
         s3Endpoint: s3Endpoint.trim() || undefined,
         s3Region: s3Region.trim() || undefined
-      } as any);
+      });
       if (res.success) {
         setTestResult({ success: true, message: 'Successfully connected to S3 bucket!' });
         showFeedback('Connection test passed!', 'success');
@@ -159,17 +170,6 @@ export const ProjectTab = () => {
     }
   };
 
-  const showFeedback = (message: string, type: 'success' | 'error' = 'success') => {
-    if (feedbackTimeoutRef.current) {
-      clearTimeout(feedbackTimeoutRef.current);
-    }
-    setFeedback({ message, type });
-    feedbackTimeoutRef.current = setTimeout(() => {
-      setFeedback(null);
-      feedbackTimeoutRef.current = null;
-    }, 5000);
-  };
-
   const handleCopyId = () => {
     if (activeWorkspace?.id) {
       navigator.clipboard.writeText(activeWorkspace.id);
@@ -188,7 +188,15 @@ export const ProjectTab = () => {
     try {
       setIsSaving(true);
       setErrorMessage('');
-      const customS3Data: any = {
+      const customS3Data: {
+        customS3Enabled: boolean;
+        s3AccessKeyId?: string;
+        s3SecretAccessKey?: string;
+        s3Endpoint?: string;
+        s3BucketName?: string;
+        s3Region?: string;
+        s3PublicUrl?: string;
+      } = {
         customS3Enabled
       };
       
@@ -420,7 +428,7 @@ export const ProjectTab = () => {
                     />
                   </div>
                   <p className="text-xs text-text-muted leading-relaxed">
-                    We are transferring your existing optimized files to your custom S3 storage. You don't need to stay on this page. All links and previews will remain fully active.
+                    We are transferring your existing optimized files to your custom S3 storage. You don&apos;t need to stay on this page. All links and previews will remain fully active.
                   </p>
                 </div>
               )}

@@ -38,7 +38,7 @@ app.use(cors({
 // Stripe Webhook — ОБОВ'ЯЗКОВО ДО express.json()!
 // Webhook потребує raw body для перевірки підпису
 import { handleStripeWebhook } from './controllers/stripe-webhook.controller';
-app.post('/api/webhook', express.raw({ type: 'application/json' }), handleStripeWebhook);
+app.post('/api/public/webhooks/stripe', express.raw({ type: 'application/json' }), handleStripeWebhook);
 
 app.use(express.json()); // Щоб Express розумів JSON з req.body
 app.use(detectCustomDomain);

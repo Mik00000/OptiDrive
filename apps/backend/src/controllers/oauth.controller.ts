@@ -63,7 +63,7 @@ const ensureActiveWorkspace = async (userId: string, currentActiveId: string | n
 
 export const googleAuth = (req: Request, res: Response) => {
   const redirectUri = `${BACKEND_URL}/api/internal/auth/google/callback`;
-  const url = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${GOOGLE_CLIENT_ID}&redirect_uri=${redirectUri}&response_type=code&scope=email profile`;
+  const url = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${GOOGLE_CLIENT_ID}&redirect_uri=${redirectUri}&response_type=code&scope=email profile&prompt=select_account`;
   res.redirect(url);
 };
 
@@ -148,7 +148,7 @@ export const googleCallback = async (req: Request, res: Response): Promise<void>
 };
 
 export const githubAuth = (req: Request, res: Response) => {
-  const url = `https://github.com/login/oauth/authorize?client_id=${GITHUB_CLIENT_ID}&scope=user:email`;
+  const url = `https://github.com/login/oauth/authorize?client_id=${GITHUB_CLIENT_ID}&scope=user:email&prompt=select_account`;
   res.redirect(url);
 };
 

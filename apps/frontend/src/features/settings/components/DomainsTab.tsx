@@ -135,7 +135,7 @@ export const DomainsTab = () => {
             </div>
             <h3 className="text-lg font-semibold text-text-light">Access Restricted</h3>
             <p className="text-sm text-text-muted mt-2">
-              You don't have permission to manage custom domains. Please contact your workspace owner for access.
+              You don&apos;t have permission to manage custom domains. Please contact your workspace owner for access.
             </p>
           </div>
         </div>

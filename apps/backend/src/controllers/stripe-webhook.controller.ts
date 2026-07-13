@@ -14,7 +14,7 @@ const logDebug = (message: string) => {
 };
 
 /**
- * POST /api/webhook
+ * POST /api/public/webhooks/stripe
  * Обробляє вебхуки від Stripe (підпис перевіряється через raw body)
  */
 export const handleStripeWebhook = async (req: Request, res: Response): Promise<void> => {

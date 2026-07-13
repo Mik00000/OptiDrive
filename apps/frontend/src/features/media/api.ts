@@ -132,7 +132,22 @@ export const updateMediaFileApi = async (id: string, name?: string, tags?: strin
   }
 };
 
-export const uploadMediaFileApi = async (formData: FormData): Promise<any> => {
+export interface UploadMediaResponse {
+  success: boolean;
+  data: MediaFile;
+  error?: string;
+}
+
+export interface UploadWatermarkResponse {
+  success: boolean;
+  cdnUrl?: string;
+  data?: {
+    cdnUrl: string;
+  };
+  error?: string;
+}
+
+export const uploadMediaFileApi = async (formData: FormData): Promise<UploadMediaResponse> => {
   const token = localStorage.getItem('optidrive_token');
   const response = await fetch('/api/internal/media/compress', {
     method: 'POST',
@@ -142,7 +157,7 @@ export const uploadMediaFileApi = async (formData: FormData): Promise<any> => {
     body: formData,
   });
 
-  let data: any;
+  let data: UploadMediaResponse;
   const contentType = response.headers.get('content-type') || '';
   if (contentType.includes('application/json')) {
     data = await response.json();
@@ -159,7 +174,7 @@ export const uploadMediaFileApi = async (formData: FormData): Promise<any> => {
   return data;
 };
 
-export const uploadWatermarkApi = async (formData: FormData): Promise<any> => {
+export const uploadWatermarkApi = async (formData: FormData): Promise<UploadWatermarkResponse> => {
   const token = localStorage.getItem('optidrive_token');
   const response = await fetch('/api/internal/workspace/watermark', {
     method: 'POST',
@@ -169,7 +184,7 @@ export const uploadWatermarkApi = async (formData: FormData): Promise<any> => {
     body: formData,
   });
 
-  let data: any;
+  let data: UploadWatermarkResponse;
   const contentType = response.headers.get('content-type') || '';
   if (contentType.includes('application/json')) {
     data = await response.json();

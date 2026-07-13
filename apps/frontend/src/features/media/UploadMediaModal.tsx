@@ -26,6 +26,26 @@ export function UploadMediaModal({ isOpen, onClose, onSuccess, folderId, initial
   const [isUploading, setIsUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Settings state
+  const [preset, setPreset] = useState<OptimizationPreset>("web_balanced");
+  
+  // Custom Settings
+  const [format, setFormat] = useState("auto");
+  const [quality, setQuality] = useState("80");
+  const [stripMetadata, setStripMetadata] = useState(true);
+  
+  // Resize Settings
+  const [width, setWidth] = useState("");
+  const [height, setHeight] = useState("");
+  const [fit, setFit] = useState("cover");
+
+  // SVG Settings
+  const [svgAggressive, setSvgAggressive] = useState(false);
+  const [svgStripUnused, setSvgStripUnused] = useState(true);
+
+  // Tags Settings
+  const [tagsInput, setTagsInput] = useState("");
+
   useEffect(() => {
     if (initialFile) {
       setFile(initialFile);
@@ -52,26 +72,6 @@ export function UploadMediaModal({ isOpen, onClose, onSuccess, folderId, initial
         });
     }
   }, [isOpen]);
-
-  // Settings state
-  const [preset, setPreset] = useState<OptimizationPreset>("web_balanced");
-  
-  // Custom Settings
-  const [format, setFormat] = useState("auto");
-  const [quality, setQuality] = useState("80");
-  const [stripMetadata, setStripMetadata] = useState(true);
-  
-  // Resize Settings
-  const [width, setWidth] = useState("");
-  const [height, setHeight] = useState("");
-  const [fit, setFit] = useState("cover");
-
-  // SVG Settings
-  const [svgAggressive, setSvgAggressive] = useState(false);
-  const [svgStripUnused, setSvgStripUnused] = useState(true);
-
-  // Tags Settings
-  const [tagsInput, setTagsInput] = useState("");
 
   // Sync preset to custom settings
   useEffect(() => {

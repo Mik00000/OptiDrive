@@ -105,6 +105,7 @@ export function MediaPreviewModal({ isOpen, onClose, file, onDelete, initialTab 
   const [customWatermarkImage, setCustomWatermarkImage] = useState('');
   const [isUploadingWm, setIsUploadingWm] = useState(false);
   const [wmImgObj, setWmImgObj] = useState<HTMLImageElement | null>(null);
+  const [imageDimensions, setImageDimensions] = useState<{ width: number; height: number } | null>(null);
 
   // Watermark transformation state (relative to the image boundaries, 0-100%)
   const [wmX, setWmX] = useState(50);
@@ -228,6 +229,7 @@ export function MediaPreviewModal({ isOpen, onClose, file, onDelete, initialTab 
     img.src = proxyUrl;
     img.onload = () => {
       imgObjRef.current = img;
+      setImageDimensions({ width: img.naturalWidth || img.width, height: img.naturalHeight || img.height });
       setImgLoaded(true);
       // Reset view
       setPan({ x: 0, y: 0 });
@@ -239,6 +241,7 @@ export function MediaPreviewModal({ isOpen, onClose, file, onDelete, initialTab 
       fallback.src = file.cdnUrl;
       fallback.onload = () => {
         imgObjRef.current = fallback;
+        setImageDimensions({ width: fallback.naturalWidth || fallback.width, height: fallback.naturalHeight || fallback.height });
         setImgLoaded(true);
         setPan({ x: 0, y: 0 });
         setZoom(1);
@@ -258,7 +261,7 @@ export function MediaPreviewModal({ isOpen, onClose, file, onDelete, initialTab 
     } finally {
       setShareLoading(false);
     }
-  }, [file]);
+  }, [file, setShareLoading, setShareLinks]);
 
   // Load editor state from localStorage on open / file change
   useEffect(() => {
@@ -387,12 +390,12 @@ export function MediaPreviewModal({ isOpen, onClose, file, onDelete, initialTab 
   const loadActiveDomains = useCallback(async () => {
     try {
       const result = await getDomainsApi();
-      const active = result.filter((d: any) => d.status === 'ACTIVE').map((d: any) => d.domain);
+      const active = result.filter((d: { status: string; domain: string }) => d.status === 'ACTIVE').map((d: { status: string; domain: string }) => d.domain);
       setActiveDomains(active);
     } catch (err) {
       console.error('Failed to load active domains:', err);
     }
-  }, []);
+  }, [setActiveDomains]);
 
   useEffect(() => {
     if (isEditing && activeTab === 'share' && file) {
@@ -797,16 +800,16 @@ export function MediaPreviewModal({ isOpen, onClose, file, onDelete, initialTab 
       if (cropRef.current.w < minPct || cropRef.current.h < minPct) {
         const center = drawStartPctRef.current;
         const ratio = ASPECT_PRESETS.find(a => a.value === aspectPresetRef.current)?.ratio ?? null;
-        let w = 20;
-        let h = ratio ? w / ratio : 20;
-        let x = clamp(center.x - w / 2, 0, 100 - w);
-        let y = clamp(center.y - h / 2, 0, 100 - h);
+        const w = 20;
+        const h = ratio ? w / ratio : 20;
+        const x = clamp(center.x - w / 2, 0, 100 - w);
+        const y = clamp(center.y - h / 2, 0, 100 - h);
         cropRef.current = { x, y, w, h };
         setCropRect({ ...cropRef.current });
       }
     }
     setIsDebouncing(true);
-  }, []);
+  }, [setIsDebouncing]);
 
   const throttledApplyMove = useThrottle((clientX: number, clientY: number) => {
     applyMoveGlobal(clientX, clientY);
@@ -1107,12 +1110,11 @@ export function MediaPreviewModal({ isOpen, onClose, file, onDelete, initialTab 
     const params = new URLSearchParams();
 
     if (state.cropEnabled) {
-      const img = imgObjRef.current;
-      if (img) {
-        const pxX = Math.round((state.crop.x / 100) * img.width);
-        const pxY = Math.round((state.crop.y / 100) * img.height);
-        const pxW = Math.round((state.crop.w / 100) * img.width);
-        const pxH = Math.round((state.crop.h / 100) * img.height);
+      if (imageDimensions) {
+        const pxX = Math.round((state.crop.x / 100) * imageDimensions.width);
+        const pxY = Math.round((state.crop.y / 100) * imageDimensions.height);
+        const pxW = Math.round((state.crop.w / 100) * imageDimensions.width);
+        const pxH = Math.round((state.crop.h / 100) * imageDimensions.height);
         const isFullImage = state.crop.x <= 1 && state.crop.y <= 1 && state.crop.w >= 98 && state.crop.h >= 98;
         if (!isFullImage) {
           params.append('cx', pxX.toString());
@@ -1155,7 +1157,7 @@ export function MediaPreviewModal({ isOpen, onClose, file, onDelete, initialTab 
   };
 
   const copyUrl = isEditing && file.format.toLowerCase() !== 'svg'
-    ? buildUrl({ ...debouncedState, crop: cropRef.current })
+    ? buildUrl({ ...debouncedState, crop: cropRect })
     : file.cdnUrl;
 
   // ──────────── Helpers ────────────
