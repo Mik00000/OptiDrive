@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/Button';
 import PageHeading from '@/components/PageHeading';
 import { Icon } from '@iconify/react';
@@ -165,27 +165,7 @@ const BillingAndSubscriptionsPage = () => {
     });
   };
 
-  const [graceTimeLeft, setGraceTimeLeft] = useState('');
 
-  useEffect(() => {
-    if (!billingStatus?.gracePeriodStartedAt) {
-      setGraceTimeLeft('');
-      return;
-    }
-    const startedAt = new Date(billingStatus.gracePeriodStartedAt).getTime();
-    const limit = 3 * 24 * 60 * 60 * 1000; // 3 days
-    const timeLeft = startedAt + limit - Date.now();
-    if (timeLeft <= 0) {
-      setGraceTimeLeft('Expired');
-    } else {
-      const hoursLeft = Math.ceil(timeLeft / (1000 * 60 * 60));
-      if (hoursLeft > 24) {
-        setGraceTimeLeft(`${Math.ceil(hoursLeft / 24)} days`);
-      } else {
-        setGraceTimeLeft(`${hoursLeft} hours`);
-      }
-    }
-  }, [billingStatus?.gracePeriodStartedAt]);
 
   return (
     <section className="dashboard-page relative">

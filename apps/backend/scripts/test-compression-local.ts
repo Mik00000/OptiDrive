@@ -97,13 +97,18 @@ async function processLocalFile(filePath: string, token: string) {
 
 async function run() {
   console.log('📡 Скануємо ПК за допомогою швидкого пошуку (find)...');
-  const user = await prisma.user.findFirst();
+  const user = await prisma.user.findFirst({
+    include: {
+      workspaces: true
+    }
+  });
   if (!user) {
     console.error('Користувачів не знайдено. Спочатку зареєструй хоча б одного.');
     process.exit(1);
   }
 
-  const token = generateToken(user.id, user.workspaceId);
+  const workspaceId = user.activeWorkspaceId || user.workspaces[0]?.workspaceId || '';
+  const token = generateToken(user.id, workspaceId);
   console.log(`👤 Використовуємо користувача ${user.email}`);
 
   const localPhotos = await findImagesOnPC(TOTAL_IMAGES);

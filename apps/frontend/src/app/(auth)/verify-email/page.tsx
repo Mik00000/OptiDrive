@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, Suspense } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
 import { verifyEmailApi, resendVerificationEmailApi } from '@/features/auth/api';
@@ -10,7 +10,6 @@ import { Button } from '@/components/Button';
 import { Icon } from '@iconify/react';
 
 function VerifyEmailForm() {
-  const router = useRouter();
   const searchParams = useSearchParams();
   const { login } = useAuth();
   

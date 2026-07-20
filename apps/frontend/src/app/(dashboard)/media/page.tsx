@@ -38,7 +38,6 @@ const MediaLibraryPage = () => {
 
   const [formatFilter, setFormatFilter] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState("");
-  const [isSelectionMode, setIsSelectionMode] = useState(false);
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
   const [currentFolderId, setCurrentFolderId] = useState<string | null>(null);

@@ -1,0 +1,9 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "composite": false,
+    "rootDir": ".",
+    "outDir": "./dist/scripts"
+  },
+  "include": ["seed_roles.ts", "scripts/**/*.ts", "test-prisma.ts"]
+}

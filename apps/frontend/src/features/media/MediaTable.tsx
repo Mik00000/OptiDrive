@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, useEffect, useRef } from 'react';
+import { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import React from 'react';
 import { useDebounce } from '@/hooks/useDebounce';
 import { Icon } from '@iconify/react';
@@ -299,7 +299,7 @@ export const MediaTable = ({
   }, [currentFolderId]);
 
   // Fetch files and folders in current directory
-  const fetchLibrary = async () => {
+  const fetchLibrary = useCallback(async () => {
     setIsLoading(true);
     try {
       const data = await getMediaFilesApi(currentFolderId, debouncedSearch);
@@ -314,11 +314,11 @@ export const MediaTable = ({
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [currentFolderId, debouncedSearch]);
 
   useEffect(() => {
     fetchLibrary();
-  }, [refreshKey, currentFolderId, debouncedSearch]);
+  }, [refreshKey, fetchLibrary]);
 
   const handleCreateFolder = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -397,18 +397,7 @@ export const MediaTable = ({
     }
   };
 
-  const handleOpenEditTags = async (file: MediaFile) => {
-    setEditTagsTargetFile(file);
-    setEditTagsList(file.tags ? file.tags.map((t) => t.name) : []);
-    setTagInputVal('');
-    setIsEditTagsModalOpen(true);
-    try {
-      const tags = await getWorkspaceTagsApi();
-      setAllWorkspaceTags(tags);
-    } catch (err) {
-      console.error('Failed to load workspace tags:', err);
-    }
-  };
+
 
   const handleSaveTags = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -1035,6 +1024,7 @@ export const MediaTable = ({
                         }}
                       >
                         {file.cdnUrl ? (
+                          /* eslint-disable-next-line @next/next/no-img-element */
                           <img
                             src={file.cdnUrl}
                             alt={file.name}
@@ -1133,7 +1123,7 @@ export const MediaTable = ({
                                 setActiveDropdownId(null);
                                 try {
                                   await downloadMediaFileClientApi(file.id, file.name);
-                                } catch (e) {
+                                } catch {
                                   showFeedback(`Failed to download ${file.name}`, 'error');
                                 }
                               }} className="w-full text-left px-3 py-2 text-xs hover:bg-bg/50 flex items-center gap-2"><Icon icon="lucide:download" width={14} /> Download</button>
@@ -1284,6 +1274,7 @@ export const MediaTable = ({
                 >
                   <div className="h-12 w-12 shrink-0 rounded-lg overflow-hidden bg-slate-900/50 relative border border-border/50">
                     {file.cdnUrl ? (
+                      /* eslint-disable-next-line @next/next/no-img-element */
                       <img src={file.cdnUrl} alt={file.name} className="h-full w-full object-cover" />
                     ) : (
                       <div className="flex items-center justify-center w-full h-full">
@@ -1487,6 +1478,7 @@ export const MediaTable = ({
                 >
                   <div className="aspect-square bg-slate-900/50 relative border-b border-border/50">
                     {file.cdnUrl ? (
+                      /* eslint-disable-next-line @next/next/no-img-element */
                       <img src={file.cdnUrl} alt={file.name} className="h-full w-full object-cover" />
                     ) : (
                       <div className="flex items-center justify-center w-full h-full">
@@ -1541,7 +1533,7 @@ export const MediaTable = ({
                                 setActiveDropdownId(null);
                                 try {
                                   await downloadMediaFileClientApi(file.id, file.name);
-                                } catch (e) {
+                                } catch {
                                   showFeedback(`Failed to download ${file.name}`, 'error');
                                 }
                               }} className="w-full text-left px-3 py-2 text-xs hover:bg-bg/50 flex items-center gap-2"><Icon icon="lucide:download" width={14} /> Download</button>

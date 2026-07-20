@@ -73,6 +73,11 @@ export function UploadMediaModal({ isOpen, onClose, onSuccess, folderId, initial
     }
   }, [isOpen]);
 
+  const widthRef = useRef(width);
+  useEffect(() => {
+    widthRef.current = width;
+  }, [width]);
+
   // Sync preset to custom settings
   useEffect(() => {
     if (preset === "web_balanced") {
@@ -83,7 +88,7 @@ export function UploadMediaModal({ isOpen, onClose, onSuccess, folderId, initial
       setFormat("avif");
       setQuality("60");
       setStripMetadata(true);
-      if (!width) setWidth("1080");
+      if (!widthRef.current) setWidth("1080");
     } else if (preset === "lossless") {
       setFormat("webp");
       setStripMetadata(false);

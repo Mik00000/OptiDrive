@@ -47,16 +47,19 @@ async function main() {
     });
 
     // Link users. Since we lost the role column in DB, we'll make the first user owner and the rest members.
-    const users = await prisma.user.findMany({ where: { workspaceId: workspace.id }, orderBy: { createdAt: 'asc' } });
-    if (users.length > 0) {
-      await prisma.user.update({
-        where: { id: users[0].id },
+    const workspaceUsers = await prisma.workspaceUser.findMany({
+      where: { workspaceId: workspace.id },
+      orderBy: { createdAt: 'asc' }
+    });
+    if (workspaceUsers.length > 0) {
+      await prisma.workspaceUser.update({
+        where: { id: workspaceUsers[0]!.id },
         data: { roleId: ownerRole.id }
       });
 
-      for (let i = 1; i < users.length; i++) {
-        await prisma.user.update({
-          where: { id: users[i].id },
+      for (let i = 1; i < workspaceUsers.length; i++) {
+        await prisma.workspaceUser.update({
+          where: { id: workspaceUsers[i]!.id },
           data: { roleId: memberRole.id }
         });
       }

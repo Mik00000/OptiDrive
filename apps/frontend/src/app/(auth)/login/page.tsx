@@ -58,7 +58,7 @@ export default function LoginPage() {
         }
       }
     }
-  }, [login]);
+  }, [login, router]);
 
   // Валідація полів перед сабмітом
   const validateForm = (): boolean => {

@@ -1,11 +1,11 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/Button';
 import Switch from '@/components/Switch';
 import { Input } from '@/components/Inputs';
 import { Icon } from '@iconify/react';
-import { getCompressionDefaultsApi, updateCompressionDefaultsApi, CompressionDefaults } from '../api';
+import { getCompressionDefaultsApi, updateCompressionDefaultsApi } from '../api';
 import { useAuth } from '@/contexts/AuthContext';
 import { uploadWatermarkApi } from '@/features/media/api';
 
@@ -63,6 +63,11 @@ export const CompressionTab = () => {
     fetchDefaults();
   }, []);
 
+  const maxWidthRef = useRef(maxWidth);
+  useEffect(() => {
+    maxWidthRef.current = maxWidth;
+  }, [maxWidth]);
+
   // Sync preset choice to automatic values (optional helper, but lets them customize)
   useEffect(() => {
     if (preset === 'web_balanced') {
@@ -73,7 +78,7 @@ export const CompressionTab = () => {
       setFormat('avif');
       setQuality(60);
       setStripMetadata(true);
-      if (!maxWidth) setMaxWidth('1080');
+      if (!maxWidthRef.current) setMaxWidth('1080');
     } else if (preset === 'lossless') {
       setFormat('webp');
       setStripMetadata(false);
@@ -302,6 +307,7 @@ export const CompressionTab = () => {
                           {watermarkUrl ? (
                             <div className="flex items-center gap-2.5 p-2 bg-[#0c1222]/80 border border-white/5 rounded-lg flex-1 overflow-hidden">
                               <div className="h-8 w-8 rounded border border-border bg-slate-900 flex items-center justify-center shrink-0 overflow-hidden">
+                                {/* eslint-disable-next-line @next/next/no-img-element */}
                                 <img src={watermarkUrl} alt="Watermark preview" className="max-h-full max-w-full object-contain" />
                               </div>
                               <span className="text-[11px] font-mono text-text-muted truncate flex-1">

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, use } from 'react';
+import { useState, useEffect, use, useCallback } from 'react';
 import { Icon } from '@iconify/react';
 import { Input } from '@/components/Inputs';
 import { Button } from '@/components/Button';
@@ -18,7 +18,7 @@ export default function SharedLinkPage({ params }: { params: Promise<{ slug: str
   const [password, setPassword] = useState('');
   const [pwdError, setPwdError] = useState('');
 
-  const fetchInfo = async (pwd?: string) => {
+  const fetchInfo = useCallback(async (pwd?: string) => {
     setLoading(true);
     setError(null);
     setPwdError('');
@@ -37,11 +37,11 @@ export default function SharedLinkPage({ params }: { params: Promise<{ slug: str
     } finally {
       setLoading(false);
     }
-  };
+  }, [slug]);
 
   useEffect(() => {
     fetchInfo();
-  }, [slug]);
+  }, [fetchInfo]);
 
   const handlePasswordSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -185,6 +185,7 @@ export default function SharedLinkPage({ params }: { params: Promise<{ slug: str
             /* Fullscreen Image Preview */
             <div className="w-full h-full flex items-center justify-center">
               {info.cdnUrl ? (
+                /* eslint-disable-next-line @next/next/no-img-element */
                 <img 
                   src={info.cdnUrl} 
                   alt={info.name} 

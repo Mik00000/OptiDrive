@@ -203,6 +203,7 @@ export const uploadWatermarkApi = async (formData: FormData): Promise<UploadWate
 
 
 export const downloadMediaFileClientApi = async (id: string, filename: string): Promise<void> => {
+  void filename;
   const token = localStorage.getItem('optidrive_token');
   const response = await fetch(`/api/internal/media/download/${id}`, {
     method: 'GET',

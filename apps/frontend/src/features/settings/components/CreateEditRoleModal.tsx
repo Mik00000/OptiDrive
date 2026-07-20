@@ -27,12 +27,11 @@ export function CreateEditRoleModal({ isOpen, onClose, onSuccess, initialData, m
 
   const isView = mode === 'view';
   const isEdit = mode === 'edit';
-  const isDuplicate = mode === 'duplicate';
 
   useEffect(() => {
     if (isOpen) {
       if (initialData && mode !== 'create') {
-        setName(isDuplicate ? `${initialData.name} (Copy)` : initialData.name);
+        setName(mode === 'duplicate' ? `${initialData.name} (Copy)` : initialData.name);
         setDescription(initialData.description || "");
         setSelectedPermissions(initialData.permissions);
       } else {

@@ -7,7 +7,6 @@ import { Icon } from '@iconify/react';
 import { ConfirmModal } from './ConfirmModal';
 import { ChangePasswordModal } from './ChangePasswordModal';
 import { useAuth } from '@/contexts/AuthContext';
-import { useRouter } from 'next/navigation';
 import { Modal } from '@/components/Modal';
 import { UserAvatar } from '@/components/UserAvatar';
 import { 
@@ -20,7 +19,6 @@ import {
 
 export const ProfileTab = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const router = useRouter();
   const { user, login, logout } = useAuth();
   
   const [name, setName] = useState(user?.name || '');
@@ -49,7 +47,6 @@ export const ProfileTab = () => {
   const [cropZoom, setCropZoom] = useState(1);
   const [cropPanX, setCropPanX] = useState(0);
   const [cropPanY, setCropPanY] = useState(0);
-  const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
   
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [imageObj, setImageObj] = useState<HTMLImageElement | null>(null);
@@ -198,7 +195,6 @@ export const ProfileTab = () => {
       if (!blob) return;
       const file = new File([blob], 'cropped-avatar.png', { type: 'image/png' });
       setIsCropModalOpen(false);
-      setIsUploadingAvatar(true);
       showFeedback('Uploading avatar...', 'info');
 
       try {
@@ -210,7 +206,6 @@ export const ProfileTab = () => {
         console.error(err);
         setErrorMessage(err.data?.error || err.response?.data?.error || err.message || 'Failed to upload avatar');
       } finally {
-        setIsUploadingAvatar(false);
         setCropImageSrc(null);
       }
     }, 'image/png');

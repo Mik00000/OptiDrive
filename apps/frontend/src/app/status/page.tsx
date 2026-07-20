@@ -57,7 +57,7 @@ export default function StatusPage() {
       let cdnStatus = 'operational';
       try {
         await fetch('/images/logo.svg', { method: 'HEAD' });
-      } catch (err) {
+      } catch {
         cdnStatus = 'degraded';
       }
       const cdnEnd = performance.now();

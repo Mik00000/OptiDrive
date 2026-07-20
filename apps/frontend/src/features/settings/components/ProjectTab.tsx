@@ -16,7 +16,6 @@ export const ProjectTab = () => {
   
   const activeWorkspace = workspaces.find((w) => w.id === user?.workspaceId);
   const isOwner = activeWorkspace?.role?.name === 'Owner';
-  const isOnlyMember = activeWorkspace?.membersCount === 1;
   const isEnterprise = activeWorkspace?.plan === 'ENTERPRISE';
   
   const [name, setName] = useState(activeWorkspace?.name || '');
@@ -109,7 +108,7 @@ export const ProjectTab = () => {
     return () => {
       if (interval) clearInterval(interval);
     };
-  }, [activeWorkspace?.migrationStatus, user]);
+  }, [activeWorkspace?.migrationStatus, user, login]);
 
   const handleTestConnection = async () => {
     const hasSavedS3 = activeWorkspace?.s3AccessKeyId && activeWorkspace?.s3BucketName;
@@ -211,7 +210,7 @@ export const ProjectTab = () => {
         customS3Data.s3PublicUrl = s3PublicUrl.trim();
       }
 
-      const response = await updateWorkspaceApi(
+      await updateWorkspaceApi(
         name.trim(),
         slug.trim() || undefined,
         customS3Data

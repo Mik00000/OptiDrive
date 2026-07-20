@@ -2,7 +2,6 @@
 
 import { Button } from "@/components/Button";
 import { Modal } from "@/components/Modal";
-import { Icon } from "@iconify/react";
 import { Input } from "@/components/Inputs";
 import { useState, useEffect } from "react";
 

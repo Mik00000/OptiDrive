@@ -228,7 +228,7 @@ export default function AdminConsolePage() {
         toast.info("Request rejected.");
         fetchRequests();
       }
-    } catch (err: any) {
+    } catch {
       toast.error("Failed to reject request.");
     }
   };
@@ -274,7 +274,7 @@ export default function AdminConsolePage() {
           fetchIncidents();
         }
       }
-    } catch (err: any) {
+    } catch {
       toast.error("Failed to save incident.");
     } finally {
       setIncidentSubmitLoading(false);
@@ -289,7 +289,7 @@ export default function AdminConsolePage() {
         toast.info("Incident removed.");
         fetchIncidents();
       }
-    } catch (err) {
+    } catch {
       toast.error("Failed to delete incident.");
     }
   };
@@ -313,7 +313,7 @@ export default function AdminConsolePage() {
         setIsBonusModalOpen(false);
         fetchWorkspacesAndUsers();
       }
-    } catch (err: any) {
+    } catch {
       toast.error("Failed to apply storage bonus.");
     } finally {
       setBonusSubmitLoading(false);
@@ -329,7 +329,7 @@ export default function AdminConsolePage() {
         toast.success(`Workspace is now ${w.isBanned ? "Active" : "Suspended"}`);
         fetchWorkspacesAndUsers();
       }
-    } catch (err) {
+    } catch {
       toast.error("Failed to toggle workspace ban status.");
     }
   };
@@ -343,7 +343,7 @@ export default function AdminConsolePage() {
         toast.success(`User account is now ${u.isBanned ? "Active" : "Suspended"}`);
         fetchWorkspacesAndUsers();
       }
-    } catch (err) {
+    } catch {
       toast.error("Failed to toggle user ban status.");
     }
   };
@@ -359,7 +359,7 @@ export default function AdminConsolePage() {
         toast.success(res.message);
         setCdnValue('/*');
       }
-    } catch (err) {
+    } catch {
       toast.error("Failed to purge CDN cache.");
     } finally {
       setCdnPurging(false);

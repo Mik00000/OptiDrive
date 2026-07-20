@@ -3,7 +3,6 @@
 import React, { useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { useAuth } from '@/contexts/AuthContext';
 import { registerApi } from '@/features/auth/api';
 import { Suspense } from 'react';
 import { SocialLoginButtons } from '@/features/auth/SocialLoginButtons';
@@ -12,7 +11,6 @@ import { Button } from '@/components/Button';
 import { Icon } from '@iconify/react';
 
 function RegisterForm() {
-  const { login } = useAuth();
   const searchParams = useSearchParams();
   const returnTo = searchParams.get('returnTo');
   

@@ -4,7 +4,6 @@ import { useEffect } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import Image from 'next/image';
-import { Icon } from '@iconify/react';
 import { PageLoader } from '@/components/PageLoader';
 
 export default function AuthLayout({

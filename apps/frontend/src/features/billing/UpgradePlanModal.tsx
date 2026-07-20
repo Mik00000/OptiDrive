@@ -23,21 +23,17 @@ export function UpgradePlanModal({ isOpen, onClose, stats, onPlanUpdated, isSubs
   const [isLoadingPro, setIsLoadingPro] = useState(false);
   const [isEnterpriseModalOpen, setIsEnterpriseModalOpen] = useState(false);
   const [enterpriseStatus, setEnterpriseStatus] = useState<EnterpriseRequestStatus | null>(null);
-  const [isLoadingStatus, setIsLoadingStatus] = useState(false);
   const [showStandardPlans, setShowStandardPlans] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
       setShowStandardPlans(false);
       const fetchEnterpriseStatus = async () => {
-        setIsLoadingStatus(true);
         try {
           const status = await getEnterpriseRequestStatusApi();
           setEnterpriseStatus(status);
         } catch (error) {
           console.error("Failed to fetch enterprise request status:", error);
-        } finally {
-          setIsLoadingStatus(false);
         }
       };
 

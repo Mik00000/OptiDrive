@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { Button } from '@/components/Button';
 import { Icon } from '@iconify/react';
 import { getRolesApi, deleteRoleApi } from '../api';
-import { Role, Permission, PLANS, PlanType } from '@optidrive/shared';
+import { Role, PLANS, PlanType } from '@optidrive/shared';
 import { ConfirmModal } from './ConfirmModal';
 import { CreateEditRoleModal } from './CreateEditRoleModal';
 import Link from 'next/link';

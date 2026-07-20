@@ -4,7 +4,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { useThrottle } from '@/hooks/useThrottle';
 import { Icon } from '@iconify/react';
 import { Modal } from '@/components/Modal';
-import { MediaFile, downloadMediaFileClientApi, uploadMediaFileApi, uploadWatermarkApi } from './api';
+import { MediaFile, downloadMediaFileClientApi, uploadWatermarkApi } from './api';
 import { Button } from '@/components/Button';
 import { useAuth } from '@/contexts/AuthContext';
 import { createShareLinkApi, getShareLinksApi, deleteShareLinkApi, ShareLink } from '../share/api';
@@ -572,7 +572,7 @@ export function MediaPreviewModal({ isOpen, onClose, file, onDelete, initialTab 
     ctx.textAlign = 'center';
     ctx.fillText(labelText, rx + rw / 2, labelY + 13);
     ctx.restore();
-  }, [pan, zoom, cropEnabled, showGrid, enableWatermark, watermarkType, watermarkText, watermarkOpacity, wmImgObj, wmX, wmY, wmSize, wmRotation]);
+  }, [pan, zoom, cropEnabled, showGrid, enableWatermark, watermarkType, watermarkText, watermarkOpacity, wmImgObj, wmX, wmY, wmSize, wmRotation, isProOrEnterprise]);
 
   useEffect(() => {
     if (imgLoaded) draw();
@@ -953,6 +953,11 @@ export function MediaPreviewModal({ isOpen, onClose, file, onDelete, initialTab 
     draw();
   };
 
+  const watermarkTextRef = useRef(watermarkText);
+  useEffect(() => {
+    watermarkTextRef.current = watermarkText;
+  }, [watermarkText]);
+
   // ──────────── Load Workspace Default Watermarks ────────────
   useEffect(() => {
     if (isOpen && isProOrEnterprise) {
@@ -962,7 +967,7 @@ export function MediaPreviewModal({ isOpen, onClose, file, onDelete, initialTab 
             defaultWatermarkText: data.defaultWatermarkText,
             defaultWatermarkUrl: data.defaultWatermarkUrl
           });
-          if (watermarkText === 'OptiDrive' && data.defaultWatermarkText) {
+          if (watermarkTextRef.current === 'OptiDrive' && data.defaultWatermarkText) {
             setWatermarkText(data.defaultWatermarkText);
           }
           if (data.defaultWatermarkUrl) {
@@ -1335,6 +1340,7 @@ export function MediaPreviewModal({ isOpen, onClose, file, onDelete, initialTab 
                 style={{ aspectRatio: `${CANVAS_W}/${CANVAS_H}` }}
               >
                 {file.format.toLowerCase() === 'svg' ? (
+                  /* eslint-disable-next-line @next/next/no-img-element */
                   <img
                     src={file.cdnUrl}
                     alt={file.name}
@@ -1576,6 +1582,7 @@ export function MediaPreviewModal({ isOpen, onClose, file, onDelete, initialTab 
                                   {useDefaultLogo && workspaceDefaults?.defaultWatermarkUrl ? (
                                     <div className="flex items-center gap-2.5 p-2 bg-[#0c1222]/80 border border-white/5 rounded-lg">
                                       <div className="h-8 w-8 rounded border border-border bg-slate-900 flex items-center justify-center shrink-0 overflow-hidden">
+                                        {/* eslint-disable-next-line @next/next/no-img-element */}
                                         <img src={workspaceDefaults.defaultWatermarkUrl} alt="Default watermark" className="max-h-full max-w-full object-contain" />
                                       </div>
                                       <span className="text-[10px] text-text-muted">Default workspace watermark from Settings → Compression</span>
@@ -1585,6 +1592,7 @@ export function MediaPreviewModal({ isOpen, onClose, file, onDelete, initialTab 
                                       {activeWatermarkImage ? (
                                         <div className="flex items-center gap-2 p-2 bg-[#0c1222]/80 border border-white/5 rounded-lg">
                                           <div className="h-8 w-8 rounded border border-border bg-slate-900 flex items-center justify-center shrink-0 overflow-hidden">
+                                            {/* eslint-disable-next-line @next/next/no-img-element */}
                                             <img src={activeWatermarkImage} alt="Watermark" className="max-h-full max-w-full object-contain" />
                                           </div>
                                           <span className="text-[10px] font-mono text-text-muted truncate flex-1">{activeWatermarkImage.split('/').pop()}</span>
@@ -1939,6 +1947,7 @@ export function MediaPreviewModal({ isOpen, onClose, file, onDelete, initialTab 
              ══════════════════════════════════════════════════════ */
           <>
             <div className="w-full bg-sidebar border border-border rounded-xl overflow-hidden flex items-center justify-center min-h-[280px] relative group">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={['svg', 'gif'].includes(file.format.toLowerCase()) ? file.cdnUrl : `${window.location.origin}/api/public/media/view/${file.id}?q=95&f=webp`}
                 alt={file.name}

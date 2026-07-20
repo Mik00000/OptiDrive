@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Icon } from "@iconify/react";
 import { Button } from "@/components/Button";
 import { Modal } from "@/components/Modal";
 import { Input } from "@/components/Inputs";

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import PageHeading from '@/components/PageHeading';
 import { Button } from '@/components/Button';
 import { Icon } from '@iconify/react';
@@ -53,7 +53,7 @@ export default function TrashPage() {
     setTimeout(() => setActionFeedback(null), 3000);
   };
 
-  const fetchTrash = async () => {
+  const fetchTrash = useCallback(async () => {
     setIsLoading(true);
     try {
       const data = await getTrashItemsApi(null); // Always request root flat list
@@ -67,11 +67,11 @@ export default function TrashPage() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     fetchTrash();
-  }, []);
+  }, [fetchTrash]);
 
   // Row Selection logic
   const handleSelectRow = (id: string) => {

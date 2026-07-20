@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/Button';
 import Switch from '@/components/Switch';
 import { Icon } from '@iconify/react';
-import { getUserNotificationsApi, updateUserNotificationsApi, UserNotificationPreferences } from '../api';
+import { getUserNotificationsApi, updateUserNotificationsApi } from '../api';
 import { getUsageAlertSettingsApi, updateUsageAlertSettingsApi, UsageAlertSettings } from '@/features/billing/api';
 import Slider from '@/components/Slider';
 

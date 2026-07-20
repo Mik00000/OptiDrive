@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, Suspense } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { Input } from '@/components/Inputs';
 import { Button } from '@/components/Button';
@@ -10,7 +10,6 @@ import { resetPasswordApi } from '@/features/auth/api';
 
 function ResetPasswordForm() {
   const searchParams = useSearchParams();
-  const router = useRouter();
 
   const [token, setToken] = useState<string | null>(null);
   const [password, setPassword] = useState('');

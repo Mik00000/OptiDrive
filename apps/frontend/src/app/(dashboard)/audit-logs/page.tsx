@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Icon } from '@iconify/react';
 import PageHeading from '@/components/PageHeading';
 import { Button } from '@/components/Button';
@@ -63,7 +63,7 @@ export default function AuditLogsPage() {
   const [endDate, setEndDate] = useState('');
   const [page, setPage] = useState(1);
 
-  const fetchLogs = async (currentPage = 1) => {
+  const fetchLogs = useCallback(async (currentPage = 1) => {
     if (!isEnterprise) return;
     setIsLoading(true);
     setErrorMsg(null);
@@ -89,11 +89,11 @@ export default function AuditLogsPage() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [isEnterprise, type, search, startDate, endDate]);
 
   useEffect(() => {
     fetchLogs(page);
-  }, [page, type, startDate, endDate, isEnterprise]);
+  }, [page, fetchLogs]);
 
   // Handle Search Apply
   const handleSearchSubmit = (e: React.FormEvent) => {
